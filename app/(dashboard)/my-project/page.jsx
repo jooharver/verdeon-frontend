@@ -1,7 +1,10 @@
-// app/(dashboard)/my-project/page.jsx
 'use client';
 
 import React, { useState, useMemo } from 'react';
+// Impor Recharts untuk grafik
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts';
 import styles from './MyProject.module.css';
 import Topbar from '../../components/Topbar';
 import { 
@@ -11,7 +14,7 @@ import {
   FaSort, FaSortUp, FaSortDown
 } from 'react-icons/fa';
 
-// Data Dummy (Sama seperti sebelumnya, 11 item)
+// Data Dummy (Sama seperti sebelumnya)
 const dummyProjects = [
   { id: 1, name: "PT Green Energy Solar Farm", status: "Published", tokens: 50000, createdAt: "2025-10-28" },
   { id: 2, name: "Java Geothermal Plant", status: "In Review", tokens: 15000, createdAt: "2025-11-05" },
@@ -24,6 +27,22 @@ const dummyProjects = [
   { id: 9, name: "Borneo Mangrove Project", status: "Published", tokens: 95000, createdAt: "2025-10-20" },
   { id: 10, name: "Nusa Tenggara Wave Energy", status: "Failed", tokens: 0, createdAt: "2025-10-01" },
   { id: 11, name: "Flores Geothermal II", status: "In Review", tokens: 30000, createdAt: "2025-11-20" },
+];
+
+// Data Dummy untuk Grafik Penjualan Token
+const salesData = [
+  { month: 'Jan', sales: 400 },
+  { month: 'Feb', sales: 300 },
+  { month: 'Mar', sales: 600 },
+  { month: 'Apr', sales: 800 },
+  { month: 'May', sales: 700 },
+  { month: 'Jun', sales: 900 },
+  { month: 'Jul', sales: 1100 },
+  { month: 'Aug', sales: 1000 },
+  { month: 'Sep', sales: 1300 },
+  { month: 'Oct', sales: 1500 },
+  { month: 'Nov', sales: 1700 },
+  { month: 'Dec', sales: 1900 },
 ];
 
 export default function MyProjectPage() {
@@ -40,7 +59,7 @@ export default function MyProjectPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
 
-  // Logika untuk widget
+  // Logika untuk widget (tetap dipakai di card overview)
   const stats = useMemo(() => ({
     total: projects.length,
     published: projects.filter(p => p.status === 'Published').length,
@@ -88,7 +107,12 @@ export default function MyProjectPage() {
   // --- Handlers ---
   const handleCreate = () => { setCurrentProject(null); setIsModalOpen(true); };
   const handleEdit = (project) => { setCurrentProject(project); setIsModalOpen(true); };
-  const handleDelete = (id) => { if (confirm("...")) { setProjects(projects.filter(p => p.id !== id)); } };
+  const handleDelete = (id) => { 
+    // Ganti confirm() dengan modal kustom jika ada, untuk saat ini pakai confirm
+    if (window.confirm("Are you sure you want to delete this project?")) { 
+      setProjects(projects.filter(p => p.id !== id)); 
+    }
+  };
   const handleSave = (formData) => {
     if (currentProject) {
       setProjects(projects.map(p => p.id === currentProject.id ? { ...p, ...formData } : p));
@@ -119,50 +143,110 @@ export default function MyProjectPage() {
       <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
       <main className={styles.container}>
         
-        {/* --- 1. WIDGET BANTU (JSX DIPERBARUI) --- */}
-        <section className={styles.widgetsGrid}>
+        {/* --- 1. LAYOUT GRID ATAS (2 KARTU) --- */}
+        <section className={styles.topGrid}>
           
-          {/* Widget 1 */}
-          <div className={styles.widgetCard}>
-            {/* INI PERBAIKANNYA: Ikon dibungkus div */}
-            <div className={styles.widgetIconBox}>
-              <FaLayerGroup className={styles.widgetIcon} />
-            </div>
-            <div className={styles.widgetText}>
-              <span className={styles.widgetLabel}>Total Projects</span>
-              <span className={styles.widgetValue}>{stats.total}</span>
-            </div>
-          </div>
-          
-          {/* Widget 2 */}
-          <div className={styles.widgetCard}>
-            {/* INI PERBAIKANNYA: Ikon dibungkus div */}
-            <div className={styles.widgetIconBox}>
-              <FaCheckCircle className={`${styles.widgetIcon} ${styles.iconPublished}`} />
-            </div>
-            <div className={styles.widgetText}>
-              <span className={styles.widgetLabel}>Published</span>
-              <span className={styles.widgetValue}>{stats.published}</span>
+          {/* Card Kiri: Overview */}
+          <div className={styles.infoCard}>
+            <h3>Project Overview</h3>
+            <div className={styles.overviewStatsContainer}>
+              
+              {/* Stat 1: Total Projects */}
+              <div className={styles.statItem}>
+                <div className={`${styles.statItemIcon} ${styles.iconTotal}`}>
+                  <FaLayerGroup />
+                </div>
+                <div className={styles.statItemInfo}>
+                  <span className={styles.statItemLabel}>Total Projects</span>
+                  <span className={styles.statItemValue}>{stats.total}</span>
+                </div>
+              </div>
+              
+              {/* Stat 2: Published */}
+              <div className={styles.statItem}>
+                <div className={`${styles.statItemIcon} ${styles.iconPublished}`}>
+                  <FaCheckCircle />
+                </div>
+                <div className={styles.statItemInfo}>
+                  <span className={styles.statItemLabel}>Published</span>
+                  <span className={styles.statItemValue}>{stats.published}</span>
+                </div>
+              </div>
+
+              {/* Stat 3: In Review */}
+              <div className={styles.statItem}>
+                <div className={`${styles.statItemIcon} ${styles.iconReview}`}>
+                  <FaClock />
+                </div>
+                <div className={styles.statItemInfo}>
+                  <span className={styles.statItemLabel}>In Review</span>
+                  <span className={styles.statItemValue}>{stats.inReview}</span>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {/* Widget 3 */}
-          <div className={styles.widgetCard}>
-            {/* INI PERBAIKANNYA: Ikon dibungkus div */}
-            <div className={styles.widgetIconBox}>
-              <FaClock className={`${styles.widgetIcon} ${styles.iconInReview}`} />
-            </div>
-            <div className={styles.widgetText}>
-              <span className={styles.widgetLabel}>In Review</span>
-              <span className={styles.widgetValue}>{stats.inReview}</span>
+          {/* Card Kanan: Performance */}
+          <div className={`${styles.infoCard} ${styles.performanceCard}`}>
+            <h3>Token Sale Performance</h3>
+            <div className={styles.chartContainer}>
+              {/* Pastikan Anda sudah install recharts: npm install recharts */}
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={salesData}
+                  margin={{
+                    top: 10, right: 30, left: 0, bottom: 0,
+                  }}
+                >
+                  <defs>
+                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                  <XAxis 
+                    dataKey="month" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    stroke="var(--text-secondary)"
+                  />
+                  <YAxis 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    stroke="var(--text-secondary)"
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'var(--bg-card)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '8px',
+                      color: 'var(--text-primary)'
+                    }}
+                    itemStyle={{ color: 'var(--text-primary)' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="sales" 
+                    stroke="#16a34a" 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#colorSales)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
+
         </section>
 
-        {/* --- 2. KARTU CRUD UTAMA --- */}
+        {/* --- 2. KARTU CRUD UTAMA (Tabel) --- */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Your Projects</h3>
+            <h3 className={styles.cardTitle}>All Projects</h3>
             <button className={styles.primaryButton} onClick={handleCreate}>
               <FaPlus /> <span>Create Project</span>
             </button>
@@ -175,7 +259,7 @@ export default function MyProjectPage() {
             </div>
           </div>
 
-          {/* --- 3. TABLE DATA (HEADER SORTING) --- */}
+          {/* --- 3. TABLE DATA --- */}
           <div className={styles.tableContainer}>
             <div className={styles.table}>
               <div className={`${styles.tableRow} ${styles.tableHeader}`}>
@@ -205,13 +289,13 @@ export default function MyProjectPage() {
               {/* Table Body */}
               {paginatedProjects.length > 0 ? paginatedProjects.map(project => (
                 <div className={styles.tableRow} key={project.id}>
-                  <div className={styles.tableCell}><span className={styles.projectName}>{project.name}</span></div>
-                  <div className={styles.tableCell}>{renderStatusBadge(project.status)}</div>
-                  <div className={styles.tableCell}>{project.tokens.toLocaleString()}</div>
-                  <div className={styles.tableCell}>{project.createdAt}</div>
-                  <div className={`${styles.tableCell} ${styles.actionsCell}`}>
-                    <button className={styles.iconButton} onClick={() => handleEdit(project)}><FaEdit /></button>
-                    <button className={`${styles.iconButton} ${styles.iconDelete}`} onClick={() => handleDelete(project.id)}><FaTrash /></button>
+                  <div className={styles.tableCell} data-label="Project Name"><span className={styles.projectName}>{project.name}</span></div>
+                  <div className={styles.tableCell} data-label="Status">{renderStatusBadge(project.status)}</div>
+                  <div className={styles.tableCell} data-label="Tokens">{project.tokens.toLocaleString()}</div>
+                  <div className={styles.tableCell} data-label="Created At">{project.createdAt}</div>
+                  <div className={`${styles.tableCell} ${styles.actionsCell}`} data-label="Actions">
+                    <button className={styles.iconButton} onClick={() => handleEdit(project)} title="Edit"><FaEdit /></button>
+                    <button className={`${styles.iconButton} ${styles.iconDelete}`} onClick={() => handleDelete(project.id)} title="Delete"><FaTrash /></button>
                   </div>
                 </div>
               )) : (
@@ -225,11 +309,13 @@ export default function MyProjectPage() {
           {/* --- 4. FOOTER PAGINASI --- */}
           <div className={styles.cardFooter}>
             <span className={styles.footerInfo}>
-              Menampilkan {startItem} - {endItem} dari {totalItems} data
+              Showing {startItem} - {endItem} of {totalItems} results
             </span>
             <div className={styles.footerControls}>
               <select className={styles.perPageSelect} value={itemsPerPage} onChange={handleItemsPerPageChange}>
-                <option value={5}>5</option> <option value={10}>10</option> <option value={25}>25</option>
+                <option value={5}>5 per page</option> 
+                <option value={10}>10 per page</option> 
+                <option value={25}>25 per page</option>
               </select>
               <div className={styles.pagination}>
                 <button className={styles.paginationButton} onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>

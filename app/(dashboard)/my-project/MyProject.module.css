@@ -1,5 +1,4 @@
-/* app/(dashboard)/my-project/MyProject.module.css */
-
+/* --- Global Container --- */
 .container {
   padding: 24px;
   display: flex;
@@ -9,81 +8,142 @@
   transition: background-color 0.2s ease;
 }
 
-/* --- Widgets (CSS DIPERBARUI) --- */
-.widgetsGrid {
+/* --- 
+  BARU: Grid Atas (Overview & Performance) 
+--- */
+.topGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(1, 1fr); /* Default 1 kolom (mobile) */
   gap: 24px;
 }
-.widgetCard {
+
+/* Base card untuk grid atas */
+.infoCard {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 20px;
+  padding: 20px 24px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 16px;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-/* INI KOTAKNYA */
-.widgetIconBox {
-  padding: 12px;
-  border-radius: 8px;
+.infoCard h3 {
+  font-size: 1.1rem; /* Sedikit lebih kecil dari judul card utama */
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* --- Card Kiri: Overview --- */
+.overviewStatsContainer {
+  display: grid;
+  /* Grid responsif: 1, 2, atau 3 kolom tergantung lebar */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background-color: var(--bg-main);
-  /* Tambahan untuk menengahkan ikon di dalam kotak */
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.statItemIcon {
+  font-size: 1.5rem;
+  padding: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* INI IKON DI DALAM KOTAK */
-.widgetIcon {
-  font-size: 1.5rem;
-  color: var(--brand-color);
-  /* Hapus padding & background dari sini */
-}
+/* Warna-warna untuk ikon stats */
+.iconTotal { color: var(--brand-color); background-color: #e0f2fe; } /* Biru muda */
+.iconPublished { color: #16a34a; background-color: #dcfce7; } /* Hijau muda */
+.iconReview { color: #d97706; background-color: #fef9c3; } /* Kuning muda */
 
-/* Ini tetap, untuk mewarnai ikon spesifik */
-.iconPublished { color: #16a34a; }
-.iconInReview { color: #d97706; }
-
-.widgetText {
+.statItemInfo {
   display: flex;
   flex-direction: column;
 }
-.widgetLabel {
-  font-size: 0.9rem;
-  font-weight: 500;
+
+.statItemLabel {
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
 }
-.widgetValue {
-  font-size: 1.75rem;
+
+.statItemValue {
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-/* --- Card Utama --- */
+/* --- Card Kanan: Performance --- */
+.performanceCard {
+  min-height: 320px; /* Pastikan ada cukup ruang untuk chart */
+}
+
+.chartContainer {
+  width: 100%;
+  height: 250px; /* Tinggi spesifik untuk container chart */
+}
+
+/* --- 
+  Breakpoint untuk layout grid atas 
+--- */
+@media (min-width: 900px) {
+  .topGrid {
+    /* 1 bagian untuk overview, 1.5 bagian untuk performance */
+    grid-template-columns: 1fr 1.5fr;
+  }
+}
+@media (min-width: 1200px) {
+  /* 1 bagian untuk overview, 2 bagian untuk performance */
+  .topGrid {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
+
+/* --- 
+  CSS LAMA YANG MASIH RELEVAN
+  (Card Utama, Tabel, Modal, dll)
+--- */
+
+/* --- Card Utama (Tabel) --- */
 .card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
   transition: background-color 0.2s ease, border-color 0.2s ease;
-  overflow: hidden;
+  overflow: hidden; /* Penting untuk border-radius */
 }
 .cardHeader {
   display: flex;
+  flex-wrap: wrap; /* Agar responsif di mobile */
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px 0 24px;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color); /* Pindah border dari toolbar */
 }
 .cardTitle {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
+  margin: 0;
 }
 .primaryButton {
   display: flex;
@@ -97,6 +157,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  white-space: nowrap;
 }
 .primaryButton:hover {
   opacity: 0.9;
@@ -135,15 +196,16 @@
 /* --- Table --- */
 .tableContainer {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: auto; /* Memungkinkan scroll horizontal jika tabel terlalu lebar */
 }
 .table {
   width: 100%;
-  min-width: 700px;
+  min-width: 700px; /* Lebar minimum agar kolom tidak terlalu sempit */
   border-collapse: collapse;
 }
 .tableRow {
   display: grid;
+  /* Kolom grid disesuaikan dengan 5 kolom data */
   grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr;
   width: 100%;
   border-bottom: 1px solid var(--border-color);
@@ -158,11 +220,11 @@
 
 .tableHeader {
   background-color: var(--bg-main);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color); /* Header lebih tebal */
 }
 
 .tableHeader .tableCell {
-  padding: 0; /* Padding dipindah ke tombol */
+  padding: 0; /* Padding ada di tombol */
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -170,7 +232,7 @@
   letter-spacing: 0.5px;
 }
 
-/* --- STYLE UNTUK SORTING HEADER --- */
+/* Style untuk Sorting Header */
 .tableCellSortable button {
   display: flex;
   justify-content: space-between;
@@ -193,9 +255,9 @@
   opacity: 0.5;
 }
 .sortIconActive {
-  color: var(--text-primary);
+  color: var(--brand-color); /* Lebih jelas saat aktif */
+  opacity: 1;
 }
-/* ------------------------------------- */
 
 .tableCell {
   display: flex;
@@ -203,10 +265,13 @@
   padding: 16px 24px;
   font-size: 0.9rem;
   color: var(--text-primary);
+  /* Untuk data-label responsif (jika diperlukan) */
+  position: relative;
 }
 
 .projectName {
   font-weight: 600;
+  color: var(--text-primary);
 }
 .actionsCell {
   display: flex;
@@ -220,14 +285,18 @@
   padding: 4px;
   color: var(--text-secondary);
   transition: color 0.2s ease;
+  border-radius: 4px;
 }
 .iconButton:hover {
   color: var(--brand-color);
+  background-color: var(--nav-link-hover-bg);
 }
 .iconDelete:hover {
-  color: #ef4444;
+  color: #ef4444; /* Merah */
+  background-color: #fee2e2; /* Merah muda */
 }
 .emptyState {
+  grid-column: 1 / -1; /* Span semua kolom */
   padding: 40px 24px;
   text-align: center;
   color: var(--text-secondary);
@@ -255,22 +324,32 @@
   background-color: rgba(0, 0, 0, 0.6);
   display: flex; align-items: center; justify-content: center;
   z-index: 100;
+  padding: 16px;
 }
 .modalContent {
   background-color: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  width: 90%;
+  width: 100%;
   max-width: 500px;
   z-index: 101;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  /* Animasi modal (sederhana) */
+  animation: modalFadeIn 0.2s ease-out;
 }
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .modalTitle {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
+  margin: 0;
 }
 .formGroup {
   display: flex;
@@ -329,6 +408,9 @@
   padding: 16px 24px;
   border-top: 1px solid var(--border-color);
   background-color: var(--bg-main);
+  /* Pastikan footer mengikuti border-radius card */
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 .footerInfo {
   font-size: 0.9rem;
@@ -337,6 +419,7 @@
 }
 .footerControls {
   display: flex;
+  flex-wrap: wrap; /* Responsif */
   align-items: center;
   gap: 16px;
 }
@@ -373,6 +456,7 @@
 }
 .paginationButton:hover:not(:disabled) {
   background-color: var(--nav-link-hover-bg);
+  border-color: var(--border-color);
 }
 .paginationButton:disabled {
   opacity: 0.5;
