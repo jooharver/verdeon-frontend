@@ -1,0 +1,159 @@
+/* components/Sidebar.module.css */
+
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background-color: var(--bg-sidebar);
+  /* border-right: 1px solid var(--border-color); */
+  display: flex;
+  flex-direction: column;
+  position: relative; 
+  transition: width 0.3s ease; 
+  
+  z-index: 50; /* <-- TAMBAHKAN INI (Mengangkat sidebar di atas .mainContent) */
+}
+/* --- STATE COLLAPSED --- */
+.sidebar.collapsed {
+  width: var(--sidebar-width-collapsed);
+}
+/* ----------------------- */
+
+
+/* Tombol Toggle Baru */
+.toggleButton {
+  position: absolute;
+  top: 22px;
+  right: -15px; 
+  
+  z-index: 99; /* <-- UBAH INI (Agar di atas segalanya) */
+
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--brand-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggleButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* Logo Container */
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background-color: var(--bg-main);
+  justify-content: flex-start;
+  border-bottom: 1px solid var(--border-color); 
+  overflow: hidden; /* Tambahkan ini */
+  /* --- TAMBAHKAN DUA BARIS INI --- */
+  height: var(--header-height);
+  min-height: var(--header-height); /* Fallback untuk flexbox */
+}
+
+.sidebar.collapsed .logoContainer {
+  justify-content: center;
+  padding: 20px 10px; 
+}
+
+.logo {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  padding: 4px 5px 6px 5px;
+  background-color: var(--brand-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.logoText {
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.logoTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.logoSubtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Nav Container */
+.navContainer {
+  flex: 1; 
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+.navList {
+  list-style: none;
+  padding: 0 12px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background-color 0.2s, color 0.2s;
+  white-space: nowrap; 
+  overflow: hidden; 
+}
+
+.sidebar.collapsed .navLink {
+  justify-content: center;
+  padding: 10px; 
+}
+
+.navLink svg {
+  flex-shrink: 0; 
+  width: 18px;
+  height: 18px;
+}
+
+.navLink:hover {
+  background-color: var(--nav-link-hover-bg);
+  color: var(--text-primary);
+}
+
+.navLink.active {
+  background-color: var(--nav-link-active-bg);
+  color: var(--nav-link-active-text);
+  font-weight: 600;
+}
+
+.separator {
+  border: none;
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 16px 16px;
+  transition: margin 0.3s ease;
+}
+
+.sidebar.collapsed .separator {
+  margin: 16px 12px;
+}
