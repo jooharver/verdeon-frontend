@@ -1,32 +1,22 @@
-/* components/Sidebar.module.css */
-
 .sidebar {
   width: var(--sidebar-width);
   height: 100vh;
   background-color: var(--bg-sidebar);
-  /* border-right: 1px solid var(--border-color); */
   display: flex;
   flex-direction: column;
   position: relative; 
   transition: width 0.3s ease; 
-  
-  z-index: 50; /* <-- TAMBAHKAN INI (Mengangkat sidebar di atas .mainContent) */
+  z-index: 50;
 }
-/* --- STATE COLLAPSED --- */
 .sidebar.collapsed {
   width: var(--sidebar-width-collapsed);
 }
-/* ----------------------- */
 
-
-/* Tombol Toggle Baru */
 .toggleButton {
   position: absolute;
   top: 22px;
   right: -15px; 
-  
-  z-index: 99; /* <-- UBAH INI (Agar di atas segalanya) */
-
+  z-index: 99;
   background-color: var(--bg-sidebar);
   border: 1px solid var(--border-color);
   border-radius: 50%;
@@ -45,7 +35,6 @@
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-/* Logo Container */
 .logoContainer {
   display: flex;
   align-items: center;
@@ -54,10 +43,9 @@
   background-color: var(--bg-main);
   justify-content: flex-start;
   border-bottom: 1px solid var(--border-color); 
-  overflow: hidden; /* Tambahkan ini */
-  /* --- TAMBAHKAN DUA BARIS INI --- */
+  overflow: hidden;
   height: var(--header-height);
-  min-height: var(--header-height); /* Fallback untuk flexbox */
+  min-height: var(--header-height);
 }
 
 .sidebar.collapsed .logoContainer {
@@ -97,7 +85,6 @@
   color: var(--text-secondary);
 }
 
-/* Nav Container */
 .navContainer {
   flex: 1; 
   overflow-y: auto;
@@ -157,3 +144,9 @@
 .sidebar.collapsed .separator {
   margin: 16px 12px;
 }
+
+/* --- TAMBAHKAN INI UNTUK MEMPERBAIKI WARNA IKON --- */
+.navLink.active svg {
+  color: var(--nav-link-active-text);
+}
+/* -------------------------------------------------- */
