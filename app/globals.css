@@ -26,6 +26,11 @@
   --nav-link-hover-bg: #f4f4f5;
   --nav-link-active-bg: #eaf4ff; /* Latar belakang link aktif (biru muda) */
   --nav-link-active-text: var(--brand-color);
+  --danger-color: #ef4444;
+  --danger-color-text: #ffffff;
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+  --success-color: #28a745;
 }
 
 /* DEFINISI VARIABEL WARNA
@@ -45,6 +50,11 @@
   --nav-link-hover-bg: #374151;
   --nav-link-active-bg: #374151; /* Latar belakang link aktif (gelap) */
   --nav-link-active-text: var(--brand-color);
+  --danger-color: #ef4444; /* Merah biasanya tetap */
+  --danger-color-text: #ffffff;
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.2); /* Shadow lebih gelap/tebal */
+  --overlay-bg: rgba(0, 0, 0, 0.7); /* Overlay bisa lebih gelap */
+  --success-color: #22c55e;
 }
 
 

@@ -4,7 +4,6 @@
 .pageContainer {
   display: flex;
   background-color: var(--bg-main);
-  /* Pastikan tinggi minimal untuk sidebar */
   min-height: calc(100vh - 70px); /* 70px = tinggi Topbar (sesuaikan jika perlu) */
 }
 
@@ -19,7 +18,7 @@
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease;
-  z-index: 1;
+  z-index: 106; /* Di atas overlay */
 }
 
 .filterHeader {
@@ -106,7 +105,6 @@
   background-color: var(--bg-main);
   color: var(--text-primary);
   font-size: 0.9rem;
-  /* Hapus panah di input number */
   -moz-appearance: textfield;
 }
 .rangeInput::-webkit-outer-spin-button,
@@ -127,8 +125,11 @@
 
 .resetButton {
   width: 100%;
-  background-color: #ef4444; /* Merah (sesuai "Hapus Urutkan" di desain) */
-  color: white;
+  /* CATATAN: Warna ini tidak ada di globals.css. 
+    Idealnya, tambahkan --danger-color di global.
+  */
+  background-color: #ef4444; 
+  color: #ffffff; /* Lebih eksplisit dari 'white' */
   border: none;
   padding: 12px 16px;
   border-radius: 8px;
@@ -170,7 +171,7 @@
 .searchContainer {
   position: relative;
   flex-grow: 1;
-  min-width: 300px; /* Minimal lebar search */
+  min-width: 300px;
 }
 .searchIcon {
   position: absolute;
@@ -181,7 +182,7 @@
 }
 .searchInput {
   width: 100%;
-  padding: 12px 16px 12px 44px; /* Padding lebih besar */
+  padding: 12px 16px 12px 44px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background-color: var(--bg-card);
@@ -206,7 +207,6 @@
 }
 
 .filterToggleButton {
-  display: none; /* Sembunyikan di desktop */
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
@@ -214,7 +214,7 @@
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: none; /* Diaktifkan oleh media query */
   align-items: center;
   gap: 8px;
 }
@@ -235,30 +235,27 @@
   border-color: var(--brand-color);
 }
 
-/* --- BARU: Result Bar (Info + Paginasi Atas) --- */
+/* --- Result Bar (Info + Paginasi Atas) --- */
 .resultBar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap; /* Agar rapi di mobile */
+  flex-wrap: wrap;
   gap: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-color);
 }
 
-/* --- MODIFIKASI: Hapus border/padding --- */
 .resultInfo {
   font-size: 0.9rem;
   color: var(--text-secondary);
   font-weight: 500;
-  /* padding-bottom dan border-bottom dihapus dari sini */
 }
 
 
 /* --- Product Grid & Card --- */
 .productGrid {
   display: grid;
-  /* 4 kolom di layar besar, 2 di tablet, 1 di mobile */
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
 }
@@ -274,6 +271,9 @@
 }
 .productCard:hover {
   transform: translateY(-4px);
+  /* CATATAN: Shadow ini tidak akan terlihat bagus di dark mode.
+    Idealnya, tambahkan --shadow-sm di global.
+  */
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
@@ -293,7 +293,7 @@
 }
 
 .productTitle {
-  font-size: 1rem; /* Sedikit lebih kecil agar pas */
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
@@ -306,19 +306,22 @@
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-top: auto; /* Mendorong harga ke bawah */
+  margin-top: auto;
   padding-top: 8px;
 }
 
 .productTag {
-  background-color: #e0f2fe; /* Biru muda (sesuai desain) */
-  color: #0ea5e9; /* Biru */
+  /* --- PERUBAHAN DI SINI --- */
+  background-color: var(--nav-link-active-bg); /* Menggunakan warna aktif biru muda */
+  color: var(--brand-color); /* Menggunakan warna brand biru */
+  /* --- AKHIR PERUBAHAN --- */
+
   font-size: 0.8rem;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 99px;
-  display: inline-block; /* Agar pas */
-  align-self: flex-start; /* Agar tidak full width */
+  display: inline-block;
+  align-self: flex-start;
 }
 
 .productLocation {
@@ -338,7 +341,7 @@
   border-radius: 12px;
   padding: 40px;
   text-align: center;
-  grid-column: 1 / -1; /* Span semua kolom */
+  grid-column: 1 / -1;
   color: var(--text-secondary);
 }
 .emptyState h5 {
@@ -347,13 +350,10 @@
   color: var(--text-primary);
 }
 
-
-/* --- MODIFIKASI: Hapus border/padding & ubah alignment --- */
 .pagination {
   display: flex;
   align-items: center;
   gap: 12px;
-  /* padding-top, border-top, dan justify-content dihapus */
 }
 .pageInfo {
   font-size: 0.9rem;
@@ -389,13 +389,13 @@
 /* --- Responsif --- */
 @media (max-width: 1200px) {
   .productGrid {
-    grid-template-columns: repeat(3, 1fr); /* 3 kolom */
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 900px) {
   .productGrid {
-    grid-template-columns: repeat(2, 1fr); /* 2 kolom */
+    grid-template-columns: repeat(2, 1fr);
   }
   .pageContainer {
     flex-direction: column;
@@ -406,9 +406,10 @@
     left: 0;
     height: 100vh;
     transform: translateX(-100%);
-    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    /* CATATAN: Shadow tidak tema-aware */
+    box-shadow: 0 0 20px rgba(0,0,0,0.1); 
     border-right: none;
-    width: 300px; /* Sedikit lebih lebar di mobile */
+    width: 300px;
   }
   .filterSidebarOpen {
     transform: translateX(0);
@@ -419,30 +420,30 @@
   .filterOverlay {
     position: fixed;
     inset: 0;
-    background-color: rgba(0,0,0,0.5);
+    /* CATATAN: Overlay tidak tema-aware */
+    background-color: rgba(0,0,0,0.5); 
     z-index: 105;
   }
   .filterToggleButton {
-    display: flex; /* Tampilkan tombol filter */
+    display: flex; 
   }
   .mainContent {
-    padding: 16px; /* Kurangi padding di mobile */
+    padding: 16px;
   }
-  /* Modifikasi untuk resultBar di mobile */
   .resultBar {
     flex-direction: column;
-    align-items: flex-start; /* Rata kiri */
+    align-items: flex-start;
     gap: 12px;
   }
 }
 
 @media (max-width: 600px) {
   .productGrid {
-    grid-template-columns: 1fr; /* 1 kolom */
+    grid-template-columns: 1fr;
   }
   .toolbar {
     flex-direction: column;
-    align-items: stretch; /* Full width */
+    align-items: stretch;
   }
   .controlsContainer {
     justify-content: space-between;
@@ -451,17 +452,17 @@
     flex-grow: 1;
     min-width: 0;
   }
-  /* Modifikasi untuk resultBar di mobile (layar sangat kecil) */
   .resultBar {
-    align-items: center; /* Kembalikan ke tengah */
+    align-items: center;
   }
   .resultInfo {
     text-align: center;
   }
 }
 
+/* --- Link Kartu Produk (Sudah Benar) --- */
 .productLink {
-  color: inherit; /* Mewarisi warna teks normal */
-  text-decoration: none; /* Menghapus underline */
-  display: block; /* Memastikan link mengisi ruang grid */
+  color: inherit;
+  text-decoration: none;
+  display: block;
 }
