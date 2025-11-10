@@ -1,0 +1,259 @@
+/* app/(dashboard)/home/Home.module.css */
+
+.container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-color: #f4f7fa;
+}
+
+.card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.sectionTitle svg {
+    color: #0d6efd; /* Warna biru yang lebih sesuai */
+}
+
+.exploreButton {
+  background-color: #e7f1ff;
+  color: #0d6efd;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.exploreButton:hover {
+  background-color: #d0e3ff;
+}
+
+/* --- Styles untuk Portfolio --- */
+.portfolioContent {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+/* --- TAMBAHAN BARU --- */
+.portfolioInfoWithAvatar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.portfolioAvatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+/* -------------------- */
+
+
+.portfolioInfo .portfolioLabel {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+
+.portfolioValue {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #343a40;
+  word-break: break-all;
+}
+
+.walletIdContainer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.copyIcon {
+    color: #0d6efd;
+    cursor: pointer;
+}
+
+/* --- Styles untuk Project List (Trending & All) --- */
+.projectList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* Mengurangi gap agar lebih rapat */
+}
+
+.projectItem {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+.projectItem:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.projectIndex {
+    color: #6c757d;
+    font-weight: 500;
+    width: 20px;
+}
+
+.projectLogo {
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.projectName {
+    flex-grow: 1; /* Biarkan nama proyek mengisi ruang */
+    font-weight: 500;
+    color: #343a40;
+    margin: 0;
+    /* --- INI PERBAIKANNYA --- */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* ----------------------- */
+}
+
+.tokenInfo {
+    text-align: right;
+    /* --- INI PERBAIKANNYA --- */
+    flex-shrink: 0; /* Mencegah bagian ini menyusut */
+    min-width: 100px; /* Beri lebar minimum agar tidak terlalu mepet */
+    /* ----------------------- */
+}
+
+.tokenValue {
+    font-weight: 700;
+    color: #0d6efd;
+    font-size: 1.1rem;
+}
+
+.tokenLabel {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* --- Styles untuk Filter --- */
+.filterContainer {
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 16px;
+}
+
+.filterButton {
+    background: none;
+    border: none;
+    padding: 8px 12px;
+    color: #6c757d;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.filterButton.active,
+.filterButton:hover {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+}
+
+/* --- Styles untuk News --- */
+.newsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.newsCard {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.newsImage {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+}
+
+.newsContent {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.newsTitle {
+    font-weight: 600;
+    margin-bottom: 16px;
+    flex-grow: 1; 
+}
+
+.newsButton {
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+    transition: background-color 0.2s;
+}
+.newsButton:hover {
+    background-color: #0b5ed7;
+}
+
+/* --- Styles untuk Pagination --- */
+.pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.paginationButton {
+    background-color: #f1f3f5;
+    border: 1px solid #dee2e6;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.paginationButton:hover {
+    background-color: #e9ecef;
+}
