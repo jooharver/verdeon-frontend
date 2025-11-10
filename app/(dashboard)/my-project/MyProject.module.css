@@ -1,0 +1,383 @@
+/* app/(dashboard)/my-project/MyProject.module.css */
+
+.container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-color: var(--bg-main);
+  transition: background-color 0.2s ease;
+}
+
+/* --- Widgets (CSS DIPERBARUI) --- */
+.widgetsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+}
+.widgetCard {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* INI KOTAKNYA */
+.widgetIconBox {
+  padding: 12px;
+  border-radius: 8px;
+  background-color: var(--bg-main);
+  /* Tambahan untuk menengahkan ikon di dalam kotak */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* INI IKON DI DALAM KOTAK */
+.widgetIcon {
+  font-size: 1.5rem;
+  color: var(--brand-color);
+  /* Hapus padding & background dari sini */
+}
+
+/* Ini tetap, untuk mewarnai ikon spesifik */
+.iconPublished { color: #16a34a; }
+.iconInReview { color: #d97706; }
+
+.widgetText {
+  display: flex;
+  flex-direction: column;
+}
+.widgetLabel {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.widgetValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* --- Card Utama --- */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 0 24px;
+}
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.primaryButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--brand-color);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.primaryButton:hover {
+  opacity: 0.9;
+}
+.cardToolbar {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 24px;
+}
+.searchInputContainer {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+}
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+.searchInput {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.searchInput:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+
+/* --- Table --- */
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+}
+.tableRow {
+  display: grid;
+  grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr;
+  width: 100%;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.15s ease;
+}
+.tableRow:last-child {
+  border-bottom: none;
+}
+.tableRow:not(.tableHeader):hover {
+  background-color: var(--nav-link-hover-bg);
+}
+
+.tableHeader {
+  background-color: var(--bg-main);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tableHeader .tableCell {
+  padding: 0; /* Padding dipindah ke tombol */
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* --- STYLE UNTUK SORTING HEADER --- */
+.tableCellSortable button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.tableCellSortable button:hover {
+  color: var(--text-primary);
+}
+.sortIcon {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+.sortIconActive {
+  color: var(--text-primary);
+}
+/* ------------------------------------- */
+
+.tableCell {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.projectName {
+  font-weight: 600;
+}
+.actionsCell {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.iconButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+}
+.iconButton:hover {
+  color: var(--brand-color);
+}
+.iconDelete:hover {
+  color: #ef4444;
+}
+.emptyState {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* --- Badges Status --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badgePublished { background-color: #dcfce7; color: #166534; }
+.badgeInReview { background-color: #fef9c3; color: #713f12; }
+.badgeDraft { background-color: #e5e7eb; color: #374151; }
+.badgeFailed { background-color: #fee2e2; color: #991b1b; }
+
+/* --- Modal --- */
+.modalOverlay {
+  position: fixed; inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modalContent {
+  background-color: var(--bg-card);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.formGroup label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.formGroup input,
+.formGroup select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+.formGroup input:focus,
+.formGroup select:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.secondaryButton:hover {
+  background-color: var(--nav-link-hover-bg);
+}
+
+/* --- Footer Paginasi --- */
+.cardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+}
+.footerInfo {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.footerControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.perPageSelect {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.perPageSelect:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+.pagination {
+  display: flex;
+  gap: 8px;
+}
+.paginationButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+.paginationButton:hover:not(:disabled) {
+  background-color: var(--nav-link-hover-bg);
+}
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.paginationButton svg {
+  font-size: 0.8rem;
+}
