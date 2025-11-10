@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link'; // <-- 1. TAMBAHKAN IMPORT INI
 import styles from './CarbonMarket.module.css';
 import Topbar from '../../components/Topbar';
 import { 
@@ -8,7 +9,7 @@ import {
   FaFilter, FaTimes, FaMapMarkerAlt, FaSyncAlt
 } from 'react-icons/fa';
 
-// --- Data Dummy untuk Token Karbon (Path Gambar LOKAL) ---
+// --- Data Dummy (Tidak Berubah) ---
 const dummyTokens = [
   { id: 1, name: "Solar Panel Green Renewable Energy PT.GNE", location: "Malang", price: 3.50, available: 15720, type: "Solar", verifier: "Verra", imageUrl: "/images/pv-1.jpg" },
   { id: 2, name: "Mentari Jaya Abadi Solar Panel Indonesia", location: "Banyuwangi", price: 2.50, available: 15720, type: "Solar", verifier: "Gold Standard", imageUrl: "/images/pv-2.jpg" },
@@ -23,23 +24,23 @@ const dummyTokens = [
   { id: 11, name: "Bali Wind Turbine Array", location: "Bali", price: 19.75, available: 3500, type: "Wind", verifier: "Verra", imageUrl: "/images/pv-5.jpg" },
 ];
 
-// Opsi filter (bisa diambil dari data nanti)
+// Opsi filter (Tidak Berubah)
 const LOCATIONS = ["Malang", "Banyuwangi", "Kalimantan Tengah", "Bekasi", "Ponorogo", "Sulawesi Tenggara", "Kabupaten Riau", "Lampung Utara", "Kalimantan", "Jawa Barat", "Bali"];
 const TYPES = ["Solar", "Reforestation", "Geothermal", "Wind"];
 const VERIFIERS = ["Verra", "Gold Standard"];
 
-const ITEMS_PER_PAGE = 8; // Sesuai desain (4x2 grid)
+const ITEMS_PER_PAGE = 8;
 
 export default function CarbonMarketPage() {
-  // Data untuk Topbar
+  // Data untuk Topbar (Tidak Berubah)
   const pageTitle = "Carbon Market";
   const pageBreadcrumbs = ["Dashboard", "Carbon Market"];
 
-  // --- States ---
+  // --- States (Tidak Berubah) ---
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isFilterOpen, setIsFilterOpen] = useState(false); // Untuk mobile
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   const initialFilters = {
     location: [],
@@ -52,7 +53,7 @@ export default function CarbonMarketPage() {
   };
   const [filters, setFilters] = useState(initialFilters);
 
-  // --- Handlers ---
+  // --- Handlers (Tidak Berubah) ---
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -69,10 +70,9 @@ export default function CarbonMarketPage() {
         return { ...prev, [name]: list };
       });
     } else {
-      // Untuk input text (priceMin, priceMax, dll)
       setFilters(prev => ({ ...prev, [name]: value }));
     }
-    setCurrentPage(1); // Reset ke halaman 1 saat filter berubah
+    setCurrentPage(1);
   };
 
   const handleSortChange = (e) => {
@@ -98,7 +98,7 @@ export default function CarbonMarketPage() {
     setCurrentPage(1);
   };
 
-  // --- Logika Filtering, Sorting, Pagination (useMemo) ---
+  // --- Logika Filtering, Sorting, Pagination (Tidak Berubah) ---
 
   const processedTokens = useMemo(() => {
     let filteredTokens = [...dummyTokens];
@@ -133,7 +133,7 @@ export default function CarbonMarketPage() {
         case 'name-desc': return b.name.localeCompare(a.name);
         case 'newest':
         default:
-          return b.id - a.id; // Asumsi ID lebih tinggi = lebih baru
+          return b.id - a.id;
       }
     });
 
@@ -150,7 +150,7 @@ export default function CarbonMarketPage() {
     return processedTokens.slice(start, end);
   }, [processedTokens, currentPage]);
 
-  // --- Komponen Internal ---
+  // --- Komponen Internal (Tidak Berubah) ---
   const FilterSidebar = () => (
     <aside className={`${styles.filterSidebar} ${isFilterOpen ? styles.filterSidebarOpen : ''}`}>
       <div className={styles.filterHeader}>
@@ -162,13 +162,12 @@ export default function CarbonMarketPage() {
         {/* Filter Group: Lokasi */}
         <div className={styles.filterGroup}>
           <h5 className={styles.filterTitle}>Lokasi</h5>
-          {LOCATIONS.slice(0, 5).map(loc => ( // Tampilkan 5 dulu
+          {LOCATIONS.slice(0, 5).map(loc => (
             <div className={styles.filterOption} key={loc}>
               <input type="checkbox" id={`loc-${loc}`} name="location" value={loc} onChange={handleFilterChange} checked={filters.location.includes(loc)} />
               <label htmlFor={`loc-${loc}`}>{loc}</label>
             </div>
           ))}
-          {/* TODO: Tambah tombol "Lihat Lainnya" jika > 5 */}
         </div>
 
         {/* Filter Group: Tipe Proyek */}
@@ -226,13 +225,10 @@ export default function CarbonMarketPage() {
       <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
       <div className={styles.pageContainer}>
         
-        {/* Overlay untuk mobile saat filter open */}
         {isFilterOpen && <div className={styles.filterOverlay} onClick={() => setIsFilterOpen(false)}></div>}
 
-        {/* --- 1. Sidebar Filter --- */}
         <FilterSidebar />
 
-        {/* --- 2. Konten Utama --- */}
         <main className={styles.mainContent}>
 
           {/* Toolbar: Search, Sort */}
@@ -249,6 +245,11 @@ export default function CarbonMarketPage() {
             </div>
 
             <div className={styles.controlsContainer}>
+              {/* Tombol filter untuk mobile */}
+              <button className={styles.filterToggleButton} onClick={() => setIsFilterOpen(true)}>
+                <FaFilter /> Filter
+              </button>
+              
               <select 
                 className={styles.sortSelect} 
                 value={sortOrder} 
@@ -263,16 +264,14 @@ export default function CarbonMarketPage() {
             </div>
           </section>
 
-          {/* --- BARU: Result Bar (Info + Paginasi Atas) --- */}
+          {/* Result Bar */}
           <section className={styles.resultBar}>
-            {/* Info Hasil */}
             <div className={styles.resultInfo}>
               <span>Menampilkan {paginatedTokens.length} dari {totalItems} hasil</span>
             </div>
 
-            {/* Pagination (Pindahan dari bawah) */}
             {totalPages > 1 && (
-              <div className={styles.pagination}> {/* <== Diubah dari <section> ke <div> */}
+              <div className={styles.pagination}>
                 <button 
                   className={styles.paginationButton} 
                   onClick={() => handlePageChange(currentPage - 1)} 
@@ -301,30 +300,40 @@ export default function CarbonMarketPage() {
           <section className={styles.productGrid}>
             {paginatedTokens.length > 0 ? (
               paginatedTokens.map(token => (
-                <div className={styles.productCard} key={token.id}>
-                  <img 
-                    src={token.imageUrl} 
-                    alt={token.name} 
-                    className={styles.productImage} 
-                    onError={(e) => e.target.src = 'https://placehold.co/600x400/cccccc/white?text=Image+Error'}
-                  />
-                  <div className={styles.productContent}>
-                    <h4 className={styles.productTitle}>{token.name}</h4>
-                    
-                    <span className={styles.productPrice}>
-                      USD ${token.price.toFixed(2)}
-                    </span>
-                    
-                    <span className={styles.productTag}>
-                      {token.available.toLocaleString()} token available
-                    </span>
-                    
-                    <div className={styles.productLocation}>
-                      <FaMapMarkerAlt />
-                      <span>{token.location}</span>
+                
+                // --- 👇 2. INI PERUBAHANNYA ---
+                <Link 
+                  href={`/carbon-market/${token.id}`} // <- Mengarahkan ke detail
+                  key={token.id} // <- Key dipindah ke Link
+                  className={styles.productLink} // <- Class untuk styling
+                >
+                  <div className={styles.productCard}> {/* <- Key dihapus dari sini */}
+                    <img 
+                      src={token.imageUrl} 
+                      alt={token.name} 
+                      className={styles.productImage} 
+                      onError={(e) => e.target.src = 'https://placehold.co/600x400/cccccc/white?text=Image+Error'}
+                    />
+                    <div className={styles.productContent}>
+                      <h4 className={styles.productTitle}>{token.name}</h4>
+                      
+                      <span className={styles.productPrice}>
+                        USD ${token.price.toFixed(2)}
+                      </span>
+                      
+                      <span className={styles.productTag}>
+                        {token.available.toLocaleString()} token available
+                      </span>
+                      
+                      <div className={styles.productLocation}>
+                        <FaMapMarkerAlt />
+                        <span>{token.location}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Link>
+                // --- 👆 AKHIR PERUBAHAN ---
+
               ))
             ) : (
               <div className={styles.emptyState}>
