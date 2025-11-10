@@ -1,0 +1,148 @@
+/* app/(dashboard)/account/Account.module.css */
+
+.container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-color: var(--bg-main);
+}
+
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  /* Transisi agar smooth saat ganti tema */
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sectionHeader svg {
+  color: var(--brand-color);
+}
+
+/* --- Style Kartu Akun --- */
+.accountContent {
+  display: flex;
+  flex-wrap: wrap; /* Agar responsif di layar kecil */
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userText {
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.username {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.walletInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.walletIdContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.walletId {
+  font-weight: 500;
+  font-family: monospace;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.copyIcon {
+  color: var(--brand-color);
+  cursor: pointer;
+}
+
+.logoutButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ef4444; /* Merah */
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-left: auto; /* Mendorong ke paling kanan */
+}
+.logoutButton:hover {
+  background-color: #dc2626;
+}
+
+/* --- Style Kartu Settings --- */
+.settingsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.settingsItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.settingsItem:last-child {
+  border-bottom: none;
+}
+
+.themeSelect {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.themeSelect:focus {
+  outline: 2px solid var(--brand-color);
+}
