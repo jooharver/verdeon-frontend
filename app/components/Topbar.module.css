@@ -38,7 +38,7 @@
 }
 
 .icon {
-  color: var(--text-secondary);
+  color: var(--brand-color);
   font-size: 1.2rem;
   cursor: pointer;
 }
