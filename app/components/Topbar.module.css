@@ -1,16 +1,20 @@
+/* components/Topbar.module.css */
+
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 70px;
   padding: 0 1.5rem;
-  background-color: var(--bg-main);
-  border-bottom: 1px solid var(--border-color); 
   position: sticky;
   top: 0;
   z-index: 10;
+  
+  /* --- PERBAIKAN --- */
+  /* Menggunakan variabel agar background ikut berubah tema */
+  background-color: var(--bg-card); 
+  border-bottom: 1px solid var(--border-color); 
+  /* ----------------- */
 
-  /* --- INI BAGIAN PENTING --- */
   height: var(--header-height);
   min-height: var(--header-height);
 }
@@ -23,12 +27,16 @@
 .title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #111827;
+  /* --- PERBAIKAN --- */
+  color: var(--text-primary); /* Menggunakan variabel teks utama */
+  /* ----------------- */
 }
 
 .breadcrumb {
   font-size: 0.85rem;
-  color: #6b7280;
+  /* --- PERBAIKAN --- */
+  color: var(--text-secondary); /* Menggunakan variabel teks sekunder */
+  /* ----------------- */
 }
 
 .right {
@@ -38,17 +46,40 @@
 }
 
 .icon {
-  color: var(--brand-color);
+  /* --- PERBAIKAN --- */
+  /* Warna ikon notifikasi disamakan dengan teks sekunder agar lebih subtle */
+  color: var(--text-secondary); 
+  /* ----------------- */
   font-size: 1.2rem;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
+
+.icon:hover {
+  color: var(--text-primary);
+}
+
 
 .profile {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 12px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  
+  /* --- PERBAIKAN --- */
+  /* Border dan background menggunakan variabel */
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  /* ----------------- */
 }
-/* Ganti .profile img menjadi .profileAvatar */
+
+.profile:hover {
+  background-color: var(--nav-link-hover-bg);
+}
+
 .profileAvatar {
   width: 36px;
   height: 36px;
@@ -56,38 +87,15 @@
   object-fit: cover;
 }
 
-/* Edit class .profile */
-.profile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  /* --- TAMBAHKAN INI --- */
-  cursor: pointer;
-  padding: 8px; /* Beri sedikit padding agar area klik lebih besar */
-  border-radius: 8px; /* Samakan dengan radius item lain */
-  transition: background-color 0.2s ease;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-main);
-  /* -------------------- */
-}
-
-/* --- TAMBAHKAN INI --- */
-/* Efek hover untuk container profile */
-.profile:hover {
-  background-color: var(--nav-link-hover-bg); /* Pakai variabel global */
-}
-/* -------------------- */
-
 .profile .name {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--text-primary); /* Sudah benar */
   line-height: 1.2;
 }
 
 .profile .role {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--text-secondary); /* Sudah benar */
   line-height: 1.2;
 }

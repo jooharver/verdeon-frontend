@@ -4,27 +4,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* DEFINISI VARIABEL WARNA
+  :root adalah Light Mode (Default)
+*/
 :root {
   /* Variabel Ukuran */
   --sidebar-width: 260px;
-  --sidebar-width-collapsed: 80px;
-  --header-height: 72px;
+  --sidebar-width-collapsed: 88px;
+  --header-height: 75px;
 
-  /* Warna (contoh) */
-  --bg-main: #ffffff;
-  --bg-sidebar: #ffffff;
-  --border-color: #e5e7eb;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
+  /* Warna Brand */
+  --brand-color: #34a2f1;
   
-  /* --- INI YANG DIUBAH --- */
-  --brand-color: #34a2f1; /* <-- Diganti dari #4f46e5 */
-  /* ---------------------- */
-
+  /* Warna Light Mode */
+  --bg-main: #f4f7fa;           /* Latar belakang utama halaman */
+  --bg-card: #ffffff;           /* Latar belakang card, sidebar, topbar */
+  --text-primary: #1f2937;      /* Teks utama (hitam) */
+  --text-secondary: #6b7280;    /* Teks abu-abu (label, subtitle) */
+  --border-color: #e5e7eb;      /* Warna border/garis pemisah */
+  
   --nav-link-hover-bg: #f4f4f5;
-  --nav-link-active-bg: #eef2ff;
-  --nav-link-active-text: var(--brand-color); /* Ini akan otomatis ikut berubah */
+  --nav-link-active-bg: #eaf4ff; /* Latar belakang link aktif (biru muda) */
+  --nav-link-active-text: var(--brand-color);
 }
+
+/* DEFINISI VARIABEL WARNA
+  .dark adalah Dark Mode (Saat diterapkan di <html>)
+*/
+.dark {
+  /* Warna Brand */
+  --brand-color: #34a2f1; /* Bisa juga diubah jika perlu */
+
+  /* Warna Dark Mode */
+  --bg-main: #111827;           /* Latar belakang utama halaman (biru gelap) */
+  --bg-card: #1f2937;           /* Latar belakang card (sedikit lebih terang) */
+  --text-primary: #f9fafb;      /* Teks utama (putih) */
+  --text-secondary: #9ca3af;    /* Teks abu-abu (abu-abu muda) */
+  --border-color: #374151;      /* Warna border/garis pemisah (gelap) */
+  
+  --nav-link-hover-bg: #374151;
+  --nav-link-active-bg: #374151; /* Latar belakang link aktif (gelap) */
+  --nav-link-active-text: var(--brand-color);
+}
+
 
 /* Reset Dasar */
 * {
@@ -38,6 +60,10 @@ body {
   height: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  /* Transisi warna agar smooth saat ganti tema */
+  transition: background-color 0.2s ease, color 0.2s ease;
+  
+  /* Menggunakan variabel global */
   background-color: var(--bg-main);
   color: var(--text-primary);
 }

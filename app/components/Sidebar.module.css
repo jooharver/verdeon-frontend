@@ -1,11 +1,15 @@
+/* components/Sidebar.module.css */
+
 .sidebar {
   width: var(--sidebar-width);
   height: 100vh;
-  background-color: var(--bg-sidebar);
+  /* --- PERBAIKAN --- */
+  background-color: var(--bg-card); /* Diubah dari --bg-sidebar */
+  /* ----------------- */
   display: flex;
   flex-direction: column;
   position: relative; 
-  transition: width 0.3s ease; 
+  transition: width 0.3s ease, background-color 0.2s ease; /* Tambahkan transisi bg */
   z-index: 50;
 }
 .sidebar.collapsed {
@@ -17,7 +21,9 @@
   top: 22px;
   right: -15px; 
   z-index: 99;
-  background-color: var(--bg-sidebar);
+  /* --- PERBAIKAN --- */
+  background-color: var(--bg-card); /* Diubah dari --bg-sidebar */
+  /* ----------------- */
   border: 1px solid var(--border-color);
   border-radius: 50%;
   width: 28px;
@@ -27,7 +33,7 @@
   justify-content: center;
   cursor: pointer;
   color: var(--brand-color);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .toggleButton:hover {
@@ -40,12 +46,15 @@
   align-items: center;
   gap: 12px;
   padding: 20px;
-  background-color: var(--bg-main);
+  /* --- PERBAIKAN --- */
+  background-color: var(--bg-card); /* Diubah dari --bg-main */
+  /* ----------------- */
   justify-content: flex-start;
   border-bottom: 1px solid var(--border-color); 
   overflow: hidden;
   height: var(--header-height);
   min-height: var(--header-height);
+  transition: background-color 0.2s ease;
 }
 
 .sidebar.collapsed .logoContainer {
@@ -59,7 +68,7 @@
   border-radius: 8px;
   padding: 4px 5px 6px 5px;
   background-color: var(--brand-color);
-  color: white;
+  color: white; /* 'white' di sini sudah benar, krn tdk tergantung tema */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -77,12 +86,12 @@
 .logoTitle {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-primary); /* Sudah benar */
 }
 
 .logoSubtitle {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--text-secondary); /* Sudah benar */
 }
 
 .navContainer {
@@ -105,7 +114,7 @@
   border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-secondary); /* Sudah benar */
   transition: background-color 0.2s, color 0.2s;
   white-space: nowrap; 
   overflow: hidden; 
@@ -120,23 +129,24 @@
   flex-shrink: 0; 
   width: 18px;
   height: 18px;
+  transition: color 0.2s; /* Tambahkan transisi utk ikon */
 }
 
 .navLink:hover {
-  background-color: var(--nav-link-hover-bg);
-  color: var(--text-primary);
+  background-color: var(--nav-link-hover-bg); /* Sudah benar */
+  color: var(--text-primary); /* Sudah benar */
 }
 
 .navLink.active {
-  background-color: var(--nav-link-active-bg);
-  color: var(--nav-link-active-text);
+  background-color: var(--nav-link-active-bg); /* Sudah benar */
+  color: var(--nav-link-active-text); /* Sudah benar */
   font-weight: 600;
 }
 
 .separator {
   border: none;
   height: 1px;
-  background-color: var(--border-color);
+  background-color: var(--border-color); /* Sudah benar */
   margin: 16px 16px;
   transition: margin 0.3s ease;
 }
@@ -145,8 +155,6 @@
   margin: 16px 12px;
 }
 
-/* --- TAMBAHKAN INI UNTUK MEMPERBAIKI WARNA IKON --- */
 .navLink.active svg {
-  color: var(--nav-link-active-text);
+  color: var(--nav-link-active-text); /* Sudah benar */
 }
-/* -------------------------------------------------- */
