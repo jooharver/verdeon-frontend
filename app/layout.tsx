@@ -1,9 +1,9 @@
 // app/layout.tsx
-// Ini adalah root layout yang simpel
-
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+// 1. Import AuthProvider yang baru kita buat
+import { AuthProvider } from "@/context/AuthContext"; // (Asumsi path @/context/...)
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -23,11 +23,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.className} antialiased`}>
-        {/* 'children' di sini bisa jadi:
-          1. Layout dashboard (yang punya Sidebar)
-          2. Halaman login (yang tidak punya Sidebar)
-        */}
-        {children}
+        {/* 2. Bungkus {children} dengan AuthProvider */}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
