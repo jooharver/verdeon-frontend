@@ -1,3 +1,5 @@
+// context/AuthContext.js
+
 'use client';
 
 // 1. IMPORT 'useCallback'
@@ -13,7 +15,6 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   // 2. STABILKAN FUNGSI 'logout' DENGAN 'useCallback'
-  // Fungsi ini sekarang tidak akan pernah berubah referensinya
   const logout = useCallback(() => {
     localStorage.removeItem('authToken');
     setToken(null);
@@ -67,13 +68,57 @@ export function AuthProvider({ children }) {
     router.push(redirectPath); // Pindahkan router.push ke sini
   }, [fetchProfile, router]); // Dibuat ulang jika fetchProfile/router berubah
 
-  // 6. Sediakan value ke semua children
+  // --- 🚀 PERUBAHAN DI SINI 🚀 ---
+  // 6. BUAT FUNGSI BARU 'updateTheme'
+  const updateTheme = useCallback(async (newTheme) => {
+    // Cek apakah user ada
+    if (!user || !token) {
+      console.error('Tidak bisa update tema, user tidak login.');
+      return;
+    }
+
+    const oldUser = user;
+
+    // Optimistic Update: Update state lokal dulu agar UI instan
+    setUser((prevUser) => ({
+      ...prevUser,
+      theme: newTheme,
+    }));
+
+    try {
+      // Kirim request PATCH ke backend
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          theme: newTheme, // DTO-mu sudah siap menerima ini
+        }),
+      });
+
+      // Jika gagal, kembalikan ke state lama (rollback)
+      if (!res.ok) {
+        console.error('Gagal menyimpan tema ke database.');
+        setUser(oldUser); // Rollback
+      }
+      
+    } catch (error) {
+      console.error('Error saat update tema:', error);
+      setUser(oldUser); // Rollback
+    }
+  }, [user, token]); // Dependensi: user dan token
+  // --- AKHIR PERUBAHAN ---
+
+  // 7. Sediakan value ke semua children
   const value = {
     user,
     token,
     login, // Sekarang stabil
     logout, // Sekarang stabil
     isLoading,
+    updateTheme, // <-- Tambahkan fungsi baru ke 'value'
   };
 
   return (

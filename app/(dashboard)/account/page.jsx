@@ -1,43 +1,30 @@
+// app/(dashboard)/account/page.jsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react'; // Hapus useState dan useEffect
 import styles from './Account.module.css';
 import Image from 'next/image';
 import { FaUser, FaCog, FaCopy, FaSignOutAlt } from 'react-icons/fa';
 import Topbar from '../../components/Topbar'; // <-- 1. Impor Topbar
+import { useAuth } from '../../../context/AuthContext'; // <-- 2. IMPORT useAuth
 
 export default function AccountPage() {
-  // --- 2. Data untuk Topbar ---
+  // --- Data untuk Topbar ---
   const pageTitle = "Account";
   const pageBreadcrumbs = ["Dashboard", "Account"];
   // --------------------------
 
-  // State untuk mengelola tema
-  const [theme, setTheme] = useState('light');
+  // 3. AMBIL DATA & FUNGSI DARI CONTEXT
+  const { user, logout, updateTheme } = useAuth();
 
-  // Efek untuk menerapkan tema ke tag <html>
-  useEffect(() => {
-    const storedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(storedTheme);
-    document.documentElement.className = storedTheme; 
-  }, []);
-
-  // Fungsi untuk mengganti tema
+  // 4. Fungsi untuk mengganti tema (Sekarang memanggil context)
   const handleThemeChange = (e) => {
     const newTheme = e.target.value;
-    setTheme(newTheme);
-    document.documentElement.className = newTheme;
-    localStorage.setItem('theme', newTheme);
+    updateTheme(newTheme); // Panggil fungsi dari context
   };
   
-  // Data dummy
-  const userData = {
-    avatar: '/images/default-avatar.png',
-    name: 'Adi Sucipto',
-    username: '@adisucipto',
-    walletID: '0x23457W7890J98032I987469286',
-  };
-
+  // 5. Hapus 'userData' dummy
+  
   // Daftar item settings
   const settingsItems = [
     { label: 'Language' },
@@ -51,13 +38,21 @@ export default function AccountPage() {
     { label: 'Reporting' },
   ];
 
-  return (
-    // --- 3. Tambahkan wrapper <div> ---
-    <div> 
-      
-      {/* --- 4. Panggil komponen Topbar --- */}
-      <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
+  // 6. Tambahkan state loading jika user belum ada
+  if (!user) {
+    return (
+      <div>
+        <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
+        <main className={styles.container}>
+          <p>Loading account data...</p>
+        </main>
+      </div>
+    );
+  }
 
+  return (
+    <div> 
+      <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
       <main className={styles.container}>
         
         {/* --- KARTU PROFIL AKUN --- */}
@@ -70,27 +65,31 @@ export default function AccountPage() {
           <div className={styles.accountContent}>
             <div className={styles.userInfo}>
               <Image 
-                src={userData.avatar} 
+              // 7. Ganti data dummy dengan data 'user' asli
+                src={user.avatarUrl || '/images/default-avatar.png'} 
                 alt="Avatar" 
                 width={50} 
                 height={50} 
                 className={styles.avatar}
+              referrerPolicy="no-referrer" // Penting untuk avatar Google
               />
               <div className={styles.userText}>
-                <span className={styles.name}>{userData.name}</span>
-                <span className={styles.username}>{userData.username}</span>
+                <span className={styles.name}>{user.name}</span>
+                <span className={styles.username}>@{user.email.split('@')[0]}</span>
               </div>
             </div>
 
             <div className={styles.walletInfo}>
               <span className={styles.label}>Wallet ID</span>
               <div className={styles.walletIdContainer}>
-                <span className={styles.walletId}>{userData.walletID}</span>
+              {/* TODO: Ganti ini jika sudah ada di backend */}
+                <span className={styles.walletId}>{'0x23457W7890J98032I987469286'}</span>
                 <FaCopy className={styles.copyIcon} />
               </div>
             </div>
 
-            <button className={styles.logoutButton}>
+            {/* 8. Hubungkan tombol Logout ke context */}
+            <button className={styles.logoutButton} onClick={logout}>
               <span>Logout</span>
               <FaSignOutAlt />
             </button>
@@ -111,13 +110,14 @@ export default function AccountPage() {
               <select 
                 id="theme-select" 
                 className={styles.themeSelect}
-                value={theme}
+                    // 9. Hubungkan value select ke 'user.theme'
+                value={user.theme}
                 onChange={handleThemeChange}
               >
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
               </select>
-            </div>
+              </div>
 
             {/* Daftar item settings lainnya */}
             {settingsItems.map((item) => (
@@ -129,6 +129,6 @@ export default function AccountPage() {
         </section>
       </main>
 
-    </div> // --- 5. Tutup wrapper <div> ---
+    </div> 
   );
 }
