@@ -41,14 +41,14 @@
   --brand-color: #34a2f1; /* Bisa juga diubah jika perlu */
 
   /* Warna Dark Mode */
-  --bg-main: #111827;           /* Latar belakang utama halaman (biru gelap) */
-  --bg-card: #1f2937;           /* Latar belakang card (sedikit lebih terang) */
-  --text-primary: #f9fafb;      /* Teks utama (putih) */
-  --text-secondary: #9ca3af;    /* Teks abu-abu (abu-abu muda) */
-  --border-color: #374151;      /* Warna border/garis pemisah (gelap) */
+  --bg-main: #181818;           /* Latar belakang utama halaman (biru gelap) */
+  --bg-card: #292929;           /* Latar belakang card (sedikit lebih terang) */
+  --text-primary: #ffffff;      /* Teks utama (putih) */
+  --text-secondary: #afafaf;    /* Teks abu-abu (abu-abu muda) */
+  --border-color: #424242;      /* Warna border/garis pemisah (gelap) */
   
-  --nav-link-hover-bg: #374151;
-  --nav-link-active-bg: #374151; /* Latar belakang link aktif (gelap) */
+  --nav-link-hover-bg: #303540;
+  --nav-link-active-bg: #303540; /* Latar belakang link aktif (gelap) */
   --nav-link-active-text: var(--brand-color);
   --danger-color: #ef4444; /* Merah biasanya tetap */
   --danger-color-text: #ffffff;
