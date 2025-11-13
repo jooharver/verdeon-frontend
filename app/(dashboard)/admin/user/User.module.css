@@ -1,0 +1,427 @@
+/* --- Global Container --- */
+.container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-color: var(--bg-main);
+  transition: background-color 0.2s ease;
+}
+
+/* --- Card Utama (Tabel) --- */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.primaryButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--brand-color);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+.primaryButton:hover {
+  opacity: 0.9;
+}
+
+/* --- Toolbar (DIPERBARUI) --- */
+.cardToolbar {
+  display: flex;
+  justify-content: space-between; /* <-- Kunci untuk rata kanan-kiri */
+  align-items: center;
+  padding: 16px 24px;
+  flex-wrap: wrap; /* Bungkus jika layar kecil */
+  gap: 16px;
+}
+
+.searchInputContainer {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  /* flex-grow: 1; */ /* <-- DIHAPUS agar tidak mendorong filter */
+  min-width: 250px;
+}
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+.searchInput {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.searchInput:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+
+/* --- Filter Select --- */
+.filterSelect {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+  height: 42px; /* Samakan tinggi dengan search input */
+  min-width: 150px; /* Beri lebar minimum */
+}
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+
+
+/* --- Table (DIPERBARUI) --- */
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+}
+.tableRow {
+  display: grid;
+  /* Kolom ID diubah dari 0.8fr menjadi 1fr */
+  grid-template-columns: 1fr 2.5fr 2.5fr 1.5fr 1.5fr 1fr;
+  width: 100%;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.15s ease;
+}
+.tableRow:last-child {
+  border-bottom: none;
+}
+.tableRow:not(.tableHeader):hover {
+  background-color: var(--nav-link-hover-bg);
+}
+
+.tableHeader {
+  background-color: var(--bg-main);
+  border-bottom: 2px solid var(--border-color);
+}
+.tableHeader .tableCell {
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Style untuk Sorting Header */
+.tableCellSortable button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap; /* <-- Tambahan agar "ID" tidak terpotong */
+}
+.tableCellSortable button:hover {
+  color: var(--text-primary);
+}
+.sortIcon {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+.sortIconActive {
+  color: var(--brand-color);
+  opacity: 1;
+}
+
+.tableCell {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  position: relative;
+  word-break: break-all;
+}
+
+.userId {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.userName {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.actionsCell {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.iconButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+  border-radius: 4px;
+}
+.iconButton:hover {
+  color: var(--brand-color);
+  background-color: var(--nav-link-hover-bg);
+}
+.iconDelete:hover {
+  color: var(--danger-color);
+  background-color: #fee2e2;
+}
+.emptyState {
+  grid-column: 1 / -1;
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* --- Badges Role --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badgeAdmin { background-color: #e0f2fe; color: var(--brand-color); }
+.badgeUser { background-color: #e5e7eb; color: #374151; }
+
+
+/* --- Modal (Form & Konfirmasi) --- */
+.modalOverlay {
+  position: fixed; inset: 0;
+  background-color: var(--overlay-bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.modalContent {
+  background-color: var(--bg-card);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.formGroup label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.formGroup input,
+.formGroup select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+.formGroup input:focus,
+.formGroup select:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.secondaryButton:hover {
+  background-color: var(--nav-link-hover-bg);
+}
+
+/* --- Style Modal Konfirmasi --- */
+.dangerButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--danger-color);
+  color: var(--danger-color-text);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.dangerButton:hover {
+  opacity: 0.9;
+}
+
+.confirmHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.confirmIconWrapper {
+  background-color: #fee2e2;
+  color: var(--danger-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.confirmText {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.confirmText strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+
+/* --- Footer Paginasi --- */
+.cardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+.footerInfo {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.footerControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.perPageSelect {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.perPageSelect:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+.pagination {
+  display: flex;
+  gap: 8px;
+}
+.paginationButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+.paginationButton:hover:not(:disabled) {
+  background-color: var(--nav-link-hover-bg);
+  border-color: var(--border-color);
+}
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.paginationButton svg {
+  font-size: 0.8rem;
+}
