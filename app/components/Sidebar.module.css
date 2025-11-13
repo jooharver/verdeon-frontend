@@ -18,26 +18,31 @@
 
 .toggleButton {
   position: absolute;
-  top: 22px;
-  right: -15px; 
+  top: 16px;
+  right: -48px; 
   z-index: 99;
   /* --- PERBAIKAN --- */
   background-color: var(--bg-card); /* Diubah dari --bg-sidebar */
   /* ----------------- */
   border: 1px solid var(--border-color);
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--brand-color);
+  color: var(--text-secondary);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-.toggleButton:hover {
-  transform: scale(1.1);
+.toggleButton svg {
+  width: 28px; /* Coba 24px */
+  height: 28px; /* Coba 24px */
+}
+
+.toggleButton svg:hover {
+  transform: scale(1.05);
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 

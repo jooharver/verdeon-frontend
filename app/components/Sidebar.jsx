@@ -5,15 +5,16 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react'; 
+import { PanelRightOpen, PanelRightClose } from 'lucide-react'; // <-- Ikon ini akan kita pakai
 import styles from './Sidebar.module.css';
 import { 
-  FaHome, FaBriefcase, FaListAlt, FaLeaf, FaChartPie, FaUser, 
-  FaChevronLeft, FaChevronRight 
+  FaHome, FaBriefcase, FaListAlt, FaLeaf, FaChartPie, FaUser 
+  // <-- FaChevronLeft & FaChevronRight sudah dihapus
 } from 'react-icons/fa';
 
-// 3. Map ikon baru (INI PERBAIKANNYA)
+// Map ikon
 const iconMap = {
-  '/home': <FaHome />, // <-- Diubah dari '/' menjadi '/home'
+  '/home': <FaHome />,
   '/my-project': <FaBriefcase />,
   '/list-project': <FaListAlt />,
   '/carbon-market': <FaLeaf />,
@@ -25,7 +26,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false); 
 
-  // 4. navItems baru (Sudah Benar)
+  // navItems
   const navItems = [
     { href: '/home', label: 'Home' },
     { href: '/my-project', label: 'My Project' },
@@ -35,20 +36,22 @@ export default function Sidebar() {
     { href: '/account', label: 'Account' },
   ];
 
-  // 5. Logika 'isActive' (Sudah Benar)
+  // Logika 'isActive'
   const isActive = (href) => {
-    // Logika ini bisa disederhanakan
     return pathname.startsWith(href);
   };
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
       
+      {/* =========================================== */}
+      {/* 🚀 PERUBAHAN UTAMA ADA DI TOMBOL INI 🚀 */}
+      {/* =========================================== */}
       <button 
         className={styles.toggleButton} 
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        {isCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+        {isCollapsed ? <PanelRightOpen /> : <PanelRightClose />}
       </button>
 
       <div className={styles.logoContainer}>
@@ -78,7 +81,6 @@ export default function Sidebar() {
                 }`}
                 title={isCollapsed ? item.label : ''}
               >
-                {/* 7. Ambil ikon dari map (sekarang sudah benar) */}
                 {iconMap[item.href]}
                 {!isCollapsed && <span>{item.label}</span>}
               </Link>
