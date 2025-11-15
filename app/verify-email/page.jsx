@@ -1,42 +1,53 @@
 'use client';
 
-// Kita butuh Suspense untuk menangani useSearchParams di App Router
-import { useEffect, useState, Suspense } from 'react';
+// Impor useRef
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Swal from 'sweetalert2'; // Menggunakan library yang sudah Anda pakai
-import styles from './VerifyEmail.module.css'; // Buat file CSS baru untuk ini
+import Swal from 'sweetalert2';
+// Pastikan path CSS ini benar
+import styles from './VerifyEmail.module.css'; 
 
 // 1. Komponen inti yang akan membaca token
 function VerifyEmailComponent() {
-  // State untuk menampilkan pesan ke user
   const [message, setMessage] = useState('Sedang memverifikasi email Anda...');
   const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
 
+  // Gunakan useRef untuk 'gate' agar useEffect tidak berjalan dua kali
+  // useRef tidak memicu re-render saat diubah.
+  const hasAttempted = useRef(false);
+
   const searchParams = useSearchParams();
   const router = useRouter();
-  
-  // Ambil token dari URL (/?token=...)
   const token = searchParams.get('token');
 
   useEffect(() => {
-    // Jalankan hanya sekali saat komponen dimuat
+    // Cek 'gate' .current. 
+    // Jika true, berarti sudah pernah dijalankan, JANGAN LANJUT.
+    if (hasAttempted.current) {
+      return; 
+    }
+
     if (!token) {
       setMessage('Token tidak ditemukan. Link tidak valid.');
       setStatus('error');
+      hasAttempted.current = true; // Tandai sudah attempt
       return;
     }
 
     const verifyToken = async () => {
+      // Tutup 'gate' SEGERA. 
+      // Panggilan useEffect kedua (jika ada) akan gagal di 'if' di atas.
+      hasAttempted.current = true;
+
       try {
-        // 3b. Kirim token ke BACKEND (port 3001)
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${token}`, {
-          method: 'GET', // Asumsi kita pakai GET
+          method: 'GET',
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          // 4. Backend bilang sukses
+          // Logika Sukses (Ini yang seharusnya berjalan)
           setMessage(data.message || 'Email Anda berhasil diverifikasi!');
           setStatus('success');
 
@@ -48,12 +59,11 @@ function VerifyEmailComponent() {
             showConfirmButton: false,
             allowOutsideClick: false,
           }).then(() => {
-            // 5. Arahkan ke login
             router.push('/login');
           });
 
         } else {
-          // 4. Backend bilang gagal
+          // Logika Error (Ini yang sebelumnya salah tampil)
           const errorMessage = data.message || 'Verifikasi gagal. Token tidak valid atau kedaluwarsa.';
           setMessage(errorMessage);
           setStatus('error');
@@ -73,12 +83,11 @@ function VerifyEmailComponent() {
       }
     };
 
+    // Panggil fungsi verifikasi
     verifyToken();
     
-    // Kita nonaktifkan warning lint di bawah ini karena kita HANYA ingin
-    // hook ini berjalan SEKALI saat halaman dimuat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, router]); // Dependency array memastikan ini berjalan saat token berubah
+  }, [token, router]); // Hapus 'hasAttempted' dari dependency array
 
   // Tampilkan UI berdasarkan status
   return (

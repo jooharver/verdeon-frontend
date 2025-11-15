@@ -1,3 +1,5 @@
+// src/app/auth/google/callback/page.jsx
+
 'use client';
 
 import { useEffect, Suspense } from 'react'; // <-- TAMBAHKAN Suspense
