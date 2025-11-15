@@ -1,0 +1,404 @@
+/* 1. Wrapper Halaman Utama */
+.container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* Jarak antar section (KPI, Charts, Tables) */
+}
+
+/* 2. Grid untuk Kartu KPI */
+.kpiGrid {
+  display: grid;
+  /* 4 kolom di layar besar */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+/* 3. Style per Kartu KPI */
+.kpiCard {
+  position: relative; /* Penting untuk .pendingIndicator */
+  display: flex;
+  align-items: center; /* Ikon dan Teks sejajar di tengah */
+  gap: 20px;
+  padding: 24px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpiCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+}
+
+/* 4. Wrapper Ikon (Bulat/Kotak dengan Background) */
+.cardIconWrapper {
+  font-size: 1.75rem; /* Ukuran ikon (28px) */
+  padding: 16px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Style Default (biru) */
+  color: var(--brand-color);
+  background-color: var(--nav-link-active-bg); /* Latar belakang biru muda */
+}
+
+/* 5. Varian Warna Ikon (sesuai 'type' di JSX) */
+.cardIconWrapper.pending {
+  color: var(--warning-color);
+  background-color: #fef9c3; /* Latar belakang kuning muda (Light) */
+}
+.cardIconWrapper.success {
+  color: var(--success-color);
+  background-color: #d1fae5; /* Latar belakang hijau muda (Light) */
+}
+
+/* 6. Info Teks di Kanan Ikon */
+.cardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardTitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap; /* Mencegah teks turun */
+}
+
+.cardValue {
+  font-size: 1.75rem; /* Ukuran angka (28px) */
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.cardSubtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* 7. Indikator Titik Merah (dari desain) */
+/* Kita pakai --warning-color (kuning) agar konsisten */
+.pendingIndicator {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 12px;
+  height: 12px;
+  background-color: var(--warning-color);
+  border-radius: 50%;
+  border: 2px solid var(--bg-card); /* Border agar menyatu dgn card */
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* 8. Animasi untuk Indikator */
+@keyframes pulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+/* 9. Penyesuaian Dark Mode (Otomatis dari globals.css) */
+/* Warna background ikon untuk Dark Mode */
+.dark .cardIconWrapper.pending {
+  background-color: #45330c; /* Kuning tua */
+}
+.dark .cardIconWrapper.success {
+  background-color: #064e3b; /* Hijau tua */
+}
+
+/* --- ▼▼▼ TAMBAHKAN KODE BARU DI BAWAH INI ▼▼▼ --- */
+
+/* 1. Grid untuk Section Charts */
+.chartsSection {
+  display: grid;
+  /* Grid 2 kolom, kolom pertama 2x lebih besar (sesuai desain) */
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+/* 2. Style untuk Kartu yang Membungkus Chart */
+.chartCard {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 3. Header/Judul di dalam Kartu Chart */
+.chartHeader {
+  font-size: 0.9rem; /* 14px */
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+/* 4. Wrapper untuk Recharts (ResponsiveContainer) */
+.chartWrapper {
+  width: 100%;
+  /* Tinggi container di set di inline style JSX (e.g., 350px) 
+     agar Recharts bisa render dengan benar */
+}
+
+/* --- ▼▼▼ TAMBAHKAN KODE BARU DI BAWAH INI ▼▼▼ --- */
+
+/* 6. Grid untuk Section Action (Sama seperti chartsSection) */
+.actionSection {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+/* 7. Header dengan Ikon (dipakai di kedua kartu) */
+.iconHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.iconHeader svg {
+  font-size: 1.1rem; /* Sedikit lebih besar dari teks */
+}
+
+
+/* --- 8. Style untuk Tabel "Projects Needing Verification" --- */
+.projectTable {
+  display: flex;
+  flex-direction: column;
+}
+
+.tableRow {
+  display: grid;
+  /* Kolom: Nama (2x), Submitted (1.5x), Action (1x) */
+  grid-template-columns: 2fr 1.5fr 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 8px; /* Padding vertikal > horizontal */
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableHeader {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  padding-top: 0;
+}
+
+.projectName {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-weight: 500;
+}
+
+.projectIndex {
+  color: var(--text-secondary);
+  font-weight: 400;
+  width: 10px; /* Agar rapi */
+}
+
+.actionCell {
+  display: flex;
+  justify-content: flex-end; /* Mendorong tombol ke kanan */
+}
+
+.reviewButton {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: var(--brand-color);
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.reviewButton:hover {
+  opacity: 0.85;
+}
+
+
+/* --- 9. Style untuk "Quick Actions" --- */
+.quickActions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* Jarak antar tombol */
+}
+
+.quickButton {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Teks & Ikon di tengah */
+  gap: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff; /* Teks tombol selalu putih */
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.quickButton:hover {
+  transform: scale(1.03); /* Efek 'pop' saat hover */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.quickButton svg {
+  font-size: 1.2rem;
+}
+
+/* Warna-warna tombol (sesuai variabel global) */
+.quickButton.blue {
+  background-color: var(--brand-color);
+}
+.quickButton.green {
+  background-color: var(--success-color);
+}
+.quickButton.orange {
+  background-color: var(--warning-color);
+}
+
+/* --- ▼▼▼ TAMBAHKAN KODE BARU DI BAWAH INI ▼▼▼ --- */
+
+/* 11. Style untuk "Recent Transactions" */
+.transactionTable {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 12. Modifier Class untuk Row Transaksi (6 kolom) */
+/* Menggunakan .tableRow sebagai style dasar (border, padding) */
+.transactionRow {
+  /* 6 Kolom: Time, Buyer, Seller, Amount, VDN, Value */
+  grid-template-columns: 0.8fr 1.5fr 1.5fr 0.8fr 0.8fr 1.2fr;
+  gap: 16px;
+}
+
+/* 13. Style untuk sel-sel spesifik di tabel transaksi */
+.txTime {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.txParty {
+  font-weight: 500;
+  /* Mencegah teks panjang merusak layout */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.txValue {
+  font-weight: 600;
+  text-align: right;
+  color: var(--success-color); /* Warna hijau untuk nilai uang */
+}
+
+
+/* --- 14. Penyesuaian Responsif (PENTING) --- */
+
+@media (max-width: 1024px) {
+  /* ... (style .kpiGrid, .chartsSection, .actionSection di sini) ... */
+
+  /* Di Tablet, sembunyikan 2 kolom 'Amount' */
+  .transactionRow {
+    grid-template-columns: 1fr 2fr 2fr 1.5fr; /* Time, Buyer, Seller, Value */
+  }
+  
+  /* Pilih 'Amount' (anak ke-4) dan 'Amount (VDN)' (anak ke-5) untuk disembunyikan */
+  .transactionRow > span:nth-child(4),
+  .transactionRow > span:nth-child(5) {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  /* ... (style .kpiGrid, .chartsSection, .actionSection di sini) ... */
+
+  /* Di HP, .projectTable (.tableRow) menyembunyikan anak ke-2 */
+  /* Kita perlu override itu untuk .transactionRow */
+  
+  .transactionRow {
+    /* Tampilkan: Buyer, Seller, Value */
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .transactionRow > span:nth-child(1) { display: none; }  /* Sembunyikan Time */
+  .transactionRow > span:nth-child(2) { display: block; } /* PAKSA Tampil Buyer */
+  .transactionRow > span:nth-child(3) { display: block; } /* PAKSA Tampil Seller */
+  .transactionRow > span:nth-child(4) { display: none; }  /* Sembunyikan Amount */
+  .transactionRow > span:nth-child(5) { display: none; }  /* Sembunyikan Amount (VDN) */
+  .transactionRow > span:nth-child(6) { display: block; } /* Tampilkan Value */
+
+  .txValue {
+    text-align: right; /* Pastikan tetap rata kanan */
+  }
+}
+
+/* --- 10. Penyesuaian Responsif --- */
+@media (max-width: 1024px) {
+  /* Di tablet, .actionSection juga jadi 1 kolom */
+  .actionSection {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Di HP, tabel jadi lebih sempit */
+  .tableRow {
+    grid-template-columns: 1fr 1fr; /* Sembunyikan 'Submitted By' */
+    gap: 12px;
+  }
+  
+  /* Sembunyikan 'Submitted By' di header dan row data di HP */
+  .tableRow > span:nth-child(2) {
+    display: none;
+  }
+}
+
+
+/* 5. Responsif */
+@media (max-width: 1024px) {
+  /* Ubah jadi 1 kolom di tablet/HP */
+  .chartsSection {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* 10. Responsif untuk Tablet dan HP */
+@media (max-width: 1200px) {
+  /* 2 kolom di tablet */
+  .kpiGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  /* 1 kolom di HP */
+  .kpiGrid {
+    grid-template-columns: 1fr;
+  }
+  .cardValue {
+    font-size: 1.75rem; /* Kembalikan ukuran di HP */
+  }
+}
