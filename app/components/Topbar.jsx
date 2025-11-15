@@ -1,11 +1,10 @@
 'use client'; 
 
-// 1. Import hook yang diperlukan
+// 1. Impor FaSun dan FaMoon
 import React, { useState, useRef, useEffect } from "react";
-import { FaBell } from "react-icons/fa";
+import { FaBell, FaSun, FaMoon } from "react-icons/fa"; 
 import Link from 'next/link';
 import styles from "./Topbar.module.css";
-// 2. Pastikan path ini benar (menurut file Anda, harusnya 2 level)
 import { useAuth } from "../../context/AuthContext"; 
 
 const capitalizeRole = (role) => {
@@ -14,16 +13,13 @@ const capitalizeRole = (role) => {
 };
 
 const Topbar = ({ title, breadcrumbs = [] }) => {
-  // 3. Ambil 'logout' dari useAuth
-  const { user, isLoading, logout } = useAuth();
+  // 2. Ambil 'updateTheme' dari useAuth
+  const { user, isLoading, logout, updateTheme } = useAuth();
   
-  // 4. State untuk mengontrol dropdown
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
-  // 5. Ref untuk deteksi "klik di luar"
   const dropdownRef = useRef(null);
 
-  // 6. Logika untuk menutup dropdown jika klik di luar
+  // Logika untuk menutup dropdown (Tidak berubah)
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -36,10 +32,17 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
     };
   }, [dropdownRef]);
 
-  // 7. Handler untuk Logout (dan Ganti Akun)
+  // Handler untuk Logout (Tidak berubah)
   const handleLogout = () => {
-    setIsDropdownOpen(false); // Tutup dropdown
-    logout(); // Panggil fungsi logout dari context
+    setIsDropdownOpen(false); 
+    logout(); 
+  };
+
+  // 3. Buat fungsi untuk toggle tema
+  const handleThemeToggle = () => {
+    if (!user) return; // Guard clause jika user belum ada
+    const newTheme = user.theme === 'dark' ? 'light' : 'dark';
+    updateTheme(newTheme);
   };
 
   return (
@@ -52,6 +55,36 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
       </div>
 
       <div className={styles.right}>
+
+        {/* 4. TAMBAHKAN TOMBOL TEMA BARU DI SINI */}
+        {/* Tampil hanya jika user sudah loading & punya data tema */}
+        {/*           --- ▼▼▼ INI PERUBAHAN UTAMANYA ▼▼▼ ---
+          Kita ganti <button> menjadi <label> dengan <input> tersembunyi
+        */}
+        {!isLoading && user && user.theme && (
+          <label className={styles.themeSwitch}>
+            <input 
+              type="checkbox"
+              className={styles.switchInput}
+              onChange={handleThemeToggle}
+              // 'checked' berarti mode gelap aktif
+              checked={user.theme === 'dark'} 
+            />
+            {/* Ini adalah "track" (rel) dari switch */}
+            <span className={styles.switchSlider}>
+              {/* Ini adalah "knob" (tombol geser) yang berisi ikon */}
+              <span className={styles.switchIcon}>
+                {user.theme === 'dark' ? (
+                  <FaMoon /> // Saat gelap, ikon di knob adalah matahari
+                ) : (
+                  <FaSun /> // Saat terang, ikon di knob adalah bulan
+                )}
+              </span>
+            </span>
+          </label>
+        )}
+        {/* --- ▲▲▲ AKHIR DARI PERUBAHAN ▲▲▲ --- */}
+      
         <FaBell className={styles.icon} />
         
         {isLoading || !user ? (
@@ -64,12 +97,11 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
             </div>
           </div>
         ) : (
-          // --- 8. Ini adalah Container baru untuk profile + dropdown ---
+          // --- Container profile + dropdown (Tidak berubah) ---
           <div className={styles.profileContainer} ref={dropdownRef}>
-            {/* 9. Diubah dari <Link> menjadi <button> */}
             <button 
               className={styles.profileButton} 
-              onClick={() => setIsDropdownOpen(prev => !prev)} // Toggle dropdown
+              onClick={() => setIsDropdownOpen(prev => !prev)}
             >
               <img
                 src={user.avatarUrl ? user.avatarUrl : "/images/default-avatar.png"} 
@@ -84,13 +116,13 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
               </div>
             </button>
 
-            {/* 10. Dropdown Menu (Muncul kondisional) */}
+            {/* Dropdown Menu (Tidak berubah) */}
             {isDropdownOpen && (
               <div className={styles.dropdownMenu}>
                 <Link 
                   href="/account" 
                   className={styles.dropdownItem}
-                  onClick={() => setIsDropdownOpen(false)} // Tutup saat diklik
+                  onClick={() => setIsDropdownOpen(false)} 
                 >
                   Akun Saya
                 </Link>

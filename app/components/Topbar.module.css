@@ -49,6 +49,69 @@
   color: var(--text-primary);
 }
 
+/* 1. Wrapper untuk switch (label) */
+.themeSwitch {
+  position: relative;
+  display: inline-block;
+  /* Sesuaikan ukuran switch */
+  width: 60px; 
+  height: 32px;
+  cursor: pointer;
+}
+
+/* 2. Input checkbox asli (kita sembunyikan) */
+.switchInput {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* 3. Track (rel) dari switch */
+.switchSlider {
+  position: absolute;
+  inset: 0; /* (top: 0; right: 0; bottom: 0; left: 0;) */
+  background-color: var(--nav-link-hover-bg); /* Warna saat 'off' (light) */
+  border-radius: 34px;
+  transition: background-color 0.2s ease;
+  border: 1px solid var(--border-color);
+}
+
+/* 4. Knob (tombol geser) */
+.switchIcon {
+  position: absolute;
+  /* Ukuran knob */
+  height: 26px;
+  width: 26px;
+  /* Posisi awal (off) */
+  left: 3px;
+  bottom: 2px; 
+  
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  
+  /* Untuk memposisikan ikon di tengah knob */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Warna ikon di dalam knob */
+  color: var(--warning-color); /* Warna untuk bulan (saat light mode) */
+}
+
+/* --- 5. Logika Geser (PENTING) --- */
+
+/* Saat input 'checked' (dark mode on), ubah warna track */
+.switchInput:checked + .switchSlider {
+  background-color: #374151; /* Warna track saat 'on' (dark) */
+}
+
+/* Saat input 'checked' (dark mode on), geser knob ke kanan */
+.switchInput:checked + .switchSlider .switchIcon {
+  transform: translateX(27px); /* Jarak geser */
+  color: var(--brand-color); /* Warna untuk matahari (saat dark mode) */
+}
+
 /* --- PERUBAHAN & TAMBAHAN DI BAWAH INI --- */
 
 /* 1. (BARU) Wrapper untuk profile + dropdown */

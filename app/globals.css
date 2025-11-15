@@ -27,6 +27,7 @@
   --nav-link-active-bg: #eaf4ff; /* Latar belakang link aktif (biru muda) */
   --nav-link-active-text: var(--brand-color);
   --danger-color: #ef4444;
+  --warning-color: #f59e0b;
   --danger-color-text: #ffffff;
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.05);
   --overlay-bg: rgba(0, 0, 0, 0.5);
@@ -51,6 +52,7 @@
   --nav-link-active-bg: #303540; /* Latar belakang link aktif (gelap) */
   --nav-link-active-text: var(--brand-color);
   --danger-color: #ef4444; /* Merah biasanya tetap */
+  --warning-color: #f59e0b;
   --danger-color-text: #ffffff;
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.2); /* Shadow lebih gelap/tebal */
   --overlay-bg: rgba(0, 0, 0, 0.7); /* Overlay bisa lebih gelap */
