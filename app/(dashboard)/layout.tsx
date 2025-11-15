@@ -1,11 +1,12 @@
 // app/(dashboard)/layout.tsx
-
-'use client'; // <-- 1. JADIKAN CLIENT COMPONENT
+'use client'; 
 
 import Sidebar from "../components/Sidebar"; 
 import styles from './dashboard.module.css'; 
-import { useAuth } from "../../context/AuthContext"; // <-- 2. IMPORT useAuth (sesuaikan path jika perlu)
-import { useEffect } from "react"; // <-- 3. IMPORT useEffect
+import { useAuth } from "../../context/AuthContext";
+import { useEffect } from "react";
+import { useRouter } from 'next/navigation';
+import Swal from 'sweetalert2'; 
 
 export default function DashboardLayout({
   children,
@@ -13,28 +14,69 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   
-  // 4. AMBIL USER DARI CONTEXT
-  const { user } = useAuth();
+  // --- 🚀 PERUBAHAN DI SINI 🚀 ---
+  // 1. Ambil 'isLoggingOut' dari context
+  const { user, isLoading, isLoggingOut } = useAuth();
+  // --- AKHIR PERUBAHAN ---
+  
+  const router = useRouter();
 
-  // 5. BUAT EFEK UNTUK MENERAPKAN TEMA
+  // 2. EFEK UNTUK PROTEKSI RUTE (GUARD) - DIMODIFIKASI
   useEffect(() => {
-    // Cek jika user ada dan punya properti theme
+    if (!isLoading) {
+      if (!user) {
+        
+        // --- 🚀 PERUBAHAN DI SINI 🚀 ---
+        // 2. Cek state 'isLoggingOut'
+        if (isLoggingOut) {
+          // Ini adalah logout yang disengaja.
+          // JANGAN lakukan apa-apa. Biarkan fungsi logout
+          // menyelesaikan redirect-nya.
+          return; 
+        }
+        // --- AKHIR PERUBAHAN ---
+
+        // Jika user tidak ada DAN BUKAN proses logout,
+        // baru kita tampilkan alert akses ilegal.
+        Swal.fire({
+          title: 'Akses Ditolak',
+          text: 'Anda harus login terlebih dahulu untuk mengakses halaman ini.',
+          icon: 'warning',
+          confirmButtonText: 'OK, Login',
+          timer: 3000,
+          timerProgressBar: true,
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+        }).then(() => {
+          router.push('/login');
+        });
+      }
+    }
+    // 3. Tambahkan 'isLoggingOut' ke dependency array
+  }, [user, isLoading, router, isLoggingOut]); 
+
+  // Efek untuk Tema (Ini sudah ada dari tugas kita sebelumnya)
+  useEffect(() => {
     if (user && user.theme) {
-      const root = document.documentElement; // Ambil tag <html>
-      // Hapus tema lama
+      const root = document.documentElement; 
       root.classList.remove('light', 'dark');
-      // Tambahkan tema baru dari database user
       root.classList.add(user.theme);
     }
-    // Jika user logout (user=null), efek ini tidak akan menambahkan class
-    // dan <html> akan kembali ke default (ditangani oleh CSS-mu)
-  }, [user]); // Efek ini berjalan setiap kali 'user' berubah
+  }, [user]);
 
+  // TAMPILKAN 'null' SELAMA LOADING
+  // Ini untuk mencegah "flash" halaman dashboard
+  // dan agar tidak ada teks "Loading..." di belakang modal.
+  if (isLoading || !user) {
+    return null; 
+  }
+
+  // JIKA LOADING SELESAI DAN USER ADA
+  // Baru kita render layout dashboard yang sebenarnya
   return (
     <div className={styles.dashboardContainer}>
       <Sidebar />
       <main className={styles.mainContent}>
-        {/* 'children' adalah tempat halaman (page.jsx) Anda akan dirender */}
         {children}
       </main>
     </div>

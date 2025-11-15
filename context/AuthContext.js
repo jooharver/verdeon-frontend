@@ -13,9 +13,19 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  
+  // --- 🚀 PERUBAHAN DI SINI 🚀 ---
+  // 1. Tambahkan state baru untuk menandai proses logout
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // --- AKHIR PERUBAHAN ---
 
   // 2. STABILKAN FUNGSI 'logout' DENGAN 'useCallback'
   const logout = useCallback(() => {
+    // --- 🚀 PERUBAHAN DI SINI 🚀 ---
+    // 2. Set state 'isLoggingOut' jadi true
+    setIsLoggingOut(true); 
+    // --- AKHIR PERUBAHAN ---
+
     localStorage.removeItem('authToken');
     setToken(null);
     setUser(null);
@@ -66,9 +76,8 @@ export function AuthProvider({ children }) {
     // dan router.push akan ditangani oleh useEffect di bawah
     fetchProfile(newToken); 
     router.push(redirectPath); // Pindahkan router.push ke sini
-  }, [fetchProfile, router]); // Dibuat ulang jika fetchProfile/router berubah
+ }, [fetchProfile, router]); // Dibuat ulang jika fetchProfile/router berubah
 
-  // --- 🚀 PERUBAHAN DI SINI 🚀 ---
   // 6. BUAT FUNGSI BARU 'updateTheme'
   const updateTheme = useCallback(async (newTheme) => {
     // Cek apakah user ada
@@ -109,7 +118,6 @@ export function AuthProvider({ children }) {
       setUser(oldUser); // Rollback
     }
   }, [user, token]); // Dependensi: user dan token
-  // --- AKHIR PERUBAHAN ---
 
   // 7. Sediakan value ke semua children
   const value = {
@@ -119,7 +127,11 @@ export function AuthProvider({ children }) {
     logout, // Sekarang stabil
     isLoading,
     updateTheme, // <-- Tambahkan fungsi baru ke 'value'
-  };
+    // --- 🚀 PERUBAHAN DI SINI 🚀 ---
+    // 3. Sediakan state 'isLoggingOut' ke provider
+    isLoggingOut,
+    // --- AKHIR PERUBAHAN ---
+ };
 
   return (
     <AuthContext.Provider value={value}>
