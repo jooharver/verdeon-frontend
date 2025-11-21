@@ -1,57 +1,37 @@
-// components/Sidebar.jsx
-'use client'; 
+'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react'; 
-import { PanelRightOpen, PanelRightClose } from 'lucide-react'; // <-- Ikon ini akan kita pakai
+import { useAuth } from '@/context/AuthContext';
+import { MENU_ITEMS_BY_ROLE } from '@/lib/menuConfig';
+import { useState } from 'react';
 import styles from './Sidebar.module.css';
-import { 
-  FaHome, FaBriefcase, FaListAlt, FaLeaf, FaChartPie, FaUser 
-  // <-- FaChevronLeft & FaChevronRight sudah dihapus
-} from 'react-icons/fa';
-
-// Map ikon
-const iconMap = {
-  '/home': <FaHome />,
-  '/my-project': <FaBriefcase />,
-  '/list-project': <FaListAlt />,
-  '/carbon-market': <FaLeaf />,
-  '/portfolio': <FaChartPie />,
-  '/account': <FaUser />,
-};
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false); 
+  const { user } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // navItems
-  const navItems = [
-    { href: '/home', label: 'Home' },
-    { href: '/my-project', label: 'My Project' },
-    { href: '/list-project', label: 'List Project' },
-    { href: '/carbon-market', label: 'Carbon Market' },
-    { href: '/portfolio', label: 'Portfolio' },
-    { href: '/account', label: 'Account' },
-  ];
+  // 1. Dapatkan role user
+  const role = user?.role ?? 'default';
 
-  // Logika 'isActive'
-  const isActive = (href) => {
-    return pathname.startsWith(href);
-  };
+  // 2. Ambil menu sesuai role
+  const navItems = MENU_ITEMS_BY_ROLE[role] ?? MENU_ITEMS_BY_ROLE.default;
+
+  // 3. Fungsi untuk cek menu aktif
+  const isActive = (path) => pathname.startsWith(path);
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
-      
-      {/* =========================================== */}
-      {/* 🚀 PERUBAHAN UTAMA ADA DI TOMBOL INI 🚀 */}
-      {/* =========================================== */}
+
+      {/* tombol collapse */}
       <button 
-        className={styles.toggleButton} 
+        className={styles.toggleButton}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        {isCollapsed ? <PanelRightOpen /> : <PanelRightClose />}
+        {isCollapsed ? <PanelRightClose /> : <PanelRightOpen />}
       </button>
 
       <div className={styles.logoContainer}>
@@ -73,16 +53,13 @@ export default function Sidebar() {
       <nav className={styles.navContainer}>
         <ul className={styles.navList}>
           {navItems.map((item) => (
-            <li key={item.href}>
+            <li key={item.path}>
               <Link
-                href={item.href}
-                className={`${styles.navLink} ${
-                   isActive(item.href) ? styles.active : ''
-                }`}
-                title={isCollapsed ? item.label : ''}
+                href={item.path}
+                className={`${styles.navLink} ${isActive(item.path) ? styles.active : ''}`}
               >
-                {iconMap[item.href]}
-                {!isCollapsed && <span>{item.label}</span>}
+                {item.icon}
+                {!isCollapsed && <span>{item.title}</span>}
               </Link>
             </li>
           ))}

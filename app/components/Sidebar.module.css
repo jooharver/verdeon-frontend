@@ -37,13 +37,13 @@
 }
 
 .toggleButton svg {
-  width: 28px; /* Coba 24px */
-  height: 28px; /* Coba 24px */
+  width: 24px; /* Coba 24px */
+  height: 24px; /* Coba 24px */
 }
 
 .toggleButton svg:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
 .logoContainer {
