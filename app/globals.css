@@ -71,7 +71,7 @@ html,
 body {
   height: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow: hidden;
   /* Transisi warna agar smooth saat ganti tema */
   transition: background-color 0.2s ease, color 0.2s ease;
   
