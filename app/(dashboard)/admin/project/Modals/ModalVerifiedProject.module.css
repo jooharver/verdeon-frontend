@@ -15,7 +15,7 @@
 .modal {
   background-color: var(--bg-card);
   width: 100%;
-  max-width: 500px; /* Ukuran Compact agar fokus */
+  max-width: 1000px; /* Ukuran Compact agar fokus */
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);

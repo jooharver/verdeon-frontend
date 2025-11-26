@@ -90,8 +90,6 @@ export default function ModalVerifiedProject({ project, auditors = [], onClose, 
                 onChange={handleChange}
                 className={styles.selectInput}
               >
-                <option value="submitted" disabled>Submitted (Current)</option>
-                <option value="in review">In Review (Proses Audit)</option>
                 <option value="verified">Verified (Disetujui)</option>
                 <option value="revision">Revision Needed (Perlu Revisi)</option>
                 <option value="rejected">Rejected (Ditolak)</option>
