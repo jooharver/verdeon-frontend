@@ -83,8 +83,22 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
   // Helper URL
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
-    const cleanPath = filePath.replace(/\\/g, '/');
+    
+    // 1. Ganti semua backslash dengan forward slash
+    let cleanPath = filePath.replace(/\\/g, '/');
+    
+    // 2. Jika path mengandung "uploads/", kita ambil bagian setelahnya
+    // Ini penting jika Multer/Seeder menyimpan path yang berbeda.
+    const uploadsIndex = cleanPath.indexOf('uploads/');
+    if (uploadsIndex !== -1) {
+      cleanPath = cleanPath.substring(uploadsIndex); // Ambil dari 'uploads/...'
+    }
+
+    // 3. Pastikan path yang digabungkan tidak memiliki double slash (//)
     const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+    
+    // CleanPath seharusnya sekarang adalah 'uploads/projects/UUID-filename.jpg'
+    // Hasilnya: http://localhost:3001/uploads/projects/UUID-filename.jpg
     return `${baseUrl}/${cleanPath}`;
   };
 

@@ -4,27 +4,26 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
-import styles from './AdminProject.module.css';
+import styles from './AuditorReview.module.css';
 import Topbar from '../../../components/Topbar'; 
 import { 
-  FaSearch, FaEye, FaLayerGroup, FaCheckCircle, FaClock, FaBan, FaUserTie,
-  FaChevronLeft, FaChevronRight, FaImage, FaEdit, FaSpinner, FaExchangeAlt
+  FaSearch, FaEye, FaClipboardCheck, FaCheckCircle, FaClock, FaBan, FaUserTie,
+  FaChevronLeft, FaChevronRight, FaImage, FaPlayCircle
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 // Import Services
 import { projectService } from '../../../../services/projectService';
-import { userService } from '../../../../services/userService';
 
 // Modals
 import ModalProjectView from '../../my-project/CRUD/ModalProjectView'; 
-import ModalVerifiedProject from './Modals/ModalVerifiedProject'; 
+import ModalAuditProject from './Modals/ModalAuditProject'; // <--- IMPORT MODAL BARU
 
-const COLORS = ['#22c55e', '#eab308', '#ef4444', '#94a3b8'];
+const COLORS = ['#3b82f6', '#eab308', '#22c55e', '#ef4444'];
 
-export default function AdminProject() {
-  const pageTitle = "Project Verification";
-  const pageBreadcrumbs = ["Dashboard", "Admin", "Projects"];
+export default function AuditorReviewPage() {
+  const pageTitle = "Audit Tasks";
+  const pageBreadcrumbs = ["Dashboard", "Auditor", "Review"];
 
   // --- STATE ---
   const [projects, setProjects] = useState([]);
@@ -35,10 +34,9 @@ export default function AdminProject() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [projectToView, setProjectToView] = useState(null);
 
-  // --- STATE VERIFICATION MODAL ---
-  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
-  const [projectToVerify, setProjectToVerify] = useState(null);
-  const [auditors, setAuditors] = useState([]); 
+  // --- STATE AUDIT MODAL (BARU) ---
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [projectToAudit, setProjectToAudit] = useState(null);
 
   // Pagination & Sort
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -46,37 +44,33 @@ export default function AdminProject() {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
   // --- 1. FETCH DATA ---
-  
-  // A. Fetch Projects
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
       const data = await projectService.getAllProjects();
-      setProjects(Array.isArray(data) ? data : []);
+      
+      if (Array.isArray(data)) {
+        // Filter: Auditor hanya peduli project yang SUBMITTED (siap audit), AUDITING (sedang dikerjakan), atau history
+        const relevantProjects = data.filter(p => 
+            ['submitted', 'auditing', 'on_review', 'verified', 'rejected', 'listed'].includes(p.status?.toLowerCase())
+        );
+        setProjects(relevantProjects);
+      } else {
+        setProjects([]);
+      }
     } catch (error) {
       console.error("Error fetching projects:", error);
-      Swal.fire('Error', 'Gagal memuat data project.', 'error');
+      Swal.fire('Error', 'Gagal memuat daftar tugas audit.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // B. Fetch Auditors
-  const fetchAuditors = async () => {
-    try {
-      const data = await userService.getAuditors();
-      setAuditors(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching auditors:", error);
-    }
-  };
-
   useEffect(() => {
     fetchProjects();
-    fetchAuditors(); 
   }, []);
 
-    // --- FUNGSI HELPER getFullUrl (Koreksi) ---
+  // --- FUNGSI HELPER getFullUrl (Koreksi) ---
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
     
@@ -93,7 +87,7 @@ export default function AdminProject() {
     // Gabungkan: (http://localhost:3001) + / + (uploads/projects/...)
     return `${baseUrl}/${cleanPath}`; 
   };
-
+  
   // --- 2. HELPER IMAGE ---
   const getProjectImage = (project) => {
     const imgDoc = project.documents?.find(doc => doc.type === 'image');
@@ -107,20 +101,20 @@ export default function AdminProject() {
   // --- 3. DATA PROCESSING ---
   const stats = useMemo(() => {
     const total = projects.length;
-    // Update logic stats sesuai status baru
-    const listed = projects.filter(p => p.status?.toLowerCase() === 'listed').length;
-    const onReview = projects.filter(p => p.status?.toLowerCase() === 'on_review').length;
-    const pending = projects.filter(p => p.status?.toLowerCase() === 'submitted').length;
-    const rejected = projects.filter(p => p.status?.toLowerCase() === 'rejected').length;
+    // Task Baru: On Review (dari Admin)
+    const pending = projects.filter(p => p.status?.toLowerCase() === 'on_review').length;
+    // Sedang Dikerjakan (Optional, kalau ada status auditing spesifik)
+    const inProgress = projects.filter(p => p.status?.toLowerCase() === 'auditing').length;
+    // Selesai
+    const completed = projects.filter(p => ['listed', 'rejected'].includes(p.status?.toLowerCase())).length;
     
     const chartData = [
-      { name: 'Listed', value: listed },
-      { name: 'On Review', value: onReview },
       { name: 'Pending', value: pending },
-      { name: 'Rejected', value: rejected },
+      { name: 'In Progress', value: inProgress },
+      { name: 'Completed', value: completed },
     ].filter(item => item.value > 0);
 
-    return { total, listed, onReview, pending, rejected, chartData };
+    return { total, pending, inProgress, completed, chartData };
   }, [projects]);
 
   const processedProjects = useMemo(() => {
@@ -155,23 +149,25 @@ export default function AdminProject() {
     setIsViewModalOpen(true);
   };
 
-  const handleProcess = (project) => {
-    setProjectToVerify(project);
-    setIsVerifyModalOpen(true);
+  // ACTION: Buka Modal Audit
+  const handleStartAudit = (project) => {
+    setProjectToAudit(project);
+    setIsAuditModalOpen(true);
   };
 
-  // [UPDATED] Simpan Hasil Verifikasi menggunakan Service Baru
-  const handleSaveVerification = async (projectId, payload) => {
+  // ACTION: Save Audit ke Backend
+  const handleSaveAudit = async (projectId, formData) => {
     try {
-      // Panggil endpoint admin-process
-      await projectService.processAdminVerification(projectId, payload);
+      // Panggil Service (formData berisi field teknis + file)
+      await projectService.submitAudit(projectId, formData);
       
-      Swal.fire('Success', 'Project status updated successfully.', 'success');
-      setIsVerifyModalOpen(false);
-      fetchProjects(); // Refresh Data
+      Swal.fire('Success', 'Audit report submitted successfully!', 'success');
+      
+      setIsAuditModalOpen(false);
+      fetchProjects(); // Refresh data
     } catch (error) {
-      console.error("Verification Error:", error);
-      const msg = error.response?.data?.message || 'Failed to update project.';
+      console.error("Audit Submit Error:", error);
+      const msg = error.response?.data?.message || 'Failed to submit audit report.';
       Swal.fire('Error', msg, 'error');
     }
   };
@@ -182,23 +178,17 @@ export default function AdminProject() {
     setSortConfig({ key, direction });
   };
 
-  // --- RENDER HELPERS ---
   const renderStatusBadge = (status) => {
     const s = status?.toLowerCase() || 'draft';
-    
-    // Mapping Status Baru
     const badges = {
       listed: { class: styles.badgeVerified, icon: <FaCheckCircle />, label: 'Listed' },
-      on_review: { class: styles.badgePending, icon: <FaSpinner />, label: 'On Auditor Review' },
-      submitted: { class: styles.badgePending, icon: <FaClock />, label: 'Need Admin Action' },
-      revision: { class: styles.badgePending, icon: <FaExchangeAlt />, label: 'Revision Needed' },
+      verified: { class: styles.badgeVerified, icon: <FaCheckCircle />, label: 'Verified' },
+      on_review: { class: styles.badgePending, icon: <FaClock />, label: 'Ready to Audit' }, // Status ini yg penting buat auditor
+      submitted: { class: styles.badgePending, icon: <FaClock />, label: 'Waiting Admin' },
+      auditing: { class: styles.badgeProgress, icon: <FaClipboardCheck />, label: 'In Progress' },
       rejected: { class: styles.badgeRejected, icon: <FaBan />, label: 'Rejected' },
-      draft: { class: styles.badgeDraft, icon: <FaLayerGroup />, label: 'Draft' }
     };
-
-    // Fallback jika status tidak dikenali
-    const conf = badges[s] || badges.draft;
-    
+    const conf = badges[s] || { class: styles.badgeDraft, icon: <FaClock />, label: s };
     return <span className={`${styles.badge} ${conf.class}`}>{conf.icon} {conf.label}</span>;
   };
 
@@ -207,18 +197,18 @@ export default function AdminProject() {
       <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
       <main className={styles.container}>
         
-        {/* GRID ATAS (KPI & Chart) */}
+        {/* KPI SECTION */}
         <section className={styles.topGrid}>
           <div className={styles.statsGrid}>
-            <StatCard icon={<FaLayerGroup/>} className={styles.iconTotal} label="Total Projects" value={stats.total} />
-            <StatCard icon={<FaClock/>} className={styles.iconPending} label="Need Action" value={stats.pending} />
-            <StatCard icon={<FaSpinner/>} className={styles.iconPending} label="On Review" value={stats.onReview} />
-            <StatCard icon={<FaCheckCircle/>} className={styles.iconVerified} label="Listed" value={stats.listed} />
+            <StatCard icon={<FaClipboardCheck/>} className={styles.iconTotal} label="Total Tasks" value={stats.total} />
+            <StatCard icon={<FaClock/>} className={styles.iconPending} label="Pending Audit" value={stats.pending} />
+            <StatCard icon={<FaPlayCircle/>} className={styles.iconProgress} label="In Progress" value={stats.inProgress} />
+            <StatCard icon={<FaCheckCircle/>} className={styles.iconVerified} label="Completed" value={stats.completed} />
           </div>
           
           <div className={styles.chartCard}>
             <div className={styles.cardHeader}>
-              <h3 className={styles.cardTitle}>Status Distribution</h3>
+              <h3 className={styles.cardTitle}>Workload Distribution</h3>
             </div>
             <div className={styles.chartContainer}>
               <ResponsiveContainer width="100%" height="100%">
@@ -233,7 +223,7 @@ export default function AdminProject() {
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px' }}
                     itemStyle={{ color: 'var(--text-primary)' }}
                   />
                   <Legend verticalAlign="bottom" height={36}/>
@@ -246,11 +236,11 @@ export default function AdminProject() {
         {/* TABLE SECTION */}
         <section className={styles.tableCard}>
           <div className={styles.tableToolbar}>
-            <h3 className={styles.cardTitle}>All Submissions</h3>
+            <h3 className={styles.cardTitle}>Assigned Projects</h3>
             <div className={styles.searchInputContainer}>
               <FaSearch className={styles.searchIcon} />
               <input 
-                type="text" placeholder="Search project or issuer..." 
+                type="text" placeholder="Search project name..." 
                 className={styles.searchInput} 
                 value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
               />
@@ -266,12 +256,12 @@ export default function AdminProject() {
                 <div className={styles.tableCell}>Issuer</div>
                 <div className={`${styles.tableCell} ${styles.sortable}`} onClick={()=>handleSort('status')}>Status</div>
                 <div className={`${styles.tableCell} ${styles.sortable}`} onClick={()=>handleSort('created_at')}>Date</div>
-                <div className={styles.tableCell} style={{justifyContent:'center'}}>Actions</div>
+                <div className={styles.tableCell} style={{justifyContent:'center'}}>Action</div>
               </div>
 
               {/* BODY */}
               {isLoading ? (
-                <div className={styles.emptyState}>Loading data...</div>
+                <div className={styles.emptyState}>Loading tasks...</div>
               ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => (
                 <div className={styles.tableRow} key={project.id}>
                   
@@ -310,27 +300,28 @@ export default function AdminProject() {
                       <FaEye />
                     </button>
                     
-                    {/* Munculkan tombol Process jika masih Submitted atau Revision */}
-                    { ['submitted', 'revision'].includes(project.status?.toLowerCase()) && (
+                    {/* BUTTON AUDIT: Muncul jika status ON_REVIEW (sudah lolos admin) */}
+                    { ['on_review', 'auditing'].includes(project.status?.toLowerCase()) && (
                       <button 
-                        className={`${styles.actionBtn} ${styles.btnProcess}`} 
-                        onClick={() => handleProcess(project)} 
-                        title="Process Verification"
+                        className={`${styles.actionBtn} ${styles.btnAudit}`} 
+                        onClick={() => handleStartAudit(project)} 
+                        title="Start Verification"
                       >
-                        <FaEdit />
+                        <FaClipboardCheck />
                       </button>
                     )}
                   </div>
 
                 </div>
               )) : (
-                <div className={styles.emptyState}>No projects found.</div>
+                <div className={styles.emptyState}>No audit tasks available.</div>
               )}
             </div>
           </div>
 
           {/* PAGINATION */}
           <div className={styles.cardFooter}>
+             {/* ... Sama persis dengan admin ... */}
             <span className={styles.footerInfo}>
               Showing {(currentPage-1)*itemsPerPage + 1} - {Math.min(currentPage*itemsPerPage, totalItems)} of {totalItems}
             </span>
@@ -342,7 +333,7 @@ export default function AdminProject() {
         </section>
       </main>
 
-      {/* MODAL VIEW DETAIL */}
+      {/* MODAL VIEW ONLY */}
       {isViewModalOpen && (
         <ModalProjectView 
           project={projectToView} 
@@ -350,13 +341,12 @@ export default function AdminProject() {
         />
       )}
 
-      {/* MODAL VERIFICATION */}
-      {isVerifyModalOpen && (
-        <ModalVerifiedProject 
-          project={projectToVerify}
-          auditors={auditors} 
-          onClose={() => setIsVerifyModalOpen(false)}
-          onSave={handleSaveVerification}
+      {/* MODAL AUDIT FORM (BARU) */}
+      {isAuditModalOpen && (
+        <ModalAuditProject
+          project={projectToAudit}
+          onClose={() => setIsAuditModalOpen(false)}
+          onSave={handleSaveAudit}
         />
       )}
     </div>

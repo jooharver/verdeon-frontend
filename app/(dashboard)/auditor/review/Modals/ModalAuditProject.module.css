@@ -1,0 +1,361 @@
+/* --- OVERLAY & MODAL --- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--overlay-bg);
+  backdrop-filter: blur(5px); /* Efek modern blur */
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+  background-color: var(--bg-card);
+  width: 100%;
+  max-width: 1000px; /* Lebar optimal untuk form 2 kolom */
+  height: auto;
+  max-height: 90vh; /* Maksimal 90% tinggi layar */
+  border-radius: 16px; /* Sudut lebih bulat */
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Penting untuk rounded corner */
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- HEADER --- */
+.header {
+  padding: 20px 24px;
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0; /* Header tidak boleh mengecil */
+}
+
+.headerLeft {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.iconBadge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background-color: var(--nav-link-active-bg);
+  color: var(--brand-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.modalSubtitle {
+  margin: 4px 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.closeButton:hover {
+  background-color: var(--nav-link-hover-bg);
+  color: var(--danger-color);
+}
+
+/* --- BODY (SCROLLABLE) --- */
+.body {
+  flex: 1;
+  overflow-y: auto; /* Hanya body yang scroll */
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-color: var(--bg-main); /* Background sedikit beda biar input pop-out */
+}
+
+/* --- PROJECT INFO CARD --- */
+.projectCard {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.projectHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.projectName {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.projectType {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: var(--nav-link-hover-bg);
+  color: var(--text-secondary);
+}
+
+.projectMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.metaLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.metaValue {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* --- FORM STYLING --- */
+.formWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.formSection {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.sectionHeader {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--brand-color);
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gridTwo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* --- INPUTS --- */
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputGroup label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.req { color: var(--danger-color); }
+
+.input, .textarea, .inputWithIcon, .decisionSelect {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.input:focus, .textarea:focus, .inputWithIcon:focus, .decisionSelect:focus {
+  outline: none;
+  border-color: var(--brand-color);
+  box-shadow: 0 0 0 3px rgba(52, 162, 241, 0.1); /* Glow effect halus */
+}
+
+/* Input with Icon */
+.iconInputWrapper {
+  position: relative;
+}
+
+.fieldIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.fieldIconArea {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.inputWithIcon {
+  padding-left: 36px;
+}
+
+.textarea {
+  padding-left: 36px; /* Space for icon */
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Custom File Upload */
+.fileUploadWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.fileInput {
+  position: absolute;
+  left: 0; top: 0; width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.fileLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: var(--bg-main);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.fileInput:hover + .fileLabel {
+  border-color: var(--brand-color);
+  background-color: var(--nav-link-hover-bg);
+}
+
+/* Decision Box Highlight */
+.decisionBox {
+  margin-top: 20px;
+  padding: 16px;
+  background-color: var(--nav-link-hover-bg); /* Highlight background */
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.decisionLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.decisionSelect {
+  background-color: var(--bg-card); /* Putih/Gelap di dalam box abu */
+  font-weight: 600;
+}
+
+/* --- FOOTER --- */
+.footer {
+  padding: 20px 24px;
+  background-color: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.btnGhost {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btnGhost:hover {
+  background-color: var(--nav-link-hover-bg);
+  color: var(--text-primary);
+}
+
+.btnPrimary {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background-color: var(--brand-color);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btnPrimary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  .gridTwo {
+    grid-template-columns: 1fr;
+  }
+  
+  .projectMetaGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animasi */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
