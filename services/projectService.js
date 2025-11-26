@@ -1,4 +1,3 @@
-// src/services/projectService.js
 import apiClient from '../lib/apiClient';
 
 export const projectService = {
@@ -28,7 +27,6 @@ export const projectService = {
     return response.data;
   },
 
-  // PERBAIKAN: Sekarang support upload file baru saat Edit
   updateProject: async (id, data) => {
     const formData = new FormData();
     
@@ -37,19 +35,16 @@ export const projectService = {
 
       // Handle File Baru saat Edit
       if (key === 'image' || key === 'document') {
-        // Cek apakah ada file baru yang diupload (bukan array kosong)
         if (data[key] && data[key].length > 0) {
           for (let i = 0; i < data[key].length; i++) {
             formData.append(key, data[key][i]);
           }
         }
       } else {
-        // Data Teks biasa
         formData.append(key, data[key]);
       }
     }
 
-    // Menggunakan FormData untuk PATCH agar file baru terkirim
     const response = await apiClient.patch(`/project/${id}`, formData);
     return response.data;
   },
@@ -59,31 +54,33 @@ export const projectService = {
     return response.data;
   },
 
-  // --- BARU: DELETE SPECIFIC DOCUMENT/IMAGE ---
-  // Endpoint ini dipanggil saat user klik icon sampah di gambar/dokumen lama
   deleteDocument: async (documentId) => {
-    // Pastikan route backendmu sesuai, misal: DELETE /project/document/:id
     const response = await apiClient.delete(`/project/document/${documentId}`);
     return response.data;
   },
 
-  // --- ADMIN ENDPOINTS ---
+  // --- ADMIN & AUDITOR ENDPOINTS ---
   
-  // 1. Get All Projects
+  // 1. Get All Projects (Admin & Auditor)
   getAllProjects: async () => {
     const response = await apiClient.get('/project/admin/all'); 
     return response.data;
   },
 
-  // 2. Verify Project
-  verifyProject: async (id) => {
-    const response = await apiClient.patch(`/project/${id}/verify`);
+  // 2. Process Admin Verification (Verify/Reject + Assign Auditor)
+  processAdminVerification: async (id, data) => {
+    const response = await apiClient.patch(`/project/${id}/admin-process`, data);
     return response.data;
   },
 
-  // 3. Reject Project
-  rejectProject: async (id, reason) => {
-    const response = await apiClient.patch(`/project/${id}/reject`, { reason });
+  // 3. AUDITOR: SUBMIT AUDIT (Support Multi-File)
+  // Parameter 'data' adalah FormData yang berisi:
+  // - Field Teknis
+  // - audit_documents[] (Array file PDF)
+  // - audit_images[] (Array file Gambar)
+  submitAudit: async (id, data) => {
+    // Browser otomatis set Content-Type multipart/form-data + boundary untuk FormData
+    const response = await apiClient.post(`/project/${id}/audit`, data);
     return response.data;
   }
 };
