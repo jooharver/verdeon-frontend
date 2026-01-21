@@ -2,12 +2,27 @@
 
 .dashboardContainer {
   display: flex;
-  height: 100vh;
-  width: 100%;
+  width: 100vw;  /* Lebar penuh viewport */
+  height: 100vh; /* Tinggi penuh viewport */
+  
+  /* --- INI KUNCINYA --- */
+  position: fixed; /* Paksa elemen ini lepas dari antrian layout normal */
+  top: 0;          /* Tempel mentok ke atas */
+  left: 0;         /* Tempel mentok ke kiri */
+  z-index: 0;      /* Layer dasar */
+  
+  overflow: hidden; /* Hilangkan scrollbar window */
+  /* -------------------- */
+  
+  /* Hapus margin-top minus kamu */
+  /* margin-top: -20px;  <-- SUDAH TIDAK PERLU */
 }
 
 .mainContent {
   flex: 1;
   overflow-y: auto; 
   background-color: var(--bg-main);
+  display: flex;
+  flex-direction: column;
+  position: relative; /* Agar konteks stacking aman */
 }

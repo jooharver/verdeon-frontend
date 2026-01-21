@@ -1,0 +1,70 @@
+/* app/auth/google/callback/Callback.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f4f4f4;
+}
+
+.text {
+  margin-top: 20px;
+  font-family: sans-serif;
+  color: #333;
+}
+
+/* ========================================================
+   🚀 CSS UNTUK ANIMASI DOT BARU 🚀
+   ======================================================== */
+
+/* Container untuk 5 dot */
+.loadingSpinner {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end; /* Membuat dot 'melompat' dari dasar */
+  height: 50px; /* Beri ruang untuk lompatan */
+  gap: 10px; /* Jarak antar dot */
+}
+
+/* Style untuk satu dot */
+.loadingDot {
+  width: 12px;
+  height: 12px;
+  background-color: #007bff; /* Ganti warnanya jika perlu */
+  border-radius: 50%;
+  
+  /* Terapkan animasi */
+  animation: bounce-walk 1.2s infinite ease-in-out;
+}
+
+/* Definisikan animasi 'melompat' */
+@keyframes bounce-walk {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-20px); /* Seberapa tinggi lompatannya */
+  }
+}
+
+/* Ini adalah KUNCINYA:
+  Kita beri jeda (delay) animasi pada tiap dot
+  sehingga terlihat 'berjalan' dari kiri ke kanan.
+*/
+.loadingDot:nth-child(1) {
+  animation-delay: 0.0s;
+}
+.loadingDot:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.loadingDot:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.loadingDot:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.loadingDot:nth-child(5) {
+  animation-delay: 0.4s;
+}

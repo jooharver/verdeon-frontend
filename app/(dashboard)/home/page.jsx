@@ -1,9 +1,12 @@
-// app/(dashboard)/home/page.jsx
 'use client';
 
 import styles from './Home.module.css';
 import Image from 'next/image';
-import Topbar from '../../components/Topbar'; // Topbar diimpor kembali
+import Topbar from '../../components/Topbar';
+
+// 1. Impor 'useAuth'
+// Path ini (../../) sudah benar untuk keluar dari app/(dashboard)/home/
+import { useAuth } from '../../../context/AuthContext'; 
 
 // Impor ikon
 import { FiUser, FiTrendingUp, FiList, FiRss, FiCopy, FiArrowLeft, FiArrowRight } from 'react-icons/fi';
@@ -11,25 +14,24 @@ import { FiUser, FiTrendingUp, FiList, FiRss, FiCopy, FiArrowLeft, FiArrowRight 
 export default function HomePage() {
   // Data untuk Topbar
   const pageTitle = "Home";
-  const pageBreadcrumbs = ["Dashboard", "Home"]; //
+  const pageBreadcrumbs = ["Dashboard", "Home"]; 
   
-  // --- DATA DUMMY (sesuai kode asli Anda) ---
+  // 2. Panggil hook 'useAuth'
+  const { user, isLoading } = useAuth();
+  
+  // --- DATA DUMMY (Hanya untuk data yang belum kita punya) ---
   const portfolioData = {
-    name: "Adi Sucipto",
-    // --- TAMBAHAN ---
-    // Ganti dengan path avatar yang sesuai. Saya pakai placeholder.
-    avatar: "/images/default-avatar.png", 
-    // ---------------
+    // 'name' dan 'avatar' akan kita ambil dari 'user'
     tokenSupply: "******",
     walletID: "0x23457W7890J98032I987469286",
   };
 
+  // ... (Data dummy trendingProjects, allProjects, newsArticles tidak perlu diubah) ...
   const trendingProjects = [
     { id: 1, logo: "/images/project-logo-1.png", name: "PT Green Renewable Energy", availableTokens: "2034.8" },
     { id: 2, logo: "/images/project-logo-2.png", name: "PT Energy Jaya Asri", availableTokens: "1702.3" },
     { id: 3, logo: "/images/project-logo-3.png", name: "Pusat Solar Panel Indonesia", availableTokens: "1434.5" },
   ];
-
   const allProjects = [
     { id: 1, logo: "/images/project-logo-1.png", name: "PT Green Renewable Energy", availableTokens: "2034.8" },
     { id: 2, logo: "/images/project-logo-2.png", name: "PT Energy Jaya Asri", availableTokens: "1702.3" },
@@ -39,7 +41,6 @@ export default function HomePage() {
     { id: 6, logo: "/images/project-logo-3.png", name: "Pusat Solar Panel Indonesia", availableTokens: "1434.5" },
     { id: 7, logo: "/images/project-logo-1.png", name: "PT Green Renewable Energy", availableTokens: "2034.8" },
   ];
-
   const newsArticles = [
     { id: 1, image: "/images/news-1.jpg", title: "MAHASISWA & DOSEN BERSINERGI KEMBANGKAN RISET SAHAM" },
     { id: 2, image: "/images/news-2.jpg", title: "PEMERINTAH SIAP INVESTASI RP 16,5T, FOKUS KE SAHAM PENDANAAN" },
@@ -61,39 +62,66 @@ export default function HomePage() {
               <h3>Portfolio</h3>
             </div>
           </div>
-          <div className={styles.portfolioContent}>
-            
-            {/* --- BAGIAN INI DIPERBARUI --- */}
-            <div className={`${styles.portfolioInfo} ${styles.portfolioInfoWithAvatar}`}>
-              <Image
-                src={portfolioData.avatar}
-                alt="Avatar"
-                width={40}
-                height={40}
-                className={styles.portfolioAvatar}
-              />
-              <div>
-                <p className={styles.portfolioLabel}>Nama</p>
-                <h4 className={styles.portfolioValue}>{portfolioData.name}</h4>
-              </div>
-            </div>
-            {/* --------------------------- */}
 
-            <div className={styles.portfolioInfo}>
-              <p className={styles.portfolioLabel}>Token Supply</p>
-              <h4 className={styles.portfolioValue}>{portfolioData.tokenSupply}</h4>
-            </div>
-            <div className={styles.portfolioInfo}>
-              <p className={styles.portfolioLabel}>Wallet ID</p>
-              <div className={styles.walletIdContainer}>
-                  <h4 className={styles.portfolioValue}>{portfolioData.walletID}</h4>
-                  <FiCopy className={styles.copyIcon} />
+          {/* 3. Tambahkan cek isLoading || !user */}
+          {isLoading || !user ? (
+            // Tampilkan placeholder selagi loading
+            <div className={styles.portfolioContent}>
+              <div className={`${styles.portfolioInfo} ${styles.portfolioInfoWithAvatar}`}>
+                <div className={styles.portfolioAvatar} style={{ background: '#eee' }} />
+                <div>
+                  <p className={styles.portfolioLabel}>Nama</p>
+                  <h4 className={styles.portfolioValue}>Loading...</h4>
+                </div>
+              </div>
+              <div className={styles.portfolioInfo}>
+                <p className={styles.portfolioLabel}>Token Supply</p>
+                <h4 className={styles.portfolioValue}>******</h4>
+              </div>
+              <div className={styles.portfolioInfo}>
+                <p className={styles.portfolioLabel}>Wallet ID</p>
+                <h4 className={styles.portfolioValue}>...</h4>
               </div>
             </div>
-          </div>
+          ) : (
+            // 4. Jika data user ada, tampilkan data asli
+            <div className={styles.portfolioContent}>
+              <div className={`${styles.portfolioInfo} ${styles.portfolioInfoWithAvatar}`}>
+                <Image
+                  // 5. Ganti 'src' jadi dinamis
+                  src={user.avatarUrl ? user.avatarUrl : "/images/default-avatar.png"}
+                  alt="Avatar"
+                  width={40}
+                  height={40}
+                  className={styles.portfolioAvatar}
+                  // 6. Tambahkan ini untuk fix gambar Google
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.target.src = "/images/default-avatar.png"; }}
+                />
+                <div>
+                  <p className={styles.portfolioLabel}>Nama</p>
+                  {/* 7. Ganti 'name' jadi dinamis */}
+                  <h4 className={styles.portfolioValue}>{user.name}</h4>
+                </div>
+              </div>
+              
+              {/* Data ini masih dummy, tapi Anda bisa mengisinya nanti */}
+              <div className={styles.portfolioInfo}>
+                <p className={styles.portfolioLabel}>Token Supply</p>
+                <h4 className={styles.portfolioValue}>{portfolioData.tokenSupply}</h4>
+              </div>
+              <div className={styles.portfolioInfo}>
+                <p className={styles.portfolioLabel}>Wallet ID</p>
+                <div className={styles.walletIdContainer}>
+                    <h4 className={styles.portfolioValue}>{portfolioData.walletID}</h4>
+                    <FiCopy className={styles.copyIcon} />
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
-        {/* 2. Bagian Trending */}
+        {/* 2. Bagian Trending (Tidak berubah) */}
         <section className={styles.card}>
           <div className={styles.sectionHeader}>
               <div className={styles.sectionTitle}>
@@ -116,7 +144,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 3. Bagian All Project */}
+        {/* 3. Bagian All Project (Tidak berubah) */}
         <section className={styles.card}>
           <div className={styles.sectionHeader}>
               <div className={styles.sectionTitle}>
@@ -132,7 +160,7 @@ export default function HomePage() {
               <button className={styles.filterButton}>Semua</button>
           </div>
           <div className={styles.projectList}>
-               {allProjects.map((project, index) => (
+              {allProjects.map((project, index) => (
                   <div key={project.id} className={styles.projectItem}>
                       <span className={styles.projectIndex}>{index + 1}</span>
                       <Image src={project.logo} alt={project.name} width={40} height={40} className={styles.projectLogo} />
@@ -151,7 +179,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 4. Bagian News */}
+        {/* 4. Bagian News (Tidak berubah) */}
         <section className={styles.card}>
           <div className={styles.sectionHeader}>
               <div className={styles.sectionTitle}>

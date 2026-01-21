@@ -1,0 +1,59 @@
+/* Dibuat mirip dengan style register Anda */
+.container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f9f9f9;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+.card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.1rem;
+  color: #555;
+}
+
+.success {
+  font-size: 1.1rem;
+  color: #28a745; /* Hijau */
+}
+
+.error {
+  font-size: 1.1rem;
+  color: #dc3545; /* Merah */
+}
+
+/* Spinner sederhana */
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #04bd64; /* Warna dari tombol Anda */
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

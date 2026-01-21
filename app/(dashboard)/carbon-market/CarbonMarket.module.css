@@ -15,10 +15,11 @@
   flex-shrink: 0;
   background-color: var(--bg-card);
   border-right: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease;
-  z-index: 106; /* Di atas overlay */
+  z-index: 1; /* Di atas overlay */
 }
 
 .filterHeader {

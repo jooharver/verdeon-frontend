@@ -1,467 +1,236 @@
-/* --- Global Container --- */
+/* --- Layout Utama --- */
 .container {
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
   background-color: var(--bg-main);
-  transition: background-color 0.2s ease;
+  min-height: 100vh;
+  font-family: inherit;
 }
 
-/* --- 
-  BARU: Grid Atas (Overview & Performance) 
---- */
+/* --- Top Grid (Stats & Chart) --- */
 .topGrid {
   display: grid;
-  grid-template-columns: repeat(1, 1fr); /* Default 1 kolom (mobile) */
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
-/* Base card untuk grid atas */
+@media (min-width: 1024px) {
+  .topGrid {
+    grid-template-columns: 1fr 2fr; /* Kiri stats, Kanan chart */
+  }
+}
+
+/* Info Card Styles */
 .infoCard {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 20px 24px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .infoCard h3 {
-  font-size: 1.1rem; /* Sedikit lebih kecil dari judul card utama */
-  font-weight: 600;
+  margin: 0 0 20px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--text-primary);
-  margin: 0;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color);
 }
 
-/* --- Card Kiri: Overview --- */
+/* Stats Items */
 .overviewStatsContainer {
-  display: grid;
-  /* Grid responsif: 1, 2, atau 3 kolom tergantung lebar */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  height: 100%;
+  justify-content: center;
 }
 
 .statItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background-color: var(--bg-main);
+  gap: 16px;
   padding: 16px;
-  border-radius: 8px;
+  background-color: var(--bg-main);
+  border-radius: 12px;
   border: 1px solid var(--border-color);
+  transition: transform 0.2s;
 }
+.statItem:hover { transform: translateY(-2px); }
 
 .statItemIcon {
-  font-size: 1.5rem;
-  padding: 10px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
 }
 
-/* Warna-warna untuk ikon stats */
-.iconTotal { color: var(--brand-color); background-color: #e0f2fe; } /* Biru muda */
-.iconPublished { color: #16a34a; background-color: #dcfce7; } /* Hijau muda */
-.iconReview { color: #d97706; background-color: #fef9c3; } /* Kuning muda */
+/* Icon Colors */
+.iconTotal { background-color: #eff6ff; color: #3b82f6; }
+.iconPublished { background-color: #f0fdf4; color: #22c55e; }
+.iconReview { background-color: #fefce8; color: #eab308; }
 
-.statItemInfo {
-  display: flex;
-  flex-direction: column;
-}
+.statItemInfo { display: flex; flex-direction: column; }
+.statItemLabel { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+.statItemValue { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
 
-.statItemLabel {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-  white-space: nowrap;
-}
+/* Chart */
+.performanceCard { min-height: 350px; }
+.chartContainer { flex: 1; width: 100%; min-height: 250px; }
 
-.statItemValue {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-/* --- Card Kanan: Performance --- */
-.performanceCard {
-  min-height: 320px; /* Pastikan ada cukup ruang untuk chart */
-}
-
-.chartContainer {
-  width: 100%;
-  height: 250px; /* Tinggi spesifik untuk container chart */
-}
-
-/* --- 
-  Breakpoint untuk layout grid atas 
---- */
-@media (min-width: 900px) {
-  .topGrid {
-    /* 1 bagian untuk overview, 1.5 bagian untuk performance */
-    grid-template-columns: 1fr 1.5fr;
-  }
-}
-@media (min-width: 1200px) {
-  /* 1 bagian untuk overview, 2 bagian untuk performance */
-  .topGrid {
-    grid-template-columns: 1fr 2fr;
-  }
-}
-
-
-/* --- 
-  CSS LAMA YANG MASIH RELEVAN
-  (Card Utama, Tabel, Modal, dll)
---- */
-
-/* --- Card Utama (Tabel) --- */
+/* --- Table Card --- */
 .card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-  overflow: hidden; /* Penting untuk border-radius */
-}
-.cardHeader {
-  display: flex;
-  flex-wrap: wrap; /* Agar responsif di mobile */
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color); /* Pindah border dari toolbar */
-}
-.cardTitle {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-.primaryButton {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: var(--brand-color);
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  white-space: nowrap;
-}
-.primaryButton:hover {
-  opacity: 0.9;
-}
-.cardToolbar {
-  display: flex;
-  justify-content: space-between;
-  padding: 16px 24px;
-}
-.searchInputContainer {
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-}
-.searchIcon {
-  position: absolute;
-  top: 50%;
-  left: 12px;
-  transform: translateY(-50%);
-  color: var(--text-secondary);
-}
-.searchInput {
-  width: 100%;
-  padding: 10px 12px 10px 36px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-}
-.searchInput:focus {
-  outline: none;
-  border-color: var(--brand-color);
+  overflow: hidden;
 }
 
-/* --- Table --- */
-.tableContainer {
-  width: 100%;
-  overflow-x: auto; /* Memungkinkan scroll horizontal jika tabel terlalu lebar */
+.cardHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex; justify-content: space-between; align-items: center;
 }
-.table {
-  width: 100%;
-  min-width: 700px; /* Lebar minimum agar kolom tidak terlalu sempit */
-  border-collapse: collapse;
+
+.cardTitle { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+
+.primaryButton {
+  background-color: var(--brand-color); color: white;
+  border: none; padding: 10px 20px; border-radius: 8px;
+  font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  transition: opacity 0.2s;
 }
+.primaryButton:hover { opacity: 0.9; }
+
+.cardToolbar {
+  padding: 16px 24px; border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+}
+
+.searchInputContainer { position: relative; max-width: 300px; }
+.searchIcon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+.searchInput {
+  width: 100%; padding: 10px 12px 10px 38px; border-radius: 8px;
+  border: 1px solid var(--border-color); background-color: var(--bg-main);
+  color: var(--text-primary); outline: none;
+}
+.searchInput:focus { border-color: var(--brand-color); }
+
+/* --- TABLE LAYOUT (GRID UPDATE) --- */
+.tableContainer { overflow-x: auto; }
+.table { min-width: 1100px; }
+
 .tableRow {
   display: grid;
-  /* Kolom grid disesuaikan dengan 5 kolom data */
-  grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr;
-  width: 100%;
+  /* GRID DEFINITION: 8 Kolom */
+  grid-template-columns: 60px 2fr 130px 130px 130px 120px 120px 120px;
+  gap: 16px;
+  padding: 12px 24px;
   border-bottom: 1px solid var(--border-color);
-  transition: background-color 0.15s ease;
-}
-.tableRow:last-child {
-  border-bottom: none;
-}
-.tableRow:not(.tableHeader):hover {
-  background-color: var(--nav-link-hover-bg);
+  align-items: center;
 }
 
+/* HEADER STYLE FIX (KONSISTENSI) */
 .tableHeader {
   background-color: var(--bg-main);
-  border-bottom: 2px solid var(--border-color); /* Header lebih tebal */
+  font-weight: 600; /* Semua header semi-bold */
+  color: var(--text-secondary);
+  text-transform: uppercase; 
+  font-size: 0.75rem; 
+  letter-spacing: 0.05em;
 }
 
-.tableHeader .tableCell {
-  padding: 0; /* Padding ada di tombol */
-  font-size: 0.8rem;
-  font-weight: 600;
+/* Pastikan elemen anak (termasuk tombol sort) mewarisi style font yang sama */
+.tableHeader .tableCell,
+.tableHeader .tableCell button,
+.tableHeader .tableCell span {
+  font-weight: 600; 
   color: var(--text-secondary);
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Style untuk Sorting Header */
-.tableCellSortable button {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px 24px;
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-.tableCellSortable button:hover {
-  color: var(--text-primary);
-}
-.sortIcon {
-  color: var(--text-secondary);
-  opacity: 0.5;
-}
-.sortIconActive {
-  color: var(--brand-color); /* Lebih jelas saat aktif */
-  opacity: 1;
+  letter-spacing: 0.05em;
+  font-family: inherit; /* Pastikan font family sama */
 }
 
 .tableCell {
-  display: flex;
-  align-items: center;
-  padding: 16px 24px;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  /* Untuk data-label responsif (jika diperlukan) */
-  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.9rem; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.projectName {
-  font-weight: 600;
-  color: var(--text-primary);
+.cellName { white-space: normal; line-height: 1.4; font-weight: 600; }
+
+/* Reset style default button agar menyatu dengan teks */
+.tableCellSortable button {
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; padding: 0;
 }
-.actionsCell {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+
+.sortIcon { opacity: 0.4; }
+.sortIconActive { color: var(--brand-color); opacity: 1; }
+
+/* Thumbnails */
+.thumbImg { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color); }
+.thumbPlaceholder {
+  width: 40px; height: 40px; border-radius: 6px;
+  background: var(--bg-main); border: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center; color: var(--text-secondary);
 }
+
+/* Actions */
+.actionsCell { justify-content: center; gap: 8px; }
 .iconButton {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  color: var(--text-secondary);
-  transition: color 0.2s ease;
-  border-radius: 4px;
+  width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border-color);
+  background: transparent; display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); cursor: pointer; transition: all 0.2s;
 }
-.iconButton:hover {
-  color: var(--brand-color);
-  background-color: var(--nav-link-hover-bg);
-}
-.iconDelete:hover {
-  color: #ef4444; /* Merah */
-  background-color: #fee2e2; /* Merah muda */
-}
-.emptyState {
-  grid-column: 1 / -1; /* Span semua kolom */
-  padding: 40px 24px;
-  text-align: center;
-  color: var(--text-secondary);
-}
+.iconButton:hover:not(:disabled) { border-color: var(--brand-color); color: var(--brand-color); }
+.iconDelete:hover:not(:disabled) { border-color: var(--danger-color); color: var(--danger-color); }
 
-/* --- Badges Status --- */
+.iconDisabled { opacity: 0.4; cursor: not-allowed; background-color: var(--bg-main); border-color: transparent; }
+.iconDeleteDisabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Badges */
 .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 99px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.badgePublished { background-color: #dcfce7; color: #166534; }
-.badgeInReview { background-color: #fef9c3; color: #713f12; }
-.badgeDraft { background-color: #e5e7eb; color: #374151; }
-.badgeFailed { background-color: #fee2e2; color: #991b1b; }
-
-/* --- Modal --- */
-.modalOverlay {
-  position: fixed; inset: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 100;
-  padding: 16px;
-}
-.modalContent {
-  background-color: var(--bg-card);
-  border-radius: 12px;
-  padding: 24px;
-  width: 100%;
-  max-width: 500px;
-  z-index: 101;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  /* Animasi modal (sederhana) */
-  animation: modalFadeIn 0.2s ease-out;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 6px; font-size: 0.7rem;
+  font-weight: 600; text-transform: capitalize;
+  border: 1px solid transparent;
 }
 
-@keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
+/* Badge Colors */
+.badgePublished { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+.badgePending, .badgeInReview { background: #fefce8; color: #ca8a04; border-color: #fef08a; }
+.badgeFailed { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.badgeRevision { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+.badgeDraft { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
 
-.modalTitle {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-.formGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.formGroup label {
-  font-weight: 500;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-.formGroup input,
-.formGroup select {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  font-size: 1rem;
-}
-.formGroup input:focus,
-.formGroup select:focus {
-  outline: none;
-  border-color: var(--brand-color);
-}
-.modalActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
-}
-.secondaryButton {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-.secondaryButton:hover {
-  background-color: var(--nav-link-hover-bg);
-}
-
-/* --- Footer Paginasi --- */
+/* Footer */
 .cardFooter {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
-  background-color: var(--bg-main);
-  /* Pastikan footer mengikuti border-radius card */
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
+  padding: 16px 24px; background-color: var(--bg-card);
+  display: flex; justify-content: space-between; align-items: center;
 }
-.footerInfo {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-.footerControls {
-  display: flex;
-  flex-wrap: wrap; /* Responsif */
-  align-items: center;
-  gap: 16px;
-}
+.footerInfo { font-size: 0.85rem; color: var(--text-secondary); }
+.footerControls { display: flex; gap: 16px; align-items: center; }
+
 .perPageSelect {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
-  color: var(--text-primary);
-  font-weight: 500;
-  font-size: 0.9rem;
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color);
+  background-color: var(--bg-main); color: var(--text-primary); outline: none; cursor: pointer;
 }
-.perPageSelect:focus {
-  outline: none;
-  border-color: var(--brand-color);
-}
-.pagination {
-  display: flex;
-  gap: 8px;
-}
+
+.pagination { display: flex; gap: 8px; }
 .paginationButton {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border-color);
+  background: var(--bg-main); color: var(--text-primary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
 }
-.paginationButton:hover:not(:disabled) {
-  background-color: var(--nav-link-hover-bg);
-  border-color: var(--border-color);
-}
-.paginationButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.paginationButton svg {
-  font-size: 0.8rem;
-}
+.paginationButton:hover:not(:disabled) { border-color: var(--brand-color); color: var(--brand-color); }
+.paginationButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.emptyState { padding: 40px; text-align: center; color: var(--text-secondary); }

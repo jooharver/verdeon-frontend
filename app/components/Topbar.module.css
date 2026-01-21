@@ -8,13 +8,8 @@
   position: sticky;
   top: 0;
   z-index: 15;
-  
-  /* --- PERBAIKAN --- */
-  /* Menggunakan variabel agar background ikut berubah tema */
   background-color: var(--bg-card); 
   border-bottom: 1px solid var(--border-color); 
-  /* ----------------- */
-
   height: var(--header-height);
   min-height: var(--header-height);
 }
@@ -25,18 +20,16 @@
 }
 
 .title {
+  margin-left: 40px;
   font-size: 1.5rem;
   font-weight: 600;
-  /* --- PERBAIKAN --- */
-  color: var(--text-primary); /* Menggunakan variabel teks utama */
-  /* ----------------- */
+  color: var(--text-primary);
 }
 
 .breadcrumb {
+  margin-left: 40px;
   font-size: 0.85rem;
-  /* --- PERBAIKAN --- */
-  color: var(--text-secondary); /* Menggunakan variabel teks sekunder */
-  /* ----------------- */
+  color: var(--text-secondary);
 }
 
 .right {
@@ -46,10 +39,7 @@
 }
 
 .icon {
-  /* --- PERBAIKAN --- */
-  /* Warna ikon notifikasi disamakan dengan teks sekunder agar lebih subtle */
   color: var(--text-secondary); 
-  /* ----------------- */
   font-size: 1.2rem;
   cursor: pointer;
   transition: color 0.2s ease;
@@ -59,8 +49,80 @@
   color: var(--text-primary);
 }
 
+/* 1. Wrapper untuk switch (label) */
+.themeSwitch {
+  position: relative;
+  display: inline-block;
+  /* Sesuaikan ukuran switch */
+  width: 60px; 
+  height: 32px;
+  cursor: pointer;
+}
 
-.profile {
+/* 2. Input checkbox asli (kita sembunyikan) */
+.switchInput {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* 3. Track (rel) dari switch */
+.switchSlider {
+  position: absolute;
+  inset: 0; /* (top: 0; right: 0; bottom: 0; left: 0;) */
+  background-color: var(--nav-link-hover-bg); /* Warna saat 'off' (light) */
+  border-radius: 34px;
+  transition: background-color 0.2s ease;
+  border: 1px solid var(--border-color);
+}
+
+/* 4. Knob (tombol geser) */
+.switchIcon {
+  position: absolute;
+  /* Ukuran knob */
+  height: 26px;
+  width: 26px;
+  /* Posisi awal (off) */
+  left: 3px;
+  bottom: 2px; 
+  
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  
+  /* Untuk memposisikan ikon di tengah knob */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Warna ikon di dalam knob */
+  color: var(--warning-color); /* Warna untuk bulan (saat light mode) */
+}
+
+/* --- 5. Logika Geser (PENTING) --- */
+
+/* Saat input 'checked' (dark mode on), ubah warna track */
+.switchInput:checked + .switchSlider {
+  background-color: #374151; /* Warna track saat 'on' (dark) */
+}
+
+/* Saat input 'checked' (dark mode on), geser knob ke kanan */
+.switchInput:checked + .switchSlider .switchIcon {
+  transform: translateX(27px); /* Jarak geser */
+  color: var(--brand-color); /* Warna untuk matahari (saat dark mode) */
+}
+
+/* --- PERUBAHAN & TAMBAHAN DI BAWAH INI --- */
+
+/* 1. (BARU) Wrapper untuk profile + dropdown */
+/* Memberi 'position: relative' agar dropdown bisa diposisikan */
+.profileContainer {
+  position: relative;
+}
+
+/* 2. (GANTI) Style .profile lama Anda sekarang menjadi .profileButton */
+/* Ini adalah tombol yang bisa diklik untuk membuka/menutup dropdown */
+.profileButton {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -68,18 +130,29 @@
   padding: 8px;
   border-radius: 8px;
   transition: background-color 0.2s ease;
-  
-  /* --- PERBAIKAN --- */
-  /* Border dan background menggunakan variabel */
   border: 1px solid var(--border-color);
   background-color: var(--bg-card);
-  /* ----------------- */
+  /* Memastikan teks di dalam tombol rata kiri */
+  text-align: left;
 }
 
-.profile:hover {
+.profileButton:hover {
   background-color: var(--nav-link-hover-bg);
 }
 
+/* 3. (BARU) Style untuk placeholder saat loading */
+/* Dibuat mirip dengan .profileButton */
+.profilePlaceholder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+}
+
+/* 4. (ASLI) Style avatar Anda (tidak berubah) */
 .profileAvatar {
   width: 36px;
   height: 36px;
@@ -87,15 +160,81 @@
   object-fit: cover;
 }
 
-.profile .name {
+/* 5. (GANTI) Selector .profile .name diubah ke .profileButton .name */
+.profileButton .name {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-primary); /* Sudah benar */
+  color: var(--text-primary);
   line-height: 1.2;
 }
 
-.profile .role {
+/* 6. (GANTI) Selector .profile .role diubah ke .profileButton .role */
+.profileButton .role {
   font-size: 0.8rem;
-  color: var(--text-secondary); /* Sudah benar */
+  color: var(--text-secondary);
   line-height: 1.2;
+}
+
+/* 7. (BARU) Style untuk menu dropdown */
+.dropdownMenu {
+  position: absolute;
+  top: 115%; /* Posisi di bawah tombol profile */
+  right: 0;
+  min-width: 180px;
+  z-index: 50;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  /* Menggunakan variabel Anda untuk konsistensi tema */
+  background: var(--bg-card); 
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  /* Animasi fade-in */
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* 8. (BARU) Style untuk setiap item di dropdown */
+.dropdownItem {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s;
+  /* Menggunakan variabel Anda */
+  color: var(--text-primary); 
+  text-decoration: none;
+  display: block;
+}
+
+.dropdownItem:hover {
+  /* Menggunakan variabel Anda */
+  background: var(--nav-link-hover-bg);
+}
+
+/* 9. (BARU) Style khusus untuk tombol logout */
+.logoutButton {
+  color: #dc3545; /* Merah (standar untuk 'danger') */
+}
+
+.logoutButton:hover {
+  background: #fbeeee; /* Merah muda saat hover */
+  color: #c82333;
+}
+
+/* 10. (BARU) Keyframe untuk animasi */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

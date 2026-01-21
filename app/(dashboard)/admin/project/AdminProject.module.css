@@ -1,0 +1,323 @@
+/* app/(dashboard)/admin/project/AdminProject.module.css */
+
+/* --- GLOBAL CONTAINER --- */
+.container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-color: var(--bg-main);
+  min-height: 100vh;
+  font-family: inherit;
+}
+
+/* --- TOP GRID (KPI & CHART) --- */
+.topGrid {
+  display: grid;
+  grid-template-columns: 1fr; /* Mobile: Stack ke bawah */
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+@media (min-width: 1280px) {
+  .topGrid {
+    /* Desktop: Kiri (KPI) 60%, Kanan (Chart) 40% */
+    grid-template-columns: 1.5fr 1fr;
+    /* Agar tinggi KPI dan Chart sejajar/sama */
+    align-items: stretch; 
+  }
+}
+
+/* --- LEFT SECTION: KPI CARDS --- */
+.kpiSection {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* REVISI: Grid 2x2 Pasti (2 Kolom) */
+.statsGrid {
+  display: grid;
+  /* Paksa 2 kolom dengan lebar sama. Ini akan membuat formasi 2 atas, 2 bawah */
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 16px;
+  height: 100%; /* Mengisi tinggi agar sejajar dengan chart */
+}
+
+/* Mobile Responsive untuk KPI */
+@media (max-width: 600px) {
+  .statsGrid {
+    grid-template-columns: 1fr; /* Di HP jadi 1 kolom ke bawah */
+  }
+}
+
+.statCard {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px; /* Padding agak besar biar kartu terlihat penuh */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+  height: 100%; /* Agar kartu mengisi penuh grid cell */
+}
+
+.statCard:hover {
+  transform: translateY(-3px);
+  border-color: var(--brand-color);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.iconBox {
+  width: 56px; /* Icon diperbesar sedikit */
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+/* Warna Icon */
+.iconTotal { color: #3b82f6; background-color: #eff6ff; }
+.iconPending { color: #eab308; background-color: #fefce8; }
+.iconVerified { color: #22c55e; background-color: #f0fdf4; }
+.iconRejected { color: #ef4444; background-color: #fef2f2; }
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* Rata Kanan */
+  text-align: right;
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.statValue {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+/* --- RIGHT SECTION: CHART CARD --- */
+.chartCard {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  height: 100%; /* Mengikuti tinggi Grid KPI */
+  min-height: 320px; /* Tinggi minimal aman */
+}
+
+.cardHeader {
+  padding-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.chartContainer {
+  flex: 1;
+  width: 100%;
+  min-height: 220px;
+  margin-top: 10px;
+}
+
+/* --- TABLE SECTION --- */
+.tableCard {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableToolbar {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background-color: var(--bg-card);
+}
+
+.tableToolbar h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.searchInputContainer {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.searchInput:focus {
+  border-color: var(--brand-color);
+}
+
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+}
+
+.tableRow {
+  display: grid;
+  /* IMG | NAME (Flex) | ISSUER | STATUS | DATE | ACTION */
+  grid-template-columns: 70px minmax(250px, 2fr) 1fr 130px 120px 140px;
+  gap: 16px;
+  width: 100%;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  padding: 12px 24px;
+  transition: background-color 0.2s;
+}
+
+.tableRow:last-child { border-bottom: none; }
+.tableRow:hover:not(.tableHeader) { background-color: var(--nav-link-hover-bg); }
+
+.tableHeader {
+  background-color: var(--bg-main);
+  border-bottom: 1px solid var(--border-color);
+  padding: 14px 24px;
+}
+
+.tableHeader .tableCell {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0;
+}
+
+.tableCell {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 100%;
+}
+
+.centerCell,
+.tableHeader .tableCell:first-child,
+.tableHeader .tableCell:last-child {
+  justify-content: center;
+}
+
+.tableRow > .tableCell:first-child {
+  justify-content: center;
+}
+
+.sortable { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; }
+.sortable:hover { color: var(--text-primary); }
+
+.thumbImg {
+  width: 40px; height: 40px; border-radius: 6px;
+  object-fit: cover; border: 1px solid var(--border-color);
+}
+.thumbPlaceholder {
+  width: 40px; height: 40px; border-radius: 6px;
+  background: var(--bg-main); border: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); opacity: 0.6;
+}
+
+.projectName { font-weight: 600; white-space: normal; line-height: 1.4; }
+.issuerInfo { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;
+  font-weight: 600; text-transform: capitalize;
+}
+.badgeVerified { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; }
+.badgePending { background: #fef9c3; color: #b45309; border: 1px solid #fde047; }
+.badgeRejected { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+.badgeDraft { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+
+.actionsCell { justify-content: center; gap: 8px; }
+.actionBtn {
+  width: 32px; height: 32px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+}
+.btnView { background: white; border: 1px solid var(--border-color); color: var(--text-secondary); }
+.btnView:hover { border-color: var(--brand-color); color: var(--brand-color); }
+.btnApprove { background: #dcfce7; color: #16a34a; }
+.btnApprove:hover { background: #16a34a; color: white; }
+.btnReject { background: #fee2e2; color: #dc2626; }
+.btnReject:hover { background: #dc2626; color: white; }
+
+.cardFooter {
+  padding: 16px 24px; background-color: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.paginationControls { display: flex; gap: 8px; }
+.pageBtn {
+  width: 32px; height: 32px;
+  border: 1px solid var(--border-color); background: var(--bg-main);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-primary); transition: all 0.2s;
+}
+.pageBtn:hover:not(:disabled) { border-color: var(--brand-color); color: var(--brand-color); }
+.pageBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.emptyState { padding: 40px; text-align: center; color: var(--text-secondary); font-style: italic; }

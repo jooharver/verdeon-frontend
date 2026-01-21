@@ -1,0 +1,198 @@
+/* --- OVERLAY & MODAL --- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--overlay-bg);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  width: 100%;
+  max-width: 1100px;
+  max-height: 90vh;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  animation: slideUp 0.3s ease-out;
+}
+
+/* --- HEADER --- */
+.header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.header h3 { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.closeButton {
+  background: none; border: none; color: var(--text-secondary);
+  cursor: pointer; font-size: 1.2rem; transition: color 0.2s;
+}
+.closeButton:hover { color: var(--danger-color); }
+
+/* --- BODY (SCROLLABLE) --- */
+.body { padding: 24px; overflow-y: auto; flex: 1; }
+
+.sectionTitle {
+  font-size: 0.9rem; font-weight: 700; color: var(--brand-color);
+  margin: 24px 0 12px 0; text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color); padding-bottom: 6px;
+}
+.sectionTitle:first-child { margin-top: 0; }
+.subLabel {
+  display: block; font-size: 0.8rem; font-weight: 600;
+  color: var(--text-secondary); margin-bottom: 8px;
+}
+
+/* --- MEDIA & DOCS LAYOUT (2 Columns) --- */
+.mediaContainer, .docsContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Split 50:50 */
+  gap: 24px;
+  margin-bottom: 24px;
+  align-items: start;
+}
+
+/* Kolom Gallery (Kiri) */
+.galleryColumn, .docColumn {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* 1. EXISTING GALLERY STYLE */
+.existingGalleryWrapper { display: flex; flex-direction: column; gap: 8px; }
+
+.heroImageWrapper {
+  position: relative; width: 100%; aspect-ratio: 16/9;
+  background-color: #000; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+.heroImg { width: 100%; height: 100%; object-fit: contain; }
+
+/* Tombol Delete Merah */
+.deleteHeroBtn {
+  position: absolute; top: 10px; right: 10px;
+  background-color: var(--danger-color); /* Merah penuh */
+  color: white; border: 2px solid white;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: transform 0.2s; z-index: 10;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.deleteHeroBtn:hover { transform: scale(1.1) rotate(5deg); }
+
+.heroCounter {
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(0,0,0,0.6); color: white;
+  padding: 4px 8px; border-radius: 12px; font-size: 0.75rem;
+}
+
+.thumbnailStrip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; }
+.thumbItem {
+  width: 60px; height: 60px; flex-shrink: 0; border-radius: 6px; overflow: hidden;
+  border: 2px solid transparent; cursor: pointer; opacity: 0.7; transition: all 0.2s;
+}
+.thumbItem img { width: 100%; height: 100%; object-fit: cover; }
+.thumbItem:hover { opacity: 1; }
+.thumbActive { border-color: var(--brand-color); opacity: 1; }
+
+.emptyBox, .emptyBoxSmall {
+  border: 1px dashed var(--border-color); border-radius: 8px;
+  padding: 24px; text-align: center; color: var(--text-secondary);
+  background: var(--bg-main); display: flex; flex-direction: column;
+  align-items: center; gap: 8px; justify-content: center;
+  height: 100%; min-height: 150px;
+}
+.emptyBoxSmall { min-height: 80px; padding: 16px; font-size: 0.85rem; }
+
+/* 2. UPLOAD SECTION STYLE */
+.hiddenInput { display: none; }
+.uploadBox {
+  border: 2px dashed var(--brand-color); /* Warna brand agar beda */
+  background-color: var(--nav-link-hover-bg);
+  border-radius: 8px; padding: 24px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; cursor: pointer; transition: all 0.2s;
+  color: var(--text-secondary); text-align: center;
+  height: 100%; min-height: 150px;
+}
+.uploadBox:hover { background: var(--bg-main); opacity: 0.8; }
+.uploadIcon { font-size: 2rem; color: var(--brand-color); }
+
+.newFileList { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.newFileBadge {
+  background: var(--nav-link-active-bg); color: var(--brand-color);
+  padding: 6px 12px; border-radius: 20px; font-size: 0.8rem;
+  display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-color);
+}
+
+/* DOCS ITEMS */
+.existingDocsList { display: flex; flex-direction: column; gap: 8px; }
+.docItem {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg-main); border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+.docLeft { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+.pdfIcon { color: #e11d48; font-size: 1.2rem; flex-shrink: 0; }
+.docName {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.85rem; font-weight: 500; color: var(--text-primary);
+}
+.deleteDocBtn {
+  background: none; border: none; color: var(--text-secondary);
+  cursor: pointer; padding: 6px; border-radius: 4px; transition: color 0.2s;
+}
+.deleteDocBtn:hover { color: var(--danger-color); background: rgba(239, 68, 68, 0.1); }
+
+.uploadBoxSmall {
+  border: 2px dashed var(--brand-color); padding: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  cursor: pointer; color: var(--text-secondary); background: var(--nav-link-hover-bg);
+  font-size: 0.9rem;
+}
+
+/* FORM GRID */
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.formGroup { display: flex; flex-direction: column; gap: 6px; }
+.fullWidth { grid-column: 1 / -1; }
+.formGroup label { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); }
+.required { color: var(--danger-color); }
+.formGroup input, .formGroup select, .formGroup textarea {
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color);
+  background-color: var(--bg-main); color: var(--text-primary); font-size: 0.95rem;
+}
+
+/* FOOTER */
+.footer {
+  padding: 16px 24px; border-top: 1px solid var(--border-color);
+  display: flex; justify-content: flex-end; gap: 12px; background-color: var(--bg-card);
+  flex-shrink: 0;
+}
+.primaryButton {
+  background-color: var(--brand-color); color: white; border: none;
+  padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;
+}
+.secondaryButton {
+  background: transparent; color: var(--text-primary); border: 1px solid var(--border-color);
+  padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .mediaContainer, .docsContainer, .formGrid { grid-template-columns: 1fr; }
+  .modal { height: 100vh; max-height: 100vh; border-radius: 0; }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
