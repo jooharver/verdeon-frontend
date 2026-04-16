@@ -1,17 +1,17 @@
 'use client';
 
 import Image from 'next/image';
-import styles from './Register.module.css'; // Tetap menggunakan CSS Modules Anda
+import styles from './Register.module.css';
 import { useState } from 'react';
-import Swal from 'sweetalert2'; // Tetap menggunakan SweetAlert2
-import { useRouter } from 'next/navigation'; // Tetap menggunakan Next Navigation
+import Swal from 'sweetalert2';
+import { useRouter } from 'next/navigation';
+import { AuthService } from '@/services/auth.service';
 
 export default function RegisterPage() {
-  // --- PENAMBAHAN STATE BARU ---
   const [name, setName] = useState('');
-  // -----------------------------
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -20,65 +20,45 @@ export default function RegisterPage() {
     setShowPassword((prev) => !prev);
   };
 
-  // Fungsi untuk handle submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validasi Client-side sederhana
+    if (password !== passwordConfirmation) {
+      return Swal.fire({
+        title: 'Error!',
+        text: 'Password dan Konfirmasi Password tidak cocok.',
+        icon: 'error',
+      });
+    }
+
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // --- PENAMBAHAN 'name' PADA BODY ---
-        body: JSON.stringify({ name, email, password }),
+      const data = await AuthService.register(
+        name, 
+        email, 
+        password, 
+        passwordConfirmation
+      );
+
+      Swal.fire({
+        title: 'Registrasi Berhasil!',
+        text: data.message || 'Akun Anda telah berhasil dibuat.',
+        icon: 'success',
+        confirmButtonText: 'Lanjut Login',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          router.push('/login');
+        }
       });
 
-      const data = await res.json();
-
-      // ======================================================
-      // 🚀 LOGIKA SUCCESS YANG DIPERBAIKI (Sesuai Alur Verifikasi Email) 🚀
-      // ======================================================
-      if (res.ok) {
-        // Alur yang benar: Tampilkan pesan sukses, lalu arahkan ke Login.
-        Swal.fire({
-          title: 'Registrasi Berhasil!',
-          text: data.message, // "Registration successful. Please check your email..."
-          icon: 'success',
-          // Menampilkan link Ethereal di footer modal (sangat berguna saat dev)
-          footer: data.etherealPreviewUrl
-            ? `<a href="${data.etherealPreviewUrl}" target="window" style="color: #007bff; text-decoration: underline;">Lihat Email (Ethereal)</a>`
-            : 'Silakan periksa kotak masuk email Anda.',
-          confirmButtonText: 'Mengerti, Lanjut Login',
-          allowOutsideClick: false,
-        }).then((result) => {
-          // Arahkan ke /login setelah user menekan tombol "OK"
-          if (result.isConfirmed) {
-            router.push('/login');
-          }
-        });
-
-      } else {
-        // Logika error sudah benar, menggunakan SweetAlert2
-        Swal.fire({
-          title: 'Register Gagal!',
-          text: data.message || 'Data yang Anda masukkan tidak valid.',
-          icon: 'error',
-          confirmButtonText: 'Coba Lagi',
-        });
-      }
-      // ======================================================
-      //           AKHIR DARI LOGIKA YANG DIPERBAIKI
-      // ======================================================
-
     } catch (error) {
-      console.error('Terjadi error:', error);
+      console.error('Register error:', error);
       Swal.fire({
-        title: 'Oops...',
-        text: 'Tidak dapat terhubung ke server. Coba beberapa saat lagi.',
+        title: 'Register Gagal!',
+        text: error.message || 'Terjadi kesalahan saat mendaftar.',
         icon: 'error',
-        confirmButtonText: 'OK',
       });
     } finally {
       setIsLoading(false);
@@ -89,12 +69,11 @@ export default function RegisterPage() {
     <>
       {isLoading && (
         <div className={styles.loadingOverlay}>
-          {/* Anda bisa tambahkan spinner di sini jika mau, misal: */}
-           <div className={styles.loadingSpinner}>
-             <div className={styles.loadingDot}></div>
-             <div className={styles.loadingDot}></div>
-             <div className={styles.loadingDot}></div>
-           </div>
+          <div className={styles.loadingSpinner}>
+            <div className={styles.loadingDot}></div>
+            <div className={styles.loadingDot}></div>
+            <div className={styles.loadingDot}></div>
+          </div>
         </div>
       )}
 
@@ -119,10 +98,6 @@ export default function RegisterPage() {
           </div>
 
           <form className={styles.form} onSubmit={handleSubmit}>
-            
-            {/* ====================================================== */}
-            {/* 🚀 FIELD 'NAME' BARU DITAMBAHKAN DI SINI 🚀 */}
-            {/* ====================================================== */}
             <label className={styles.label}>
               Full Name
               <input
@@ -135,8 +110,6 @@ export default function RegisterPage() {
                 disabled={isLoading}
               />
             </label>
-            {/* ====================================================== */}
-
 
             <label className={styles.label}>
               Email address
@@ -170,7 +143,7 @@ export default function RegisterPage() {
                   aria-label="Toggle password visibility"
                 >
                   <Image
-                    width={50} height={50}
+                    width={20} height={20}
                     src={showPassword ? '/images/eye-off.svg' : '/images/eye.svg'}
                     alt={showPassword ? 'Hide password' : 'Show password'}
                     className={styles.eyeIcon}
@@ -179,10 +152,26 @@ export default function RegisterPage() {
               </div>
             </label>
 
+            <label className={styles.label}>
+              Confirm Password
+              <div className={styles.passwordWrapper}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={passwordConfirmation}
+                  onChange={(e) => setPasswordConfirmation(e.target.value)}
+                  className={styles.input}
+                  placeholder="Repeat your password"
+                  disabled={isLoading}
+                />
+              </div>
+            </label>
+
             <button type="submit" className={styles.button} disabled={isLoading}>
               {isLoading ? 'Loading...' : 'Continue'}
             </button>
           </form>
+          
           <p className={styles.footerText}>
             Already have an account? <a href="/login">Login</a>
           </p>

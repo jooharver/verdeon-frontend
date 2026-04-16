@@ -2,140 +2,223 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React,
+{
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback
+} from 'react';
+
 import { useRouter } from 'next/navigation';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const logout = useCallback(() => {
-    setIsLoggingOut(true); 
-    localStorage.removeItem('authToken');
-    setToken(null);
-    setUser(null);
-    router.push('/login');
-  }, [router]); 
+  const router = useRouter();
 
-  // --- 🚀 PERUBAHAN DI SINI 🚀 ---
-  // 1. fetchProfile dibuat 'async' dan MENGEMBALIKAN data user
-  const fetchProfile = useCallback(async (currentToken) => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${currentToken}`,
-        },
-      });
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-      if (res.ok) {
-        const userData = await res.json();
-        setUser(userData);
-        return userData; // <-- Kembalikan data user
-      } else {
-        console.error('Token tidak valid, melakukan logout.');
-        logout(); 
-        return null; // <-- Kembalikan null jika gagal
-      }
-    } catch (error) {
-      console.error('Gagal mengambil profil:', error);
-      logout(); 
-      return null; // <-- Kembalikan null jika error
-    } finally {
-      setIsLoading(false);
-    }
-  }, [logout]); // Dibuat ulang hanya jika 'logout' berubah
+  /*
+  =====================================================
+  FETCH PROFILE (/me)
+  =====================================================
+  */
 
-  // Cek localStorage (useEffect ini sudah benar, tidak perlu diubah)
-  useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchProfile(storedToken);
-    } else {
-      setIsLoading(false);
-    }
-  }, [fetchProfile]); // Tambahkan fetchProfile sebagai dependency
+  const fetchProfile = useCallback(async (currentToken) => {
 
-  // --- 🚀 PERUBAHAN DI SINI 🚀 ---
-  // 2. 'login' dibuat 'async', MENGEMBALIKAN data user, dan MENGHAPUS redirectPath
-  const login = useCallback(async (newToken) => {
-    localStorage.setItem('authToken', newToken);
-    setToken(newToken);
-    setIsLoading(true); // Set loading true selama proses login
-    
-    // Panggil fetchProfile dan TUNGGU hasilnya
-    const userData = await fetchProfile(newToken); 
-    
-    // Kembalikan data user agar callback bisa menanganinya
-    return userData; 
-    
- }, [fetchProfile]); // Dibuat ulang hanya jika fetchProfile berubah
+    try {
 
-  // 'updateTheme' (Tidak berubah, sudah benar)
-  const updateTheme = useCallback(async (newTheme) => {
-    if (!user || !token) {
-      console.error('Tidak bisa update tema, user tidak login.');
-      return;
-    }
-    const oldUser = user;
-    setUser((prevUser) => ({
-      ...prevUser,
-      theme: newTheme,
-    }));
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          theme: newTheme, 
-        }),
-      });
-      if (!res.ok) {
-        console.error('Gagal menyimpan tema ke database.');
-        setUser(oldUser); 
-      }
-    } catch (error) {
-      console.error('Error saat update tema:', error);
-      setUser(oldUser); 
-    }
-  }, [user, token]); 
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+            Accept: 'application/json',
+          },
+        }
+      );
 
-  // Sediakan value ke semua children
-  const value = {
-    user,
-    token,
-    login, // Sekarang async dan return user
-    logout, 
-    isLoading,
-    updateTheme,
-    isLoggingOut,
-  };
+      if (!res.ok) throw new Error('Token invalid');
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children} 
-      {/*         Perubahan: Menghapus '!isLoading &&' di sini.
-        Kita biarkan 'isLoading' dikelola di level halaman 
-        (seperti di layout guard) agar halaman callback bisa 
-        tampil meski isLoading=true.
-      */}
-    </AuthContext.Provider>
-  );
+      const userData = await res.json();
+
+      setUser(userData);
+      setToken(currentToken);
+
+    } catch (err) {
+
+      console.error('Session invalid:', err);
+      localStorage.removeItem('authToken');
+      setUser(null);
+      setToken(null);
+
+    } finally {
+      setIsLoading(false);
+    }
+
+  }, []);
+
+
+  /*
+  =====================================================
+  AUTO LOGIN (PAGE REFRESH)
+  =====================================================
+  */
+
+  useEffect(() => {
+
+    const storedToken = localStorage.getItem('authToken');
+
+    if (storedToken) {
+      fetchProfile(storedToken);
+    } else {
+      setIsLoading(false);
+    }
+
+  }, [fetchProfile]);
+
+
+  /*
+  =====================================================
+  LOGIN
+  =====================================================
+  */
+
+  const login = useCallback(async (newToken, userData) => {
+
+    localStorage.setItem('authToken', newToken);
+
+    setToken(newToken);
+    setUser(userData);
+
+    setIsLoading(false);
+
+    return userData;
+
+  }, []);
+
+
+  /*
+  =====================================================
+  LOGOUT (SANCTUM SAFE)
+  =====================================================
+  */
+
+  const logout = useCallback(async () => {
+
+    setIsLoggingOut(true);
+
+    try {
+
+      const storedToken = localStorage.getItem('authToken');
+
+      if (storedToken) {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/logout`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${storedToken}`,
+              Accept: 'application/json',
+            },
+          }
+        );
+      }
+
+    } catch (error) {
+      console.error('Logout API gagal:', error);
+    }
+
+    localStorage.removeItem('authToken');
+
+    setUser(null);
+    setToken(null);
+
+    router.push('/login');
+
+  }, [router]);
+
+
+  /*
+  =====================================================
+  UPDATE PROFILE
+  =====================================================
+  */
+
+  const updateProfile = useCallback(async (payload) => {
+
+    if (!token) return;
+
+    try {
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/profile`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) throw new Error('Update gagal');
+
+      const updatedUser = await res.json();
+
+      setUser(updatedUser);
+
+    } catch (err) {
+      console.error(err);
+    }
+
+  }, [token]);
+
+
+  /*
+  =====================================================
+  CONTEXT VALUE
+  =====================================================
+  */
+
+  const value = {
+    user,
+    token,
+    login,
+    logout,
+    updateProfile,
+    isLoading,
+    isLoggingOut,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-// Hook kustom (tidak perlu diubah)
+
+/*
+=====================================================
+HOOK
+=====================================================
+*/
+
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === null) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error('useAuth must be used inside AuthProvider');
+  }
+
+  return context;
 };
