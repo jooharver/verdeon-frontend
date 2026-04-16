@@ -1,36 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styles from './ModalVerifiedProject.module.css';
 import { 
-  FaTimes, FaUserTie, FaClipboardCheck, FaInfoCircle 
+  FaTimes, FaClipboardCheck 
 } from 'react-icons/fa';
 
-/**
- * Props:
- * - project: Object data project yang dipilih
- * - auditors: Array daftar user dengan role 'auditor' (Fetch di parent)
- * - onClose: Fungsi tutup modal
- * - onSave: Fungsi simpan (kirim data { status, auditorId, notes })
- */
-export default function ModalVerifiedProject({ project, auditors = [], onClose, onSave }) {
-  
+export default function ModalVerifiedProject({ project, onClose, onSave }) {
+  const activeVersion = project?.active_version;
+
   const [formData, setFormData] = useState({
-    status: '',
-    auditor_id: '',
+    action: '', // 'approve' atau 'reject'
     admin_notes: ''
   });
-
-  // Populate data saat modal dibuka
-  useEffect(() => {
-    if (project) {
-      setFormData({
-        status: project.status || 'submitted',
-        auditor_id: project.auditor_id || '', // Jika sudah ada auditor sebelumnya
-        admin_notes: project.admin_notes || ''
-      });
-    }
-  }, [project]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,10 +21,12 @@ export default function ModalVerifiedProject({ project, auditors = [], onClose, 
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Validasi sederhana
-    if (!formData.status) return alert("Status must be selected");
+    if (!formData.action) return alert("Tentukan keputusan verifikasi (Approve / Reject).");
+    if (formData.action === 'reject' && !formData.admin_notes.trim()) {
+      return alert("Alasan penolakan (Notes) wajib diisi jika menolak proyek.");
+    }
     
-    // Kirim data ke Parent untuk diproses ke API
+    // Kirim keputusan ke parent
     onSave(project.id, formData);
   };
 
@@ -56,7 +40,7 @@ export default function ModalVerifiedProject({ project, auditors = [], onClose, 
         <div className={styles.header}>
           <div className={styles.headerTitle}>
             <FaClipboardCheck className={styles.headerIcon} />
-            <h3>Process Verification</h3>
+            <h3>Review Project Submission</h3>
           </div>
           <button className={styles.closeButton} onClick={onClose}>
             <FaTimes />
@@ -66,74 +50,47 @@ export default function ModalVerifiedProject({ project, auditors = [], onClose, 
         {/* BODY */}
         <div className={styles.body}>
           
-          {/* 1. PROJECT SUMMARY CARD */}
           <div className={styles.summaryCard}>
-            <h4 className={styles.projectTitle}>{project.name}</h4>
+            <h4 className={styles.projectTitle}>{activeVersion?.name || 'Unnamed Project'}</h4>
             <div className={styles.metaRow}>
               <span className={styles.metaItem}>
                 <strong>Issuer:</strong> {project.issuer?.name || 'Unknown'}
               </span>
               <span className={styles.metaItem}>
-                <strong>Location:</strong> {project.location_city}, {project.location_province}
+                <strong>Location:</strong> {activeVersion?.location_city}, {activeVersion?.location_province}
               </span>
             </div>
           </div>
 
           <form id="verifyForm" onSubmit={handleSubmit} className={styles.formContainer}>
             
-            {/* 2. CHANGE STATUS */}
+            {/* ACTION DECISION */}
             <div className={styles.formGroup}>
-              <label>Update Status <span className={styles.required}>*</span></label>
+              <label>Verification Decision <span className={styles.required}>*</span></label>
               <select 
-                name="status" 
-                value={formData.status} 
+                name="action" 
+                value={formData.action} 
                 onChange={handleChange}
                 className={styles.selectInput}
               >
-                <option value="verified">Verified (Disetujui)</option>
-                <option value="revision">Revision Needed (Perlu Revisi)</option>
-                <option value="rejected">Rejected (Ditolak)</option>
+                <option value="">-- Pilih Keputusan --</option>
+                <option value="approve">Approve (Teruskan ke Auditor)</option>
+                <option value="reject">Reject (Kembalikan ke Issuer)</option>
               </select>
-              <small className={styles.helperText}>
-                Select "Verified" only if all documents and specs are valid.
-              </small>
             </div>
 
-            {/* 3. ASSIGN AUDITOR */}
+            {/* ADMIN NOTES (Wajib jika reject) */}
             <div className={styles.formGroup}>
-              <label>Assign Auditor <span className={styles.required}>*</span></label>
-              <div className={styles.selectWrapper}>
-                <FaUserTie className={styles.inputIcon} />
-                <select 
-                  name="auditor_id" 
-                  value={formData.auditor_id} 
-                  onChange={handleChange}
-                  className={styles.selectInputWithIcon}
-                  required
-                >
-                  <option value="">-- Select Auditor --</option>
-                  {auditors.length > 0 ? (
-                    auditors.map((auditor) => (
-                      <option key={auditor.id} value={auditor.id}>
-                        {auditor.name} ({auditor.email})
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No auditors found</option>
-                  )}
-                </select>
-              </div>
-            </div>
-
-            {/* 4. ADMIN NOTES */}
-            <div className={styles.formGroup}>
-              <label>Admin Notes / Reason</label>
+              <label>
+                Admin Notes 
+                {formData.action === 'reject' && <span className={styles.required}> * (Wajib untuk Reject)</span>}
+              </label>
               <textarea 
                 name="admin_notes" 
                 rows="4" 
                 value={formData.admin_notes} 
                 onChange={handleChange}
-                placeholder="Write notes for the auditor or reason for rejection..."
+                placeholder="Tulis alasan jika menolak, atau catatan tambahan jika menyetujui..."
                 className={styles.textareaInput}
               />
             </div>
@@ -145,7 +102,7 @@ export default function ModalVerifiedProject({ project, auditors = [], onClose, 
         <div className={styles.footer}>
           <button className={styles.btnCancel} onClick={onClose}>Cancel</button>
           <button type="submit" form="verifyForm" className={styles.btnSave}>
-            Save Decision
+            Process Verification
           </button>
         </div>
 

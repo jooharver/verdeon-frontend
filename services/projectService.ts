@@ -33,5 +33,58 @@ export const projectService = {
     return api(`/projects/${id}/submit`, {
       method: "POST",
     });
-  }
+  },
+
+  // ==========================================
+  // ADMIN ENDPOINTS
+  // ==========================================
+  
+  // Mengambil semua project untuk dashboard Admin
+  getAllProjects: async () => {
+    return api("/admin/projects");
+  },
+
+  // Admin menyetujui proyek
+  adminApprove: async (id) => {
+    return api(`/admin/projects/${id}/approve`, {
+      method: "POST",
+    });
+  },
+
+  // Admin menolak proyek
+  adminReject: async (id, data) => {
+    // data berisi { note: "Alasan penolakan..." }
+    return api(`/admin/projects/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Admin me-listing proyek yang sudah lolos audit
+  adminListProject: async (id) => {
+    return api(`/admin/projects/${id}/list`, {
+      method: "POST",
+    });
+  },
+
+  // ==========================================
+  // AUDITOR ENDPOINTS
+  // ==========================================
+  
+  getAuditorProjects: async () => {
+    return api("/auditor/projects");
+  },
+
+  auditorVerify: async (id) => {
+    return api(`/auditor/projects/${id}/verify`, {
+      method: "POST",
+    });
+  },
+
+  auditorReject: async (id, data) => {
+    return api(`/auditor/projects/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(data), // { note: "Alasan..." }
+    });
+  },
 };
