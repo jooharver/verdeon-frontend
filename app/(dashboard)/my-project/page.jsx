@@ -11,7 +11,7 @@ import {
   FaCheckCircle, FaClock, FaLayerGroup,
   FaChevronLeft, FaChevronRight,
   FaSort, FaSortUp, FaSortDown, FaImage, FaEye, 
-  FaSpinner, FaExchangeAlt, FaBan, FaUserShield, FaUserTie
+  FaSpinner, FaExchangeAlt, FaBan, FaUserShield, FaUserTie, FaPaperPlane
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
@@ -21,6 +21,7 @@ import { projectService } from '../../../services/projectService';
 // Import Modals
 import ModalProjectForm from './CRUD/ModalProjectForm';
 import ModalProjectView from './CRUD/ModalProjectView';
+import ModalSubmitProject from './CRUD/ModalSubmitProject'; 
 
 const salesData = [
   { month: 'Jan', sales: 400 }, { month: 'Feb', sales: 300 }, { month: 'Mar', sales: 600 },
@@ -41,8 +42,12 @@ export default function MyProjectPage() {
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
+  
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [projectToView, setProjectToView] = useState(null);
+
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [projectToSubmit, setProjectToSubmit] = useState(null);
   
   // Pagination & Sorting
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -67,7 +72,7 @@ export default function MyProjectPage() {
     fetchProjects();
   }, []);
 
-  // --- DATA PROCESSING (Fixed for Laravel active_version) ---
+  // --- DATA PROCESSING ---
   const stats = useMemo(() => ({
     total: projects.length,
     listed: projects.filter(p => p.active_version?.status === 'listed').length,
@@ -88,8 +93,6 @@ export default function MyProjectPage() {
     if (sortConfig.key) {
       sortableProjects.sort((a, b) => {
         let valA, valB;
-        
-        // Mapping untuk key yang ada di dalam active_version
         if (['name', 'status', 'admin_verification_status', 'auditor_verification_status'].includes(sortConfig.key)) {
           valA = a.active_version?.[sortConfig.key] || '';
           valB = b.active_version?.[sortConfig.key] || '';
@@ -97,7 +100,6 @@ export default function MyProjectPage() {
           valA = a[sortConfig.key] || '';
           valB = b[sortConfig.key] || '';
         }
-
         if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
         if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
@@ -114,13 +116,9 @@ export default function MyProjectPage() {
     return sortedProjects.slice(start, end);
   }, [sortedProjects, currentPage, itemsPerPage]);
 
-  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-
   // --- RENDER BADGE ---
   const renderStatusBadge = (status) => {
     if (!status) return <span className={`${styles.badge} ${styles.badgeDraft}`}>-</span>;
-    
     const s = status.toLowerCase();
     let config = {};
 
@@ -136,34 +134,74 @@ export default function MyProjectPage() {
         config = { class: styles.badgePending, icon: <FaClock />, label: status };
         break;
       case 'rejected':
+      case 'revision':
         config = { class: styles.badgeFailed, icon: <FaBan />, label: status };
         break;
       default:
         config = { class: styles.badgeDraft, icon: <FaFileAlt />, label: status };
     }
-
     return <span className={`${styles.badge} ${config.class}`}>{config.icon} {config.label}</span>;
   };
 
   // --- HANDLERS ---
   const handleSave = () => {
-      setIsModalOpen(false); // Tutup modal
-      fetchProjects();       // Tarik ulang data terbaru dari database
-    };
+      setIsModalOpen(false); 
+      fetchProjects();       
+  };
 
   const handleEdit = (project) => { 
     const status = project.active_version?.status?.toLowerCase();
-    if (['draft', 'rejected'].includes(status)) {
+    // Sesuai Laravel: Hanya Draft yang boleh di-edit langsung
+    if (status === 'draft') {
       setCurrentProject(project); 
       setIsModalOpen(true); 
     } else {
-      Swal.fire('Locked', 'Project is currently locked for review.', 'info');
+      Swal.fire('Locked', 'Hanya proyek berstatus Draft yang dapat diubah. Jika Rejected, buat Revision terlebih dahulu.', 'info');
     }
   };
 
   const handleView = (project) => {
     setProjectToView(project);
     setIsViewModalOpen(true);
+  };
+
+  const handleOpenSubmitModal = (project) => {
+    setProjectToSubmit(project);
+    setIsSubmitModalOpen(true);
+  };
+
+  const handleConfirmSubmitToAPI = async (projectId) => {
+    try {
+      await projectService.submitProject(projectId);
+      Swal.fire('Submitted!', 'Your project is now under Admin review.', 'success');
+      setIsSubmitModalOpen(false);
+      fetchProjects();
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'Failed to submit project.', 'error');
+    }
+  };
+
+  // Handler Baru: Revise Project
+  const handleConfirmRevise = async (projectId) => {
+    const result = await Swal.fire({
+      title: 'Create Revision?',
+      text: 'Ini akan membuat versi Draft baru berdasarkan data yang ditolak. Anda dapat memperbaikinya sebelum melakukan submit ulang.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#eab308',
+      confirmButtonText: 'Ya, Buat Revisi Baru!',
+      cancelButtonText: 'Batal'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await projectService.reviseProject(projectId);
+        Swal.fire('Berhasil!', 'Versi Draft baru telah dibuat. Silakan klik tombol Edit untuk memperbaiki data.', 'success');
+        fetchProjects();
+      } catch (error) {
+        Swal.fire('Error', error.response?.data?.message || 'Gagal membuat revisi.', 'error');
+      }
+    }
   };
 
   const handleSort = (key) => {
@@ -247,11 +285,7 @@ export default function MyProjectPage() {
               <div className={`${styles.tableRow} ${styles.tableHeader}`}>
                 <div className={styles.tableCell} style={{ justifyContent: 'center' }}>Img</div>
                 <div className={`${styles.tableCell} ${styles.cellName}`}>
-                  {/* Hapus button lama, ganti dengan struktur ini */}
-                  <div 
-                    className={styles.sortableHeader} 
-                    onClick={() => handleSort('name')}
-                  >
+                  <div className={styles.sortableHeader} onClick={() => handleSort('name')}>
                     <span>Project Name</span>
                     <SortIcon columnKey="name" />
                   </div>
@@ -265,41 +299,97 @@ export default function MyProjectPage() {
 
               {isLoading ? (
                 <div className={styles.emptyState}>Loading projects...</div>
-              ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => (
-                <div className={styles.tableRow} key={project.id}>
-                  <div className={styles.tableCell} style={{ justifyContent: 'center' }}>
-                    <div className={styles.thumbPlaceholder}><FaImage /></div>
+              ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => {
+                
+                const status = project.active_version?.status?.toLowerCase();
+                const canEdit = status === 'draft';
+                const canSubmit = status === 'draft';
+                const canRevise = status === 'rejected';
+                
+                return (
+                  <div className={styles.tableRow} key={project.id}>
+                    <div className={styles.tableCell} style={{ justifyContent: 'center' }}>
+                      <div className={styles.thumbPlaceholder}><FaImage /></div>
+                    </div>
+                    <div className={`${styles.tableCell} ${styles.cellName}`}>
+                      <span className={styles.projectName}>{project.active_version?.name || 'Unnamed'}</span>
+                    </div>
+                    <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.status)}</div>
+                    <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.admin_verification_status)}</div>
+                    <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.auditor_verification_status)}</div>
+                    <div className={styles.tableCell}>
+                      {new Date(project.created_at).toLocaleDateString('id-ID')}
+                    </div>
+                    
+                    {/* ACTIONS */}
+                    <div className={`${styles.tableCell} ${styles.actionsCell}`}>
+                      <button className={styles.iconButton} onClick={() => handleView(project)} title="View">
+                        <FaEye />
+                      </button>
+                      
+                      <button 
+                        className={`${styles.iconButton} ${!canEdit ? styles.iconDisabled : ''}`} 
+                        onClick={() => handleEdit(project)}
+                        disabled={!canEdit}
+                        title="Edit Project"
+                      >
+                        <FaEdit />
+                      </button>
+
+                      {/* Tampilkan Tombol Revise JIKA Rejected, selain itu tampilkan Submit */}
+                      {canRevise ? (
+                        <button 
+                          className={styles.iconButton} 
+                          onClick={() => handleConfirmRevise(project.id)}
+                          title="Create Revision"
+                          style={{ color: '#eab308' }}
+                        >
+                          <FaExchangeAlt />
+                        </button>
+                      ) : (
+                        <button 
+                          className={`${styles.iconButton} ${!canSubmit ? styles.iconDisabled : ''}`} 
+                          onClick={() => handleOpenSubmitModal(project)}
+                          disabled={!canSubmit}
+                          title="Review & Submit"
+                          style={canSubmit ? { color: '#3b82f6' } : {}}
+                        >
+                          <FaPaperPlane />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className={`${styles.tableCell} ${styles.cellName}`}>
-                    <span className={styles.projectName}>{project.active_version?.name || 'Unnamed'}</span>
-                  </div>
-                  <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.status)}</div>
-                  <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.admin_verification_status)}</div>
-                  <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.auditor_verification_status)}</div>
-                  <div className={styles.tableCell}>
-                    {new Date(project.created_at).toLocaleDateString('id-ID')}
-                  </div>
-                  <div className={`${styles.tableCell} ${styles.actionsCell}`}>
-                    <button className={styles.iconButton} onClick={() => handleView(project)}><FaEye /></button>
-                    <button 
-                      className={`${styles.iconButton} ${!['draft', 'rejected'].includes(project.active_version?.status) ? styles.iconDisabled : ''}`} 
-                      onClick={() => handleEdit(project)}
-                      disabled={!['draft', 'rejected'].includes(project.active_version?.status)}
-                    >
-                      <FaEdit />
-                    </button>
-                  </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <div className={styles.emptyState}>No projects found.</div>
               )}
             </div>
           </div>
+          
+          {/* PAGINATION */}
+          <div className={styles.cardFooter}>
+            <span className={styles.footerInfo}>
+              Showing {totalItems === 0 ? 0 : (currentPage-1)*itemsPerPage + 1} - {Math.min(currentPage*itemsPerPage, totalItems)} of {totalItems}
+            </span>
+            <div className={styles.paginationControls}>
+              <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p-1)}><FaChevronLeft /></button>
+              <button className={styles.pageBtn} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p+1)}><FaChevronRight /></button>
+            </div>
+          </div>
+
         </section>
       </main>
 
       {isModalOpen && <ModalProjectForm project={currentProject} onClose={() => setIsModalOpen(false)} onSave={handleSave} />}
       {isViewModalOpen && <ModalProjectView project={projectToView} onClose={() => setIsViewModalOpen(false)} />}
+      
+      {isSubmitModalOpen && (
+        <ModalSubmitProject 
+          project={projectToSubmit} 
+          onClose={() => setIsSubmitModalOpen(false)} 
+          onSubmit={handleConfirmSubmitToAPI} 
+        />
+      )}
     </div>
   );
 }

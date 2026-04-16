@@ -35,6 +35,13 @@ export const projectService = {
     });
   },
 
+  //Revise proyek
+  reviseProject: async (id) => {
+    return api(`/projects/${id}/revise`, {
+      method: "POST",
+    });
+  },
+
   // ==========================================
   // ADMIN ENDPOINTS
   // ==========================================

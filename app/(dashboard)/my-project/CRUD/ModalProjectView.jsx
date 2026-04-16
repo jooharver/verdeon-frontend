@@ -22,6 +22,10 @@ export default function ModalProjectView({ project, onClose }) {
 
   if (!project) return null;
 
+  // --- MAPPING DATA LARAVEL (VERSIONING) ---
+  const activeVersion = project.active_version || {};
+  const projectIdString = String(project.id).padStart(4, '0'); // Mengamankan integer ID dari Laravel
+
   // --- HELPERS ---
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -32,39 +36,51 @@ export default function ModalProjectView({ project, onClose }) {
 
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
-    
-    // 1. Ganti semua backslash dengan forward slash
     let cleanPath = filePath.replace(/\\/g, '/');
-    
-    // 2. Jika path mengandung "uploads/", kita ambil bagian setelahnya
-    // Ini penting jika Multer/Seeder menyimpan path yang berbeda.
     const uploadsIndex = cleanPath.indexOf('uploads/');
-    if (uploadsIndex !== -1) {
-      cleanPath = cleanPath.substring(uploadsIndex); // Ambil dari 'uploads/...'
-    }
-
-    // 3. Pastikan path yang digabungkan tidak memiliki double slash (//)
+    if (uploadsIndex !== -1) cleanPath = cleanPath.substring(uploadsIndex);
     const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-    
-    // CleanPath seharusnya sekarang adalah 'uploads/projects/UUID-filename.jpg'
-    // Hasilnya: http://localhost:3001/uploads/projects/UUID-filename.jpg
     return `${baseUrl}/${cleanPath}`;
   };
 
-  // --- DATA FILTERING (Separated by Role) ---
-  
+  // --- DATA FILTERING ---
+  // Dokumen sekarang ada di dalam active_version
+  const allDocs = activeVersion.documents || [];
+
   // 1. DATA ISSUER
-  const issuerImages = project.documents?.filter(d => d.type === 'image' && d.uploader_role === 'issuer') || [];
-  const issuerDocs = project.documents?.filter(d => d.type === 'document' && d.uploader_role === 'issuer') || [];
-  const issuerSpecs = project.issuerDetail || {};
+  const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'issuer');
+  const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
+  
+  // Spesifikasi teknis (Fallback ke '-' atau 0 jika belum ada di database)
+  const issuerSpecs = {
+    panel_capacity_wp: activeVersion.panel_capacity_wp,
+    inverter_capacity_kw: activeVersion.inverter_capacity_kw,
+    area_size_m2: activeVersion.area_size_m2,
+    number_of_panels: activeVersion.number_of_panels,
+    installation_date: activeVersion.installation_date,
+    installation_type: activeVersion.installation_type || 'Rooftop',
+    panel_brand: activeVersion.panel_brand,
+    inverter_brand: activeVersion.inverter_brand,
+  };
 
   // 2. DATA AUDITOR
-  const auditDetail = project.auditorDetail;
-  const auditorUser = project.auditor;
-  const auditDocs = project.documents?.filter(d => d.type === 'audit_report' || (d.type === 'document' && d.uploader_role === 'auditor')) || [];
-  const auditImages = project.documents?.filter(d => d.type === 'image' && d.uploader_role === 'auditor') || [];
+  const auditDocs = allDocs.filter(d => d.type === 'audit_report' || (d.type === 'document' && d.uploader_role === 'auditor'));
+  const auditImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'auditor');
+  
+  // Auditor detail diambil dari active_version dan relasi user
+  const auditorUser = project.auditor || null; 
+  const auditDetail = activeVersion.auditor_verification_status !== 'pending' ? {
+    audit_status: activeVersion.auditor_verification_status,
+    verified_at: activeVersion.updated_at,
+    audit_notes: activeVersion.auditor_notes,
+    verified_installed_capacity_kwp: activeVersion.verified_installed_capacity_kwp,
+    verified_annual_generation_kwh: activeVersion.verified_annual_generation_kwh,
+    baseline_emission_factor: activeVersion.baseline_emission_factor,
+    expected_carbon_reduction_ton_per_year: activeVersion.expected_carbon_reduction_ton_per_year,
+    onsite_measurement_date: activeVersion.onsite_measurement_date,
+  } : null;
 
-  // Determine which images to show in Gallery based on Tab
+  // Tentukan galeri mana yang tampil berdasarkan tab
   const currentGallery = activeTab === 'overview' ? issuerImages : auditImages;
 
   // --- HANDLERS ---
@@ -87,7 +103,7 @@ export default function ModalProjectView({ project, onClose }) {
       <div className={styles.specContent}>
         <span className={styles.specLabel}>{label}</span>
         <strong className={styles.specValue}>
-          {value ? value.toLocaleString() : '-'} {unit && <span className={styles.unit}>{unit}</span>}
+          {value ? value.toLocaleString() : '-'} {unit && value ? <span className={styles.unit}>{unit}</span> : ''}
         </strong>
       </div>
       {verified && <div className={styles.verifiedBadge}><FaCheckDouble /></div>}
@@ -103,12 +119,12 @@ export default function ModalProjectView({ project, onClose }) {
           <div className={styles.header}>
             <div className={styles.headerTopRow}>
                 <div className={styles.headerTitleGroup}>
-                  <span className={styles.projectId}>PROJECT ID: #{project.id.slice(0, 8).toUpperCase()}</span>
-                  <h2 className={styles.projectTitle}>{project.name}</h2>
+                  <span className={styles.projectId}>PROJECT ID: #{projectIdString}</span>
+                  <h2 className={styles.projectTitle}>{activeVersion.name || 'Unnamed Project'}</h2>
                 </div>
                 <div className={styles.headerActions}>
-                  <span className={`${styles.badge} ${styles[project.status?.toLowerCase() || 'draft']}`}>
-                    {project.status?.replace('_', ' ')}
+                  <span className={`${styles.badge} ${styles[activeVersion.status?.toLowerCase() || 'draft']}`}>
+                    {activeVersion.status?.replace('_', ' ').toUpperCase() || 'DRAFT'}
                   </span>
                   <button className={styles.closeBtnHeader} onClick={onClose}>
                     <FaTimes />
@@ -169,7 +185,7 @@ export default function ModalProjectView({ project, onClose }) {
                         )}
                       </div>
                     ) : (
-                      <div className={styles.emptyMedia}><FaImage size={24} /> <span>No images provided by Issuer</span></div>
+                      <div className={styles.emptyMedia}><FaImage size={24} /> <span>No images provided</span></div>
                     )}
                   </div>
 
@@ -194,7 +210,7 @@ export default function ModalProjectView({ project, onClose }) {
                           <div className={styles.docIconBox}><FaFilePdf /></div>
                           <div className={styles.docInfo}>
                             <span className={styles.docName}>{doc.original_filename}</span>
-                            <span className={styles.docDate}>{formatDate(doc.uploaded_at)}</span>
+                            <span className={styles.docDate}>{formatDate(doc.created_at)}</span>
                           </div>
                           <FaExternalLinkAlt className={styles.linkIcon} />
                         </a>
@@ -215,7 +231,7 @@ export default function ModalProjectView({ project, onClose }) {
                       <SpecItem icon={<FaRulerCombined/>} label="Area Size" value={issuerSpecs.area_size_m2} unit="m²" />
                       <SpecItem icon={<FaSolarPanel/>} label="Total Panels" value={issuerSpecs.number_of_panels} unit="Unit" />
                       <SpecItem icon={<FaCalendarDay/>} label="Installation" value={formatDate(issuerSpecs.installation_date)} unit="" />
-                      <SpecItem icon={<FaInfoCircle/>} label="Type" value={issuerSpecs.installation_type || 'Rooftop'} unit="" />
+                      <SpecItem icon={<FaInfoCircle/>} label="Type" value={issuerSpecs.installation_type} unit="" />
                     </div>
                   </div>
 
@@ -227,20 +243,36 @@ export default function ModalProjectView({ project, onClose }) {
                   <div className={styles.divider}></div>
 
                   <div className={styles.section}>
-                    <h4 className={styles.sectionTitle}><FaMapMarkerAlt /> LOCATION</h4>
-                    <div className={styles.locationCard}>
-                      <p className={styles.addressText}>
-                        {project.address}<br/>
-                        {project.location_city}, {project.location_province}<br/>
-                        {project.location_country}
-                      </p>
+                    <h4 className={styles.sectionTitle}><FaMapMarkerAlt /> LOCATION DETAILS</h4>
+                    <div className={styles.locationCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                      
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Address</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.address || '-'}</strong>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>City</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_city || '-'}</strong>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Province</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_province || '-'}</strong>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Country</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_country || 'Indonesia'}</strong>
+                      </div>
+
                     </div>
                   </div>
 
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaAlignLeft /> DESCRIPTION</h4>
                     <div className={styles.descriptionBox}>
-                      {project.description || "No description provided."}
+                      {activeVersion.description || "No description provided."}
                     </div>
                   </div>
                 </div>
@@ -261,10 +293,10 @@ export default function ModalProjectView({ project, onClose }) {
                         <h4 className={styles.sectionTitle}><FaClipboardCheck /> AUDIT STATUS</h4>
                         <div className={`${styles.auditStatusCard} ${styles[auditDetail.audit_status?.toLowerCase()]}`}>
                           <div className={styles.auditStatusIcon}>
-                             {auditDetail.audit_status === 'verified' ? <FaCheckDouble /> : <FaInfoCircle />}
+                             {auditDetail.audit_status === 'approved' || auditDetail.audit_status === 'verified' ? <FaCheckDouble /> : <FaInfoCircle />}
                           </div>
                           <div>
-                            <h4 className={styles.auditStatusTitle}>{auditDetail.audit_status}</h4>
+                            <h4 className={styles.auditStatusTitle}>{auditDetail.audit_status.toUpperCase()}</h4>
                             <span className={styles.auditStatusDate}>Verified on: {formatDate(auditDetail.verified_at)}</span>
                           </div>
                         </div>
@@ -306,8 +338,8 @@ export default function ModalProjectView({ project, onClose }) {
                         <div className={styles.issuerCard}>
                           <div className={styles.issuerIconBox} style={{background: '#e0e7ff', color: '#4f46e5'}}><FaUserTie /></div>
                           <div className={styles.issuerDetails}>
-                            <strong className={styles.issuerName}>{auditorUser?.name || 'Unknown Auditor'}</strong>
-                            <span className={styles.issuerEmail}>{auditorUser?.email || 'Registered Auditor'}</span>
+                            <strong className={styles.issuerName}>{auditorUser?.name || 'Assigned Auditor'}</strong>
+                            <span className={styles.issuerEmail}>{auditorUser?.email || '-'}</span>
                           </div>
                         </div>
                       </div>
@@ -360,10 +392,10 @@ export default function ModalProjectView({ project, onClose }) {
                     <div className={styles.emptyStateAudit}>
                       <div className={styles.emptyIcon}><FaClock /></div>
                       <h3>Audit Pending</h3>
-                      <p>This project has not been audited yet. <br/>Auditor data will appear here once the verification process is complete.</p>
-                      {project.auditor && (
+                      <p>This project has not been fully verified yet. <br/>Auditor data will appear here once the verification process is complete.</p>
+                      {auditorUser && (
                         <div className={styles.assignedBadge}>
-                          Assigned to: <strong>{project.auditor.name}</strong>
+                          Assigned to: <strong>{auditorUser.name}</strong>
                         </div>
                       )}
                     </div>
@@ -378,7 +410,7 @@ export default function ModalProjectView({ project, onClose }) {
           <div className={styles.footer}>
              <div className={styles.footerNote}>
                {activeTab === 'overview' 
-                 ? `Submitted on: ${formatDate(project.created_at)}` 
+                 ? `Created on: ${formatDate(project.created_at)}` 
                  : (auditDetail ? `Last audited: ${formatDate(auditDetail.verified_at)}` : 'Waiting for audit...')}
              </div>
              <button className={styles.closeBtnBottom} onClick={onClose}>Close View</button>

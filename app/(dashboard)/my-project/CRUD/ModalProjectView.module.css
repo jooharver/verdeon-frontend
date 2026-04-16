@@ -82,7 +82,7 @@
 
 /* STATUS BADGE */
 .badge {
-  padding: 6px 14px;
+  padding: 12px 28px;
   border-radius: 99px;
   font-size: 0.75rem;
   font-weight: 800;
@@ -92,7 +92,7 @@
 .verified, .listed { background: #d1fae5; color: #059669; border: 1px solid #10b981; }
 .on_review, .submitted { background: #fef9c3; color: #d97706; border: 1px solid #fbbf24; }
 .rejected { background: #fee2e2; color: #e11d48; border: 1px solid #f43f5e; }
-.draft { background: var(--nav-link-hover-bg); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.draft { background: var(--nav-link-hover-bg); color: var(--text-secondary); border: 1px solid var(--text-secondary); }
 
 /* --- TABS NAVIGATION --- */
 .tabsContainer {
