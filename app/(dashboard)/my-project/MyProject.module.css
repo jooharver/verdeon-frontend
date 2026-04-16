@@ -166,6 +166,32 @@
 
 .cellName { white-space: normal; line-height: 1.4; font-weight: 600; }
 
+.sortableHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Jarak antara teks dan ikon */
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+  font-weight: 600; /* Agar teks header tetap tegas */
+  color: var(--text-primary); /* Sesuaikan dengan variabel warna kamu */
+}
+
+.sortableHeader:hover {
+  color: #16a34a; /* Memberi efek warna hijau saat di-hover agar user tahu bisa diklik */
+}
+
+/* Pastikan ikon sort ukurannya pas */
+.sortIcon, .sortIconActive {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.sortIconActive {
+  opacity: 1;
+  color: #16a34a;
+}
+
 /* Reset style default button agar menyatu dengan teks */
 .tableCellSortable button {
   background: none; border: none; cursor: pointer;
