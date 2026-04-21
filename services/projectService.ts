@@ -12,19 +12,22 @@ export const projectService = {
     return api(`/projects/${id}`);
   },
 
-  // Create proyek (Laravel store akan otomatis buat v1)
-  createProject: async (payload: any) => {
+  createProject: async (payload) => { // payload sekarang berupa FormData
     return api("/projects", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: payload, // Langsung kirim, jangan di JSON.stringify
+      // Catatan: Pastikan file services/api.ts kamu TIDAK memaksa header 
+      // "Content-Type": "application/json" jika body berupa FormData.
     });
   },
 
-  // Update proyek (Hanya jika status 'draft')
-  updateProject: async (id: number, payload: any) => {
+  updateProject: async (id, payload) => { // payload berupa FormData
+    // TRIK LARAVEL: File upload harus pakai POST, lalu kita spoofing methodnya
+    payload.append('_method', 'PATCH'); 
+
     return api(`/projects/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
+      method: "POST", // Harus POST agar multipart/form-data terbaca PHP
+      body: payload,
     });
   },
 
@@ -82,11 +85,13 @@ export const projectService = {
     return api("/auditor/projects");
   },
 
-  auditorVerify: async (id) => {
-    return api(`/auditor/projects/${id}/verify`, {
-      method: "POST",
-    });
-  },
+  // Ubah fungsi ini agar menerima payload FormData
+  auditorVerify: async (id, formData) => {
+      return api(`/auditor/projects/${id}/verify`, {
+        method: "POST",
+        body: formData, // Kirim form data langsung
+      });
+    },
 
   auditorReject: async (id, data) => {
     return api(`/auditor/projects/${id}/reject`, {

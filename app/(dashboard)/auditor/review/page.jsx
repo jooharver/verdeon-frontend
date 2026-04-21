@@ -131,20 +131,31 @@ export default function AuditorReviewPage() {
     setIsAuditModalOpen(true);
   };
 
+  // ACTION: Save Audit ke Backend
   const handleSaveAudit = async (projectId, payload) => {
     try {
-      if (payload.action === 'verify') {
-        await projectService.auditorVerify(projectId);
-      } else if (payload.action === 'reject') {
+      // Deteksi apakah payload berupa FormData (Verify) atau Object biasa (Reject)
+      const isFormData = payload instanceof FormData;
+      const action = isFormData ? payload.get('action') : payload.action;
+
+      if (action === 'verify') {
+        // Panggil endpoint verify dan WAJIB sertakan payload FormData-nya
+        await projectService.auditorVerify(projectId, payload);
+      } else if (action === 'reject') {
+        // Panggil endpoint reject
         await projectService.auditorReject(projectId, { note: payload.audit_notes });
+      } else {
+         throw new Error("Aksi tidak valid");
       }
       
       Swal.fire('Success', 'Audit decision submitted successfully!', 'success');
+      
       setIsAuditModalOpen(false);
-      fetchProjects();
+      fetchProjects(); // Refresh data di tabel
     } catch (error) {
       console.error("Audit Submit Error:", error);
-      Swal.fire('Error', error.response?.data?.message || 'Failed to submit audit report.', 'error');
+      const msg = error.response?.data?.message || error.message || 'Failed to submit audit report.';
+      Swal.fire('Error', msg, 'error');
     }
   };
 
