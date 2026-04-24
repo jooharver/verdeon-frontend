@@ -1,18 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import styles from './ModalProjectView.module.css'; // Kita bisa reuse CSS dari Modal View
+import styles from './ModalProjectView.module.css'; 
 import { 
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
   FaRulerCombined, FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
-  FaAlignLeft, FaBuilding, FaPaperPlane
+  FaAlignLeft, FaPaperPlane
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 export default function ModalSubmitProject({ project, onClose, onSubmit }) {
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setActiveImgIndex(0);
@@ -35,10 +36,12 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
     let cleanPath = filePath.replace(/\\/g, '/');
-    const uploadsIndex = cleanPath.indexOf('uploads/');
-    if (uploadsIndex !== -1) cleanPath = cleanPath.substring(uploadsIndex);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-    return `${baseUrl}/${cleanPath}`;
+    if (cleanPath.startsWith('public/')) {
+      cleanPath = cleanPath.replace('public/', '');
+    }
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); 
+    return `${backendRoot}/storage/${cleanPath}`;
   };
 
   // --- DATA FILTERING ---
@@ -76,14 +79,19 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
       text: "Once submitted, this project will be locked for Admin review. You will not be able to edit it unless it is returned for revision.",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3b82f6', // Warna biru untuk action utama
-      cancelButtonColor: '#6b7280',  // Abu-abu untuk cancel
+      confirmButtonColor: '#3b82f6', 
+      cancelButtonColor: '#6b7280', 
       confirmButtonText: 'Yes, Submit to Admin!',
       cancelButtonText: 'Review Again'
     });
 
     if (result.isConfirmed) {
-      onSubmit(project.id); // Panggil fungsi submit dari parent
+      setIsSubmitting(true);
+      try {
+        await onSubmit(project.id); 
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -115,14 +123,14 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
                   <span className={`${styles.badge} ${styles.draft}`}>
                     READY TO SUBMIT
                   </span>
-                  <button className={styles.closeBtnHeader} onClick={onClose}>
+                  <button className={styles.closeBtnHeader} onClick={onClose} disabled={isSubmitting}>
                     <FaTimes />
                   </button>
                 </div>
             </div>
             {/* Banner Informasi */}
-            <div style={{ backgroundColor: '#eff6ff', padding: '12px 16px', color: '#1d4ed8', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #bfdbfe' }}>
-              <FaInfoCircle /> 
+            <div style={{ backgroundColor: '#eff6ff', padding: '12px 16px', borderRadius: '8px', color: '#1d4ed8', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '10px', border: '1px solid #bfdbfe' }}>
+              <FaInfoCircle style={{fontSize: '1.2rem', flexShrink: 0}} /> 
               <span>Please verify that all information and documents are correct before submitting to the Administrator.</span>
             </div>
           </div>
@@ -206,7 +214,7 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
                 <div className={styles.divider}></div>
 
                 {/* LOCATION */}
-                <div className={styles.section}>
+                <div className={styles.section} style={{marginTop: '20px'}}>
                   <h4 className={styles.sectionTitle}><FaMapMarkerAlt /> LOCATION DETAILS</h4>
                   <div className={styles.locationCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start' }}>
@@ -241,11 +249,11 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
 
           {/* FOOTER ACTION */}
           <div className={styles.footer} style={{ justifyContent: 'flex-end', gap: '12px' }}>
-             <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', color: '#4b5563', cursor: 'pointer', fontWeight: '500' }}>
+             <button type="button" onClick={onClose} disabled={isSubmitting} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', color: '#4b5563', cursor: 'pointer', fontWeight: '500', transition: 'all 0.2s ease' }}>
                Cancel
              </button>
-             <button type="button" onClick={handleConfirmSubmit} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#3b82f6', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-               <FaPaperPlane /> Submit to Admin
+             <button type="button" onClick={handleConfirmSubmit} disabled={isSubmitting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#3b82f6', color: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: '600', opacity: isSubmitting ? 0.7 : 1, transition: 'all 0.2s ease' }}>
+               <FaPaperPlane /> {isSubmitting ? 'Submitting...' : 'Submit to Admin'}
              </button>
           </div>
 
