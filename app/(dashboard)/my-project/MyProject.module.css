@@ -128,14 +128,14 @@
 
 .tableRow {
   display: grid;
-  /* GRID DEFINITION: 8 Kolom */
-  grid-template-columns: 60px 2fr 130px 130px 130px 120px 120px 120px;
+  /* GRID DEFINITION: 8 Kolom (Diset proporsional) */
+  /* ID(100px) | IMG(50px) | NAME(Fleksibel) | STATUS(120px) | ADMIN(120px) | AUDITOR(120px) | DATE(90px) | ACTIONS(150px) */
+  grid-template-columns: 100px 50px minmax(180px, 2fr) 120px 120px 120px 90px 150px;
   gap: 16px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
 }
-
 /* HEADER STYLE FIX (KONSISTENSI) */
 .tableHeader {
   background-color: var(--bg-main);
@@ -260,3 +260,154 @@
 .paginationButton:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .emptyState { padding: 40px; text-align: center; color: var(--text-secondary); }
+
+/* --- TIMELINE / VERSION HISTORY --- */
+.historyRow {
+  background-color: #f8fafc; /* Biru sangat muda agar beda dengan baris utama */
+  padding: 24px 40px 24px 80px;
+  border-bottom: 1px solid var(--border-color);
+  animation: fadeIn 0.3s ease-in-out;
+  box-shadow: inset 0 3px 6px -3px rgba(0,0,0,0.05);
+}
+
+.historyTitle {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--brand-color);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineItem {
+  display: flex;
+  position: relative;
+  padding-bottom: 12px;
+}
+
+.timelineItem:last-child {
+  padding-bottom: 0;
+}
+
+/* Garis Lacak Resi */
+.timelineLine {
+  position: absolute;
+  left: 17px; /* Berada di tengah titik dot */
+  top: 36px;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--border-color);
+}
+
+.timelineItem:last-child .timelineLine {
+  display: none; /* Garis hilang di item terakhir */
+}
+
+/* Titik Versi */
+.timelineDot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-card);
+  border: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  z-index: 2;
+  margin-right: 24px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.timelineDotActive {
+  border-color: var(--brand-color);
+  background-color: var(--brand-color);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(52, 162, 241, 0.2);
+}
+
+.timelineContent {
+  flex: 1;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+}
+
+.timelineInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timelineName {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.85rem; 
+}
+
+.timelineDate {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timelineBadges {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btnViewVersion {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btnViewVersion:hover {
+  border-color: var(--brand-color);
+  color: var(--brand-color);
+}
+
+/* Row Expansion Hover */
+.tableRowExpandable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.tableRowExpandable:hover {
+  background-color: var(--nav-link-hover-bg);
+}
+.expandIcon {
+  color: var(--text-secondary);
+  transition: transform 0.3s ease;
+}
+.expandIconActive {
+  transform: rotate(180deg);
+  color: var(--brand-color);
+}

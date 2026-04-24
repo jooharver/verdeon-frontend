@@ -2,6 +2,7 @@
 import { api } from "./api";
 
 export const projectService = {
+
   // Mengambil proyek khusus milik issuer yang sedang login
   getMyProjects: async () => {
     return api("/issuer/projects");
@@ -42,6 +43,13 @@ export const projectService = {
   reviseProject: async (id) => {
     return api(`/projects/${id}/revise`, {
       method: "POST",
+    });
+  },
+
+  // Hapus proyek
+  deleteProject: async (id) => {
+    return api(`/projects/${id}`, {
+      method: "DELETE",
     });
   },
 

@@ -9,9 +9,9 @@ import Topbar from '../../components/Topbar';
 import { 
   FaPlus, FaEdit, FaTrash, FaSearch, FaFileAlt, 
   FaCheckCircle, FaClock, FaLayerGroup,
-  FaChevronLeft, FaChevronRight,
+  FaChevronLeft, FaChevronRight, FaChevronDown,
   FaSort, FaSortUp, FaSortDown, FaImage, FaEye, 
-  FaSpinner, FaExchangeAlt, FaBan, FaUserShield, FaUserTie, FaPaperPlane
+  FaBan, FaUserShield, FaUserTie, FaPaperPlane, FaExchangeAlt, FaHistory
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
@@ -22,6 +22,7 @@ import { projectService } from '../../../services/projectService';
 import ModalProjectForm from './CRUD/ModalProjectForm';
 import ModalProjectView from './CRUD/ModalProjectView';
 import ModalSubmitProject from './CRUD/ModalSubmitProject'; 
+import ModalViewRevise from './CRUD/ModalViewRevise'; 
 
 const salesData = [
   { month: 'Jan', sales: 400 }, { month: 'Feb', sales: 300 }, { month: 'Mar', sales: 600 },
@@ -39,6 +40,9 @@ export default function MyProjectPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // State untuk Melacak Baris Tabel yang di-Expand
+  const [expandedRows, setExpandedRows] = useState([]);
+
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
@@ -49,6 +53,9 @@ export default function MyProjectPage() {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [projectToSubmit, setProjectToSubmit] = useState(null);
   
+  const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
+  const [projectToRevise, setProjectToRevise] = useState(null);
+
   // Pagination & Sorting
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,6 +78,24 @@ export default function MyProjectPage() {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  // --- HELPER UNTUK MENGAMBIL GAMBAR DARI API ---
+  const getFullUrl = (filePath) => {
+    if (!filePath) return '';
+    let cleanPath = filePath.replace(/\\/g, '/');
+    if (cleanPath.startsWith('public/')) {
+      cleanPath = cleanPath.replace('public/', '');
+    }
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); 
+    return `${backendRoot}/storage/${cleanPath}`;
+  };
+
+  const getProjectImage = (version) => {
+    const imgDoc = version?.documents?.find(doc => doc.type === 'image');
+    if (imgDoc && imgDoc.file_path) return getFullUrl(imgDoc.file_path); 
+    return null;
+  };
 
   // --- DATA PROCESSING ---
   const stats = useMemo(() => ({
@@ -151,7 +176,6 @@ export default function MyProjectPage() {
 
   const handleEdit = (project) => { 
     const status = project.active_version?.status?.toLowerCase();
-    // Sesuai Laravel: Hanya Draft yang boleh di-edit langsung
     if (status === 'draft') {
       setCurrentProject(project); 
       setIsModalOpen(true); 
@@ -160,8 +184,9 @@ export default function MyProjectPage() {
     }
   };
 
-  const handleView = (project) => {
-    setProjectToView(project);
+  const handleView = (project, specificVersion = null) => {
+    const projectDataToView = specificVersion ? { ...project, active_version: specificVersion } : project;
+    setProjectToView(projectDataToView);
     setIsViewModalOpen(true);
   };
 
@@ -181,25 +206,49 @@ export default function MyProjectPage() {
     }
   };
 
-  // Handler Baru: Revise Project
-  const handleConfirmRevise = async (projectId) => {
+  const handleOpenReviseModal = (project) => {
+    setProjectToRevise(project);
+    setIsReviseModalOpen(true);
+  };
+
+  const handleConfirmReviseToAPI = async (projectId) => {
+    try {
+      await projectService.reviseProject(projectId);
+      Swal.fire('Berhasil!', 'Versi Draft baru telah dibuat. Silakan klik tombol Edit untuk memperbaiki data.', 'success');
+      setIsReviseModalOpen(false);
+      fetchProjects();
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'Gagal membuat revisi.', 'error');
+    }
+  };
+
+  const handleDelete = async (project) => {
+    const status = project.active_version?.status?.toLowerCase();
+    const versionNumber = project.active_version?.version_number;
+
+    if (status !== 'draft' || versionNumber > 1) {
+      Swal.fire('Locked', 'Hanya proyek Draft awal (Versi 1) yang belum pernah diajukan yang dapat dihapus.', 'error');
+      return;
+    }
+
     const result = await Swal.fire({
-      title: 'Create Revision?',
-      text: 'Ini akan membuat versi Draft baru berdasarkan data yang ditolak. Anda dapat memperbaikinya sebelum melakukan submit ulang.',
-      icon: 'question',
+      title: 'Hapus Proyek?',
+      text: `Anda yakin ingin menghapus proyek "${project.active_version?.name || 'Unnamed'}" secara permanen?`,
+      icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#eab308',
-      confirmButtonText: 'Ya, Buat Revisi Baru!',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal'
     });
 
     if (result.isConfirmed) {
       try {
-        await projectService.reviseProject(projectId);
-        Swal.fire('Berhasil!', 'Versi Draft baru telah dibuat. Silakan klik tombol Edit untuk memperbaiki data.', 'success');
-        fetchProjects();
+        await projectService.deleteProject(project.id);
+        Swal.fire('Terhapus!', 'Proyek berhasil dihapus.', 'success');
+        fetchProjects(); 
       } catch (error) {
-        Swal.fire('Error', error.response?.data?.message || 'Gagal membuat revisi.', 'error');
+        Swal.fire('Error', error.response?.data?.message || 'Gagal menghapus proyek.', 'error');
       }
     }
   };
@@ -209,6 +258,12 @@ export default function MyProjectPage() {
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
     setSortConfig({ key, direction });
     setCurrentPage(1);
+  };
+
+  const toggleRowExpansion = (projectId) => {
+    setExpandedRows(prev => 
+      prev.includes(projectId) ? prev.filter(id => id !== projectId) : [...prev, projectId]
+    );
   };
 
   const SortIcon = ({ columnKey }) => {
@@ -282,7 +337,10 @@ export default function MyProjectPage() {
 
           <div className={styles.tableContainer}>
             <div className={styles.table}>
+              
+              {/* TABLE HEADER (Murni Mengikuti CSS Grid) */}
               <div className={`${styles.tableRow} ${styles.tableHeader}`}>
+                <div className={styles.tableCell}>Project ID</div>
                 <div className={styles.tableCell} style={{ justifyContent: 'center' }}>Img</div>
                 <div className={`${styles.tableCell} ${styles.cellName}`}>
                   <div className={styles.sortableHeader} onClick={() => handleSort('name')}>
@@ -302,63 +360,152 @@ export default function MyProjectPage() {
               ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => {
                 
                 const status = project.active_version?.status?.toLowerCase();
+                const versionNumber = project.active_version?.version_number;
+                
                 const canEdit = status === 'draft';
                 const canSubmit = status === 'draft';
                 const canRevise = status === 'rejected';
-                
-                return (
-                  <div className={styles.tableRow} key={project.id}>
-                    <div className={styles.tableCell} style={{ justifyContent: 'center' }}>
-                      <div className={styles.thumbPlaceholder}><FaImage /></div>
-                    </div>
-                    <div className={`${styles.tableCell} ${styles.cellName}`}>
-                      <span className={styles.projectName}>{project.active_version?.name || 'Unnamed'}</span>
-                    </div>
-                    <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.status)}</div>
-                    <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.admin_verification_status)}</div>
-                    <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.auditor_verification_status)}</div>
-                    <div className={styles.tableCell}>
-                      {new Date(project.created_at).toLocaleDateString('id-ID')}
-                    </div>
-                    
-                    {/* ACTIONS */}
-                    <div className={`${styles.tableCell} ${styles.actionsCell}`}>
-                      <button className={styles.iconButton} onClick={() => handleView(project)} title="View">
-                        <FaEye />
-                      </button>
-                      
-                      <button 
-                        className={`${styles.iconButton} ${!canEdit ? styles.iconDisabled : ''}`} 
-                        onClick={() => handleEdit(project)}
-                        disabled={!canEdit}
-                        title="Edit Project"
-                      >
-                        <FaEdit />
-                      </button>
+                const canDelete = status === 'draft' && versionNumber === 1;
 
-                      {/* Tampilkan Tombol Revise JIKA Rejected, selain itu tampilkan Submit */}
-                      {canRevise ? (
-                        <button 
-                          className={styles.iconButton} 
-                          onClick={() => handleConfirmRevise(project.id)}
-                          title="Create Revision"
-                          style={{ color: '#eab308' }}
-                        >
-                          <FaExchangeAlt />
+                const isExpanded = expandedRows.includes(project.id);
+                const projectIdString = String(project.id).padStart(4, '0');
+                
+                // Mengurutkan versi dari v1 (terkecil) ke terbaru (terbesar)
+                const projectVersions = (project.versions || [project.active_version])
+                  .slice()
+                  .sort((a, b) => a.version_number - b.version_number);
+                
+                const projectImgUrl = getProjectImage(project.active_version);
+
+                return (
+                  <React.Fragment key={project.id}>
+                    {/* BARIS UTAMA */}
+                    <div className={`${styles.tableRow} ${styles.tableRowExpandable}`} onClick={() => toggleRowExpansion(project.id)}>
+                      
+                      {/* ID & Chevron */}
+                      <div className={styles.tableCell} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FaChevronDown className={`${styles.expandIcon} ${isExpanded ? styles.expandIconActive : ''}`} />
+                        <span style={{ fontWeight: '700', color: '#6b7280', fontSize: '0.85rem' }}>#{projectIdString}</span>
+                      </div>
+
+                      {/* Image Thumbnail */}
+                      <div className={styles.tableCell} style={{ justifyContent: 'center' }}>
+                        {projectImgUrl ? (
+                          <img 
+                            src={projectImgUrl} 
+                            alt="thumb" 
+                            style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e5e7eb' }} 
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className={styles.thumbPlaceholder} style={{ width: '40px', height: '40px' }}><FaImage /></div>
+                        )}
+                      </div>
+
+                      {/* Name Column */}
+                      <div className={`${styles.tableCell} ${styles.cellName}`}>
+                        <div style={{display: 'flex', flexDirection: 'column'}}>
+                          <span className={styles.projectName}>{project.active_version?.name || 'Unnamed'}</span>
+                          <span style={{fontSize: '0.75rem', color: '#6b7280', fontWeight: 'bold'}}>Current: v{versionNumber}</span>
+                        </div>
+                      </div>
+
+                      {/* Status Columns */}
+                      <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.status)}</div>
+                      <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.admin_verification_status)}</div>
+                      <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.auditor_verification_status)}</div>
+                      
+                      {/* Date Column */}
+                      <div className={styles.tableCell}>
+                        {new Date(project.created_at).toLocaleDateString('id-ID')}
+                      </div>
+                      
+                      {/* ACTIONS */}
+                      <div className={`${styles.tableCell} ${styles.actionsCell}`} onClick={e => e.stopPropagation()}>
+                        <button className={styles.iconButton} onClick={() => handleView(project)} title="View Detail">
+                          <FaEye />
                         </button>
-                      ) : (
+                        
                         <button 
-                          className={`${styles.iconButton} ${!canSubmit ? styles.iconDisabled : ''}`} 
-                          onClick={() => handleOpenSubmitModal(project)}
-                          disabled={!canSubmit}
-                          title="Review & Submit"
-                          style={canSubmit ? { color: '#3b82f6' } : {}}
+                          className={`${styles.iconButton} ${!canEdit ? styles.iconDisabled : ''}`} 
+                          onClick={() => handleEdit(project)}
+                          disabled={!canEdit}
+                          title="Edit Project"
                         >
-                          <FaPaperPlane />
+                          <FaEdit />
                         </button>
-                      )}
+
+                        <button 
+                          className={`${styles.iconButton} ${!canDelete ? styles.iconDisabled : ''}`} 
+                          onClick={() => handleDelete(project)}
+                          disabled={!canDelete}
+                          title="Delete Project"
+                          style={canDelete ? { color: '#ef4444' } : {}}
+                        >
+                          <FaTrash />
+                        </button>
+
+                        {canRevise ? (
+                          <button 
+                            className={styles.iconButton} 
+                            onClick={() => handleOpenReviseModal(project)}
+                            title="Review & Revise"
+                            style={{ color: '#eab308' }}
+                          >
+                            <FaExchangeAlt />
+                          </button>
+                        ) : (
+                          <button 
+                            className={`${styles.iconButton} ${!canSubmit ? styles.iconDisabled : ''}`} 
+                            onClick={() => handleOpenSubmitModal(project)}
+                            disabled={!canSubmit}
+                            title="Review & Submit"
+                            style={canSubmit ? { color: '#3b82f6' } : {}}
+                          >
+                            <FaPaperPlane />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+
+                    {/* BARIS HISTORY (TIMELINE) */}
+                    {isExpanded && (
+                      <div className={styles.historyRow}>
+                        <h4 className={styles.historyTitle}><FaHistory /> Version History</h4>
+                        <div className={styles.timeline}>
+                          {projectVersions.map((ver) => {
+                            const isLatest = ver.id === project.active_version?.id;
+                            return (
+                              <div className={styles.timelineItem} key={ver.id}>
+                                <div className={styles.timelineLine}></div>
+                                <div className={`${styles.timelineDot} ${isLatest ? styles.timelineDotActive : ''}`}>
+                                  v{ver.version_number}
+                                </div>
+                                <div className={styles.timelineContent}>
+                                  <div className={styles.timelineInfo}>
+                                    {/* FONT KECIL SESUAI PERMINTAAN */}
+                                    <span className={styles.timelineName}>{ver.name}</span>
+                                    <span className={styles.timelineDate}>
+                                      <FaClock style={{ fontSize: '0.8rem' }}/> {new Date(ver.created_at).toLocaleString('id-ID')}
+                                    </span>
+                                  </div>
+                                  <div className={styles.timelineBadges}>
+                                    {renderStatusBadge(ver.status)}
+                                    <button 
+                                      className={styles.btnViewVersion} 
+                                      onClick={() => handleView(project, ver)} 
+                                    >
+                                      <FaEye /> View Data
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 );
               }) : (
                 <div className={styles.emptyState}>No projects found.</div>
@@ -381,6 +528,7 @@ export default function MyProjectPage() {
       </main>
 
       {isModalOpen && <ModalProjectForm project={currentProject} onClose={() => setIsModalOpen(false)} onSave={handleSave} />}
+      
       {isViewModalOpen && <ModalProjectView project={projectToView} onClose={() => setIsViewModalOpen(false)} />}
       
       {isSubmitModalOpen && (
@@ -388,6 +536,14 @@ export default function MyProjectPage() {
           project={projectToSubmit} 
           onClose={() => setIsSubmitModalOpen(false)} 
           onSubmit={handleConfirmSubmitToAPI} 
+        />
+      )}
+
+      {isReviseModalOpen && (
+        <ModalViewRevise 
+          project={projectToRevise} 
+          onClose={() => setIsReviseModalOpen(false)} 
+          onRevise={handleConfirmReviseToAPI} 
         />
       )}
     </div>

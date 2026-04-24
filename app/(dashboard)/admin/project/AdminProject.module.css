@@ -14,40 +14,29 @@
 /* --- TOP GRID (KPI & CHART) --- */
 .topGrid {
   display: grid;
-  grid-template-columns: 1fr; /* Mobile: Stack ke bawah */
+  grid-template-columns: 1fr;
   gap: 24px;
   margin-bottom: 8px;
 }
 
 @media (min-width: 1280px) {
   .topGrid {
-    /* Desktop: Kiri (KPI) 60%, Kanan (Chart) 40% */
     grid-template-columns: 1.5fr 1fr;
-    /* Agar tinggi KPI dan Chart sejajar/sama */
     align-items: stretch; 
   }
 }
 
 /* --- LEFT SECTION: KPI CARDS --- */
-.kpiSection {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* REVISI: Grid 2x2 Pasti (2 Kolom) */
 .statsGrid {
   display: grid;
-  /* Paksa 2 kolom dengan lebar sama. Ini akan membuat formasi 2 atas, 2 bawah */
   grid-template-columns: repeat(2, 1fr); 
   gap: 16px;
-  height: 100%; /* Mengisi tinggi agar sejajar dengan chart */
+  height: 100%; 
 }
 
-/* Mobile Responsive untuk KPI */
 @media (max-width: 600px) {
   .statsGrid {
-    grid-template-columns: 1fr; /* Di HP jadi 1 kolom ke bawah */
+    grid-template-columns: 1fr; 
   }
 }
 
@@ -55,14 +44,14 @@
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 24px; /* Padding agak besar biar kartu terlihat penuh */
+  padding: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
-  height: 100%; /* Agar kartu mengisi penuh grid cell */
+  height: 100%; 
 }
 
 .statCard:hover {
@@ -72,7 +61,7 @@
 }
 
 .iconBox {
-  width: 56px; /* Icon diperbesar sedikit */
+  width: 56px; 
   height: 56px;
   border-radius: 12px;
   display: flex;
@@ -82,7 +71,6 @@
   flex-shrink: 0;
 }
 
-/* Warna Icon */
 .iconTotal { color: #3b82f6; background-color: #eff6ff; }
 .iconPending { color: #eab308; background-color: #fefce8; }
 .iconVerified { color: #22c55e; background-color: #f0fdf4; }
@@ -91,7 +79,7 @@
 .statInfo {
   display: flex;
   flex-direction: column;
-  align-items: flex-end; /* Rata Kanan */
+  align-items: flex-end; 
   text-align: right;
 }
 
@@ -121,8 +109,8 @@
   flex-direction: column;
   justify-content: center;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  height: 100%; /* Mengikuti tinggi Grid KPI */
-  min-height: 320px; /* Tinggi minimal aman */
+  height: 100%; 
+  min-height: 320px; 
 }
 
 .cardHeader {
@@ -200,9 +188,7 @@
   outline: none;
   transition: border-color 0.2s;
 }
-.searchInput:focus {
-  border-color: var(--brand-color);
-}
+.searchInput:focus { border-color: var(--brand-color); }
 
 .tableContainer {
   width: 100%;
@@ -211,24 +197,29 @@
 
 .table {
   width: 100%;
-  min-width: 1000px;
+  min-width: 1100px; /* Diperlebar sedikit agar muat 8 kolom dengan lega */
   border-collapse: collapse;
 }
 
+/* --- TABLE LAYOUT (GRID UPDATE) --- */
 .tableRow {
   display: grid;
-  /* IMG | NAME (Flex) | ISSUER | STATUS | DATE | ACTION */
-  grid-template-columns: 70px minmax(250px, 2fr) 1fr 130px 120px 140px;
+  /* PERBAIKAN: Beri ruang lebih besar (160px) untuk Status, kurangi Issuer (1fr) */
+  /* ID(100) | IMG(60) | NAME(Flex) | ISSUER(1fr) | STATUS(250px) | DATE(100) | ACTIONS(140) */
+  grid-template-columns: 100px 60px minmax(180px, 1.5fr) 1fr 250px 100px 140px;
   gap: 16px;
-  width: 100%;
+  padding: 12px 24px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
-  padding: 12px 24px;
+}
+
+.tableRowExpandable {
+  cursor: pointer;
   transition: background-color 0.2s;
 }
 
+.tableRowExpandable:hover { background-color: var(--nav-link-hover-bg); }
 .tableRow:last-child { border-bottom: none; }
-.tableRow:hover:not(.tableHeader) { background-color: var(--nav-link-hover-bg); }
 
 .tableHeader {
   background-color: var(--bg-main);
@@ -262,50 +253,193 @@
   justify-content: center;
 }
 
-.tableRow > .tableCell:first-child {
-  justify-content: center;
+/* Sortable Headers */
+.sortableHeader { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  cursor: pointer;
+  user-select: none; 
+  transition: color 0.2s ease; 
+  font-weight: 600;
+  color: var(--text-secondary);
 }
+.sortableHeader:hover { color: #16a34a; }
+.sortIcon { opacity: 0.4; font-size: 0.8rem; }
+.sortIconActive { opacity: 1; color: var(--brand-color); font-size: 0.8rem; }
 
-.sortable { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; }
-.sortable:hover { color: var(--text-primary); }
-
+/* Thumbnails */
 .thumbImg {
-  width: 40px; height: 40px; border-radius: 6px;
+  width: 44px; height: 44px; border-radius: 6px;
   object-fit: cover; border: 1px solid var(--border-color);
 }
 .thumbPlaceholder {
-  width: 40px; height: 40px; border-radius: 6px;
+  width: 44px; height: 44px; border-radius: 6px;
   background: var(--bg-main); border: 1px solid var(--border-color);
   display: flex; align-items: center; justify-content: center;
   color: var(--text-secondary); opacity: 0.6;
 }
 
-.projectName { font-weight: 600; white-space: normal; line-height: 1.4; }
+.projectName { font-weight: 600; white-space: normal; line-height: 1.4; color: var(--text-primary); }
 .issuerInfo { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; }
 
+/* Badges */
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 10px; border-radius: 6px; font-size: 0.75rem;
   font-weight: 600; text-transform: capitalize;
 }
 .badgeVerified { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; }
-.badgePending { background: #fef9c3; color: #b45309; border: 1px solid #fde047; }
+.badgePending { background: #fefce8; color: #b45309; border: 1px solid #fde047; }
 .badgeRejected { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 .badgeDraft { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
 
+/* Actions */
 .actionsCell { justify-content: center; gap: 8px; }
 .actionBtn {
   width: 32px; height: 32px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
-  border: none; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+  border: 1px solid var(--border-color); background: transparent; 
+  cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+  color: var(--text-secondary);
 }
-.btnView { background: white; border: 1px solid var(--border-color); color: var(--text-secondary); }
-.btnView:hover { border-color: var(--brand-color); color: var(--brand-color); }
-.btnApprove { background: #dcfce7; color: #16a34a; }
-.btnApprove:hover { background: #16a34a; color: white; }
-.btnReject { background: #fee2e2; color: #dc2626; }
-.btnReject:hover { background: #dc2626; color: white; }
+.actionBtn:hover:not(:disabled) { border-color: var(--brand-color); color: var(--brand-color); }
+.btnProcess { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+.btnProcess:hover { background: #3b82f6; color: white; border-color: #3b82f6; }
 
+/* Chevron Expand Icon */
+.expandIcon { color: var(--text-secondary); transition: transform 0.3s ease; }
+.expandIconActive { transform: rotate(180deg); color: var(--brand-color); }
+
+/* --- TIMELINE / VERSION HISTORY --- */
+.historyRow {
+  background-color: #f8fafc; 
+  padding: 24px 40px 24px 80px;
+  border-bottom: 1px solid var(--border-color);
+  animation: fadeIn 0.3s ease-in-out;
+  box-shadow: inset 0 3px 6px -3px rgba(0,0,0,0.05);
+}
+
+.historyTitle {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--brand-color);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineItem {
+  display: flex;
+  position: relative;
+  padding-bottom: 12px;
+}
+
+.timelineItem:last-child { padding-bottom: 0; }
+
+.timelineLine {
+  position: absolute;
+  left: 17px; 
+  top: 36px;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--border-color);
+}
+
+.timelineItem:last-child .timelineLine { display: none; }
+
+.timelineDot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-card);
+  border: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  z-index: 2;
+  margin-right: 24px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.timelineDotActive {
+  border-color: var(--brand-color);
+  background-color: var(--brand-color);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(52, 162, 241, 0.2);
+}
+
+.timelineContent {
+  flex: 1;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+}
+
+.timelineInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timelineName {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.85rem; 
+}
+
+.timelineDate {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timelineBadges {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btnViewVersion {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btnViewVersion:hover {
+  border-color: var(--brand-color);
+  color: var(--brand-color);
+}
+
+/* Footer */
 .cardFooter {
   padding: 16px 24px; background-color: var(--bg-card);
   border-top: 1px solid var(--border-color);
@@ -321,3 +455,8 @@
 .pageBtn:hover:not(:disabled) { border-color: var(--brand-color); color: var(--brand-color); }
 .pageBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .emptyState { padding: 40px; text-align: center; color: var(--text-secondary); font-style: italic; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

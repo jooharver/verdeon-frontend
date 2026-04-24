@@ -7,8 +7,9 @@ import {
 import styles from './AuditorReview.module.css';
 import Topbar from '../../../components/Topbar'; 
 import { 
-  FaSearch, FaEye, FaClipboardCheck, FaCheckCircle, FaClock, FaBan, FaUserTie,
-  FaChevronLeft, FaChevronRight, FaImage, FaPlayCircle
+  FaSearch, FaEye, FaClipboardCheck, FaCheckCircle, FaClock, FaBan, FaUserTie, FaSort, 
+  FaSortUp, FaSortDown,
+  FaChevronLeft, FaChevronRight, FaImage, FaPlayCircle, FaChevronDown, FaHistory
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
@@ -30,6 +31,9 @@ export default function AuditorReviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // State Row Expand
+  const [expandedRows, setExpandedRows] = useState([]);
+
   // View Modal State
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [projectToView, setProjectToView] = useState(null);
@@ -47,7 +51,6 @@ export default function AuditorReviewPage() {
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
-      // Backend (auditorList) sudah memfilter hanya status yang siap di-audit
       const data = await projectService.getAuditorProjects();
       setProjects(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -66,13 +69,16 @@ export default function AuditorReviewPage() {
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
     let cleanPath = filePath.replace(/\\/g, '/');
-    while (cleanPath.startsWith('/')) cleanPath = cleanPath.substring(1);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-    return `${baseUrl}/${cleanPath}`; 
+    if (cleanPath.startsWith('public/')) {
+      cleanPath = cleanPath.replace('public/', '');
+    }
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); 
+    return `${backendRoot}/storage/${cleanPath}`;
   };
   
-  const getProjectImage = (project) => {
-    const imgDoc = project.active_version?.documents?.find(doc => doc.type === 'image');
+  const getProjectImage = (version) => {
+    const imgDoc = version?.documents?.find(doc => doc.type === 'image');
     if (imgDoc && imgDoc.file_path) return getFullUrl(imgDoc.file_path); 
     return null;
   };
@@ -80,10 +86,9 @@ export default function AuditorReviewPage() {
   // --- 3. DATA PROCESSING ---
   const stats = useMemo(() => {
     const total = projects.length;
-    // Auditor peduli dengan status 'admin_approved' (Pending) dan 'auditor_verified' (Completed)
     const pending = projects.filter(p => p.active_version?.status === 'admin_approved').length;
     const completed = projects.filter(p => ['auditor_verified', 'rejected', 'listed'].includes(p.active_version?.status)).length;
-    const inProgress = total - pending - completed; // Jika ada status 'auditing'
+    const inProgress = total - pending - completed; 
     
     const chartData = [
       { name: 'Pending', value: pending },
@@ -121,8 +126,9 @@ export default function AuditorReviewPage() {
   const paginatedProjects = processedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // --- 4. HANDLERS ---
-  const handleView = (project) => {
-    setProjectToView(project);
+  const handleView = (project, specificVersion = null) => {
+    const projectDataToView = specificVersion ? { ...project, active_version: specificVersion } : project;
+    setProjectToView(projectDataToView);
     setIsViewModalOpen(true);
   };
 
@@ -131,27 +137,22 @@ export default function AuditorReviewPage() {
     setIsAuditModalOpen(true);
   };
 
-  // ACTION: Save Audit ke Backend
   const handleSaveAudit = async (projectId, payload) => {
     try {
-      // Deteksi apakah payload berupa FormData (Verify) atau Object biasa (Reject)
       const isFormData = payload instanceof FormData;
       const action = isFormData ? payload.get('action') : payload.action;
 
       if (action === 'verify') {
-        // Panggil endpoint verify dan WAJIB sertakan payload FormData-nya
         await projectService.auditorVerify(projectId, payload);
       } else if (action === 'reject') {
-        // Panggil endpoint reject
         await projectService.auditorReject(projectId, { note: payload.audit_notes });
       } else {
          throw new Error("Aksi tidak valid");
       }
       
       Swal.fire('Success', 'Audit decision submitted successfully!', 'success');
-      
       setIsAuditModalOpen(false);
-      fetchProjects(); // Refresh data di tabel
+      fetchProjects(); 
     } catch (error) {
       console.error("Audit Submit Error:", error);
       const msg = error.response?.data?.message || error.message || 'Failed to submit audit report.';
@@ -163,6 +164,15 @@ export default function AuditorReviewPage() {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
     setSortConfig({ key, direction });
+  };
+
+  const toggleRowExpansion = (projectId) => {
+    setExpandedRows(prev => prev.includes(projectId) ? prev.filter(id => id !== projectId) : [...prev, projectId]);
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return <FaSort className={styles.sortIcon} />;
+    return sortConfig.direction === 'asc' ? <FaSortUp className={styles.sortIconActive} /> : <FaSortDown className={styles.sortIconActive} />;
   };
 
   const renderStatusBadge = (status) => {
@@ -225,52 +235,125 @@ export default function AuditorReviewPage() {
             <div className={styles.table}>
               {/* HEADER */}
               <div className={`${styles.tableRow} ${styles.tableHeader}`}>
-                <div className={styles.tableCell} style={{justifyContent:'center'}}>Img</div>
-                <div className={`${styles.tableCell} ${styles.sortable}`} onClick={()=>handleSort('name')}>Project Name</div>
-                <div className={styles.tableCell}>Issuer</div>
-                <div className={`${styles.tableCell} ${styles.sortable}`} onClick={()=>handleSort('status')}>Status</div>
-                <div className={`${styles.tableCell} ${styles.sortable}`} onClick={()=>handleSort('created_at')}>Date</div>
-                <div className={styles.tableCell} style={{justifyContent:'center'}}>Action</div>
+                <div className={styles.tableCell} style={{ width: '120px', flex: 'none', paddingLeft: '16px' }}>Project ID</div>
+                <div className={styles.tableCell} style={{ justifyContent: 'center', width: '80px', flex: 'none' }}>Img</div>
+                <div className={`${styles.tableCell} ${styles.cellName}`} style={{ flex: 1.5, paddingLeft: '16px' }}>
+                  <div className={styles.sortableHeader} onClick={()=>handleSort('name')}>
+                    <span>Project Name</span> <SortIcon columnKey="name" />
+                  </div>
+                </div>
+                <div className={styles.tableCell} style={{ flex: 1.5 }}>Issuer</div>
+                <div className={`${styles.tableCell} ${styles.sortable}`} style={{ flex: 1.2 }} onClick={()=>handleSort('status')}>
+                  <div className={styles.sortableHeader}>Status <SortIcon columnKey="status" /></div>
+                </div>
+                <div className={`${styles.tableCell} ${styles.sortable}`} style={{ flex: 1 }} onClick={()=>handleSort('created_at')}>
+                  <div className={styles.sortableHeader}>Date <SortIcon columnKey="created_at" /></div>
+                </div>
+                <div className={styles.tableCell} style={{ justifyContent: 'center', flex: 1.5 }}>Actions</div>
               </div>
 
               {/* BODY */}
               {isLoading ? (
                 <div className={styles.emptyState}>Loading tasks...</div>
-              ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => (
-                <div className={styles.tableRow} key={project.id}>
-                  <div className={styles.tableCell} style={{justifyContent:'center'}}>
-                    {getProjectImage(project) ? (
-                      <img src={getProjectImage(project)} alt="thumb" className={styles.thumbImg} onError={(e)=>{e.target.src="https://via.placeholder.com/40"}}/>
-                    ) : (
-                      <div className={styles.thumbPlaceholder}><FaImage /></div>
-                    )}
-                  </div>
-                  <div className={styles.tableCell}>
-                    <span className={styles.projectName}>{project.active_version?.name || 'Unnamed'}</span>
-                  </div>
-                  <div className={styles.tableCell}>
-                    <div className={styles.issuerInfo}>
-                      <FaUserTie /> {project.issuer?.name || 'Unknown'}
+              ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => {
+                const versionNumber = project.active_version?.version_number;
+                const isExpanded = expandedRows.includes(project.id);
+                const projectIdString = String(project.id).padStart(4, '0');
+                const projectVersions = (project.versions || [project.active_version]).slice().sort((a, b) => a.version_number - b.version_number);
+                const projectImgUrl = getProjectImage(project.active_version);
+
+                return (
+                  <React.Fragment key={project.id}>
+                    <div className={`${styles.tableRow} ${styles.tableRowExpandable}`} onClick={() => toggleRowExpansion(project.id)}>
+                      
+                      {/* ID */}
+                      <div className={styles.tableCell} style={{ width: '120px', flex: 'none', display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '16px' }}>
+                        <FaChevronDown className={`${styles.expandIcon} ${isExpanded ? styles.expandIconActive : ''}`} />
+                        <span style={{ fontWeight: '700', color: '#6b7280', fontSize: '0.85rem' }}>#{projectIdString}</span>
+                      </div>
+
+                      {/* Img */}
+                      <div className={styles.tableCell} style={{justifyContent:'center', width: '80px', flex: 'none'}}>
+                        {projectImgUrl ? (
+                          <img src={projectImgUrl} alt="thumb" className={styles.thumbImg} onError={(e)=>{e.target.style.display='none'}}/>
+                        ) : (
+                          <div className={styles.thumbPlaceholder}><FaImage /></div>
+                        )}
+                      </div>
+
+                      {/* Name */}
+                      <div className={`${styles.tableCell} ${styles.cellName}`} style={{ flex: 1.5, paddingLeft: '16px' }}>
+                        <div style={{display: 'flex', flexDirection: 'column'}}>
+                          <span className={styles.projectName}>{project.active_version?.name || 'Unnamed'}</span>
+                          <span style={{fontSize: '0.75rem', color: '#6b7280', fontWeight: 'bold'}}>Current: v{versionNumber}</span>
+                        </div>
+                      </div>
+
+                      {/* Issuer */}
+                      <div className={styles.tableCell} style={{ flex: 1.5 }}>
+                        <div className={styles.issuerInfo}>
+                          <FaUserTie /> {project.issuer?.name || 'Unknown'}
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className={styles.tableCell} style={{ flex: 1.2 }}>{renderStatusBadge(project.active_version?.status)}</div>
+
+                      {/* Date */}
+                      <div className={styles.tableCell} style={{ flex: 1 }}>
+                        {new Date(project.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+
+                      {/* Actions */}
+                      <div className={`${styles.tableCell} ${styles.actionsCell}`} style={{ flex: 1.5 }} onClick={e => e.stopPropagation()}>
+                        <button className={`${styles.actionBtn} ${styles.btnView}`} onClick={() => handleView(project)} title="View Detail">
+                          <FaEye />
+                        </button>
+                        
+                        {project.active_version?.status === 'admin_approved' && (
+                          <button className={`${styles.actionBtn} ${styles.btnAudit}`} onClick={() => handleStartAudit(project)} title="Start Verification">
+                            <FaClipboardCheck />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className={styles.tableCell}>{renderStatusBadge(project.active_version?.status)}</div>
-                  <div className={styles.tableCell}>
-                    {new Date(project.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </div>
-                  <div className={`${styles.tableCell} ${styles.actionsCell}`}>
-                    <button className={`${styles.actionBtn} ${styles.btnView}`} onClick={() => handleView(project)} title="View Detail">
-                      <FaEye />
-                    </button>
-                    
-                    {/* BUTTON AUDIT: Muncul jika status admin_approved */}
-                    { project.active_version?.status === 'admin_approved' && (
-                      <button className={`${styles.actionBtn} ${styles.btnAudit}`} onClick={() => handleStartAudit(project)} title="Start Verification">
-                        <FaClipboardCheck />
-                      </button>
+
+                    {/* HISTORY ROW */}
+                    {isExpanded && (
+                      <div className={styles.historyRow}>
+                        <h4 className={styles.historyTitle}><FaHistory /> Version History</h4>
+                        <div className={styles.timeline}>
+                          {projectVersions.map((ver) => {
+                            const isLatest = ver.id === project.active_version?.id;
+                            return (
+                              <div className={styles.timelineItem} key={ver.id}>
+                                <div className={styles.timelineLine}></div>
+                                <div className={`${styles.timelineDot} ${isLatest ? styles.timelineDotActive : ''}`}>
+                                  v{ver.version_number}
+                                </div>
+                                <div className={styles.timelineContent}>
+                                  <div className={styles.timelineInfo}>
+                                    <span className={styles.timelineName}>{ver.name}</span>
+                                    <span className={styles.timelineDate}>
+                                      <FaClock style={{ fontSize: '0.8rem' }}/> {new Date(ver.created_at).toLocaleString('id-ID')}
+                                    </span>
+                                  </div>
+                                  <div className={styles.timelineBadges}>
+                                    {renderStatusBadge(ver.status)}
+                                    <button className={styles.btnViewVersion} onClick={() => handleView(project, ver)}>
+                                      <FaEye /> View Data
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </div>
-              )) : (
+                  </React.Fragment>
+                );
+              }) : (
                 <div className={styles.emptyState}>No audit tasks available.</div>
               )}
             </div>
@@ -299,6 +382,7 @@ export default function AuditorReviewPage() {
   );
 }
 
+// Tambahkan tepat di baris paling bawah file!
 function StatCard({ icon, className, label, value }) {
   return (
     <div className={styles.statCard}>
