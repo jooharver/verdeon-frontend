@@ -6,7 +6,7 @@ import {
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
   FaRulerCombined, FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
-  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock
+  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield
 } from 'react-icons/fa';
 
 export default function ModalProjectView({ project, onClose }) {
@@ -24,7 +24,7 @@ export default function ModalProjectView({ project, onClose }) {
 
   // --- MAPPING DATA LARAVEL (VERSIONING) ---
   const activeVersion = project.active_version || {};
-  const projectIdString = String(project.id).padStart(4, '0'); // Mengamankan integer ID dari Laravel
+  const projectIdString = String(project.id).padStart(4, '0');
 
   // --- HELPERS ---
   const formatDate = (dateString) => {
@@ -35,23 +35,31 @@ export default function ModalProjectView({ project, onClose }) {
   };
 
   const getFullUrl = (filePath) => {
-    if (!filePath) return '';
-    let cleanPath = filePath.replace(/\\/g, '/');
-    const uploadsIndex = cleanPath.indexOf('uploads/');
-    if (uploadsIndex !== -1) cleanPath = cleanPath.substring(uploadsIndex);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-    return `${baseUrl}/${cleanPath}`;
-  };
+      if (!filePath) return '';
+      
+      // Hilangkan backslash jika ada
+      let cleanPath = filePath.replace(/\\/g, '/');
+      
+      // Jika path dari DB mengandung awalan 'public/', buang awalannya
+      if (cleanPath.startsWith('public/')) {
+        cleanPath = cleanPath.replace('public/', '');
+      }
+
+      // Ambil base URL Laravel dengan membuang '/api' dari belakangnya
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); // Hasil: http://localhost:8000
+
+      // Gabungkan dengan folder storage (Sesuai screenshot foldermu)
+      return `${backendRoot}/storage/${cleanPath}`;
+    };
 
   // --- DATA FILTERING ---
-  // Dokumen sekarang ada di dalam active_version
   const allDocs = activeVersion.documents || [];
 
   // 1. DATA ISSUER
   const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'issuer');
   const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
   
-  // Spesifikasi teknis (Fallback ke '-' atau 0 jika belum ada di database)
   const issuerSpecs = {
     panel_capacity_wp: activeVersion.panel_capacity_wp,
     inverter_capacity_kw: activeVersion.inverter_capacity_kw,
@@ -64,23 +72,28 @@ export default function ModalProjectView({ project, onClose }) {
   };
 
   // 2. DATA AUDITOR
-  const auditDocs = allDocs.filter(d => d.type === 'audit_report' || (d.type === 'document' && d.uploader_role === 'auditor'));
+  const auditDocs = allDocs.filter(d => (d.type === 'audit_report' || d.type === 'document') && d.uploader_role === 'auditor');
   const auditImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'auditor');
   
-  // Auditor detail diambil dari active_version dan relasi user
-  const auditorUser = project.auditor || null; 
-  const auditDetail = activeVersion.auditor_verification_status !== 'pending' ? {
+  // 👇 INI YANG DIPERBAIKI (Urutannya dibalik) 👇
+  // Memastikan frontend bisa menangkap data baik dari audit_report maupun auditReport
+  const reportData = activeVersion.audit_report || activeVersion.auditReport;
+  
+  // Mengambil nama auditor dari relasi tabel audit_reports
+  const auditorUser = reportData?.auditor || project.auditor || null;
+  // 👆 ------------------------------------------------ 👆
+
+  const auditDetail = (activeVersion.auditor_verification_status !== 'pending' && reportData) ? {
     audit_status: activeVersion.auditor_verification_status,
-    verified_at: activeVersion.updated_at,
-    audit_notes: activeVersion.auditor_notes,
-    verified_installed_capacity_kwp: activeVersion.verified_installed_capacity_kwp,
-    verified_annual_generation_kwh: activeVersion.verified_annual_generation_kwh,
-    baseline_emission_factor: activeVersion.baseline_emission_factor,
-    expected_carbon_reduction_ton_per_year: activeVersion.expected_carbon_reduction_ton_per_year,
-    onsite_measurement_date: activeVersion.onsite_measurement_date,
+    verified_at: reportData.created_at || activeVersion.updated_at,
+    audit_notes: reportData.audit_notes,
+    verified_installed_capacity_kwp: reportData.verified_installed_capacity_kwp,
+    verified_annual_generation_kwh: reportData.verified_annual_generation_kwh,
+    baseline_emission_factor: reportData.baseline_emission_factor,
+    expected_carbon_reduction_ton_per_year: reportData.expected_carbon_reduction_ton_per_year,
+    onsite_measurement_date: reportData.onsite_measurement_date,
   } : null;
 
-  // Tentukan galeri mana yang tampil berdasarkan tab
   const currentGallery = activeTab === 'overview' ? issuerImages : auditImages;
 
   // --- HANDLERS ---
@@ -96,7 +109,6 @@ export default function ModalProjectView({ project, onClose }) {
     setActiveImgIndex((prev) => (prev === 0 ? currentGallery.length - 1 : prev - 1));
   };
 
-  // Reusable Spec Item
   const SpecItem = ({ icon, label, value, unit, verified = false }) => (
     <div className={`${styles.specItem} ${verified ? styles.specVerified : ''}`}>
       <div className={styles.specIcon}>{icon}</div>
@@ -115,7 +127,6 @@ export default function ModalProjectView({ project, onClose }) {
       <div className={styles.overlay} onClick={onClose}>
         <div className={styles.modal} onClick={e => e.stopPropagation()}>
           
-          {/* HEADER */}
           <div className={styles.header}>
             <div className={styles.headerTopRow}>
                 <div className={styles.headerTitleGroup}>
@@ -132,7 +143,6 @@ export default function ModalProjectView({ project, onClose }) {
                 </div>
             </div>
 
-            {/* TABS NAVIGATION */}
             <div className={styles.tabsContainer}>
               <button 
                 className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.tabActive : ''}`}
@@ -149,14 +159,12 @@ export default function ModalProjectView({ project, onClose }) {
             </div>
           </div>
 
-          {/* SCROLLABLE CONTENT */}
           <div className={styles.content}>
             
-            {/* ================= TAB 1: OVERVIEW (ISSUER DATA) ================= */}
+            {/* ================= TAB 1: OVERVIEW ================= */}
             {activeTab === 'overview' && (
               <div className={styles.tabContentAnim}>
                 <div className={styles.colLeft}>
-                  {/* GALLERY ISSUER */}
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaImage /> PROJECT GALLERY</h4>
                     {currentGallery.length > 0 ? (
@@ -189,7 +197,6 @@ export default function ModalProjectView({ project, onClose }) {
                     )}
                   </div>
 
-                  {/* ISSUER INFO */}
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaBuilding /> ISSUER INFORMATION</h4>
                     <div className={styles.issuerCard}>
@@ -201,7 +208,6 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
                   </div>
 
-                  {/* ISSUER DOCS */}
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaFilePdf /> LEGAL DOCUMENTS</h4>
                     <div className={styles.docList}>
@@ -222,7 +228,6 @@ export default function ModalProjectView({ project, onClose }) {
                 </div>
 
                 <div className={styles.colRight}>
-                  {/* TECHNICAL SPECS */}
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaBolt /> TECHNICAL SPECIFICATIONS (ISSUER CLAIM)</h4>
                     <div className={styles.specsGrid}>
@@ -245,27 +250,22 @@ export default function ModalProjectView({ project, onClose }) {
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaMapMarkerAlt /> LOCATION DETAILS</h4>
                     <div className={styles.locationCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                      
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                         <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Address</span>
                         <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.address || '-'}</strong>
                       </div>
-                      
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                         <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>City</span>
                         <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_city || '-'}</strong>
                       </div>
-                      
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                         <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Province</span>
                         <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_province || '-'}</strong>
                       </div>
-                      
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                         <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Country</span>
                         <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_country || 'Indonesia'}</strong>
                       </div>
-
                     </div>
                   </div>
 
@@ -275,20 +275,44 @@ export default function ModalProjectView({ project, onClose }) {
                       {activeVersion.description || "No description provided."}
                     </div>
                   </div>
+
+                  {/* --- ADMIN NOTES / REVIEW --- */}
+                  {/* Sembunyikan sepenuhnya jika masih Draft murni di sisi Issuer */}
+                  {activeVersion.status !== 'draft' && (
+                    <div className={styles.section} style={{ marginTop: '20px' }}>
+                      <h4 className={styles.sectionTitle}><FaUserShield /> ADMIN NOTES / REVIEW</h4>
+                      
+                      {/* Cek apakah masih menunggu review admin */}
+                      {(!activeVersion.admin_verification_status || activeVersion.admin_verification_status === 'pending') ? (
+                        <div className={styles.descriptionBox} style={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db', color: '#6b7280' }}>
+                          <FaClock style={{ display: 'inline', marginRight: '6px', marginBottom: '-2px' }} /> Menunggu proses review dari Admin.
+                        </div>
+                      ) : (
+                        /* Jika sudah direview (Approved / Rejected) */
+                        <div 
+                          className={styles.descriptionBox} 
+                          style={{ 
+                            backgroundColor: activeVersion.admin_verification_status === 'rejected' ? '#fef2f2' : '#f0fdf4', 
+                            borderColor: activeVersion.admin_verification_status === 'rejected' ? '#fca5a5' : '#bbf7d0', 
+                            color: '#374151' 
+                          }}
+                        >
+                          {activeVersion.admin_notes ? activeVersion.admin_notes : "Proyek disetujui tanpa catatan tambahan dari Admin."}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                 </div>
               </div>
             )}
 
-            {/* ================= TAB 2: AUDIT REPORT (AUDITOR DATA) ================= */}
+            {/* ================= TAB 2: AUDIT REPORT ================= */}
             {activeTab === 'audit' && (
               <div className={styles.tabContentAnim}>
-                
                 {auditDetail ? (
-                  // --- JIKA SUDAH ADA DATA AUDIT ---
                   <>
                     <div className={styles.colLeft}>
-                      
-                      {/* AUDIT STATUS CARD */}
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaClipboardCheck /> AUDIT STATUS</h4>
                         <div className={`${styles.auditStatusCard} ${styles[auditDetail.audit_status?.toLowerCase()]}`}>
@@ -302,7 +326,6 @@ export default function ModalProjectView({ project, onClose }) {
                         </div>
                       </div>
 
-                      {/* EVIDENCE GALLERY */}
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaImage /> EVIDENCE PHOTOS</h4>
                         {currentGallery.length > 0 ? (
@@ -332,7 +355,6 @@ export default function ModalProjectView({ project, onClose }) {
                         )}
                       </div>
 
-                      {/* AUDITOR INFO */}
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaUserTie /> AUDITED BY</h4>
                         <div className={styles.issuerCard}>
@@ -344,7 +366,6 @@ export default function ModalProjectView({ project, onClose }) {
                         </div>
                       </div>
 
-                      {/* AUDIT DOCS */}
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaFilePdf /> AUDIT REPORT FILES</h4>
                         <div className={styles.docList}>
@@ -365,7 +386,6 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
 
                     <div className={styles.colRight}>
-                      {/* VERIFIED METRICS */}
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaCheckDouble /> VERIFIED SPECIFICATIONS</h4>
                         <div className={styles.specsGrid}>
@@ -377,17 +397,22 @@ export default function ModalProjectView({ project, onClose }) {
                         </div>
                       </div>
 
-                      {/* NOTES */}
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaAlignLeft /> AUDITOR NOTES / FINDINGS</h4>
-                        <div className={`${styles.descriptionBox} ${styles.auditNotesBox}`}>
-                          {auditDetail.audit_notes || "No specific notes provided."}
+                        <div 
+                          className={`${styles.descriptionBox} ${styles.auditNotesBox}`}
+                          style={{ 
+                            backgroundColor: auditDetail.audit_status === 'rejected' ? '#fef2f2' : '#f0fdf4', 
+                            borderColor: auditDetail.audit_status === 'rejected' ? '#fca5a5' : '#bbf7d0', 
+                            color: '#374151' 
+                          }}
+                        >
+                          {auditDetail.audit_notes ? auditDetail.audit_notes : "Proyek diverifikasi tanpa catatan tambahan dari Auditor."}
                         </div>
                       </div>
                     </div>
                   </>
                 ) : (
-                  // --- JIKA BELUM ADA DATA AUDIT (EMPTY STATE) ---
                   <div className={styles.fullWidthEmpty}>
                     <div className={styles.emptyStateAudit}>
                       <div className={styles.emptyIcon}><FaClock /></div>
@@ -403,10 +428,8 @@ export default function ModalProjectView({ project, onClose }) {
                 )}
               </div>
             )}
-
           </div>
 
-          {/* FOOTER */}
           <div className={styles.footer}>
              <div className={styles.footerNote}>
                {activeTab === 'overview' 
@@ -418,7 +441,6 @@ export default function ModalProjectView({ project, onClose }) {
         </div>
       </div>
 
-      {/* LIGHTBOX */}
       {isLightboxOpen && currentGallery.length > 0 && (
         <div className={styles.lightboxOverlay} onClick={() => setIsLightboxOpen(false)}>
           <button className={styles.lightboxCloseBtn}><FaTimes /></button>

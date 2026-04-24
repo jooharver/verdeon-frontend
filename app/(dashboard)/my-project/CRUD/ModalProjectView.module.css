@@ -80,19 +80,69 @@
 }
 .closeBtnHeader:hover { color: var(--text-primary); }
 
-/* STATUS BADGE */
+/* --- BADGES STATUS --- */
 .badge {
-  padding: 12px 28px;
-  border-radius: 99px;
+  margin-right: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 50px;
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
-.verified, .listed { background: #d1fae5; color: #059669; border: 1px solid #10b981; }
-.on_review, .submitted { background: #fef9c3; color: #d97706; border: 1px solid #fbbf24; }
-.rejected { background: #fee2e2; color: #e11d48; border: 1px solid #f43f5e; }
-.draft { background: var(--nav-link-hover-bg); color: var(--text-secondary); border: 1px solid var(--text-secondary); }
+
+/* 1. DRAFT (Abu-abu) */
+.draft {
+  background-color: var(--nav-link-hover-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--text-secondary);
+}
+
+/* 2. SUBMITTED (Biru - Menunggu Admin) */
+.submitted {
+  background-color: rgba(52, 162, 241, 0.15); /* Transparan Biru */
+  color: var(--brand-color);
+  border: 1px solid rgba(52, 162, 241, 0.3);
+}
+
+/* 3. ADMIN APPROVED (Kuning/Orange - Menunggu Auditor) */
+.admin_approved {
+  background-color: rgba(245, 158, 11, 0.15); /* Transparan Orange */
+  color: var(--warning-color);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* 4. AUDITOR VERIFIED (Hijau - Lolos Audit) */
+.auditor_verified {
+  background-color: rgba(40, 167, 69, 0.15); /* Transparan Hijau */
+  color: var(--success-color);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+/* 5. REJECTED (Merah) */
+.rejected {
+  background-color: rgba(239, 68, 68, 0.15); /* Transparan Merah */
+  color: var(--danger-color);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* 6. LISTED (Solid Biru / Warna Spesial untuk Final) */
+.listed {
+  background-color: var(--brand-color);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+/* PERBAIKAN TEKS BADGE (Agar spasi underscore (_) hilang dan rapi) */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
 /* --- TABS NAVIGATION --- */
 .tabsContainer {
