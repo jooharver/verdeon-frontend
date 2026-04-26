@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-// 👇 REUSE CSS DARI MODAL PROJECT VIEW 👇
 import styles from '../../../my-project/CRUD/ModalProjectView.module.css'; 
 import { 
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
@@ -10,12 +9,19 @@ import {
   FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaRocket
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import { ethers } from 'ethers';
+
+// 👇 SESUAIKAN PATH INI DENGAN LOKASI FILE web3Config.js KAMU 👇
+import { VERIDEON_CONTRACT_ADDRESS, VERIDEON_ABI } from '../../../../utils/web3Config'; 
 
 export default function ModalListingProject({ project, onClose, onList }) {
   const [activeTab, setActiveTab] = useState('overview'); 
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  
+  // State untuk melacak status proses Web3
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingText, setLoadingText] = useState('Publishing...');
 
   useEffect(() => {
     setActiveImgIndex(0);
@@ -97,25 +103,79 @@ export default function ModalListingProject({ project, onClose, onList }) {
     setActiveImgIndex((prev) => (prev === 0 ? currentGallery.length - 1 : prev - 1));
   };
 
-  // Logika Konfirmasi List ke Market
+// --- LOGIKA WEB3 MINTING ---
   const handleConfirmList = async () => {
+    const issuerWallet = project.issuer?.wallet_address;
+    if (!issuerWallet) {
+      Swal.fire('Error', 'Issuer belum memiliki Wallet Address. Tidak dapat mencetak NFT.', 'error');
+      return;
+    }
+
     const result = await Swal.fire({
-      title: 'List to Market?',
-      text: "This will finalize the project and publish it to the Carbon Market. This action cannot be undone.",
-      icon: 'question',
+      title: 'List to Market & Mint NFT?',
+      text: `Proyek ini akan dicetak ke dalam jaringan Polygon dan dikirim ke dompet Issuer (${issuerWallet.substring(0, 6)}...). Pastikan MetaMask kamu terhubung.`,
+      icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#22c55e', 
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, Publish Project!',
-      cancelButtonText: 'Review Again'
+      confirmButtonText: 'Ya, Mint & Publish!',
+      cancelButtonText: 'Batal'
     });
 
     if (result.isConfirmed) {
+      if (typeof window.ethereum === 'undefined') {
+        Swal.fire('Error', 'MetaMask tidak terdeteksi di browser ini!', 'error');
+        return;
+      }
+
       setIsSubmitting(true);
+      setLoadingText('Meminta persetujuan MetaMask...');
+
       try {
-        await onList(project.id); 
+        const provider = new ethers.BrowserProvider(window.ethereum);
+
+        // --- 👇 TAMBAHAN BARU: Memaksa MetaMask pindah ke Polygon Amoy otomatis 👇 ---
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            // 0x13882 adalah kode Hexadecimal untuk Chain ID 80002 (Polygon Amoy)
+            params: [{ chainId: '0x13882' }], 
+          });
+        } catch (switchError) {
+          console.error("Gagal ganti jaringan:", switchError);
+          Swal.fire('Error Jaringan', 'Tolong ubah jaringan MetaMask kamu ke Polygon Amoy Testnet secara manual.', 'error');
+          setIsSubmitting(false);
+          return;
+        }
+        // --- 👆 AKHIR TAMBAHAN BARU 👆 ---
+
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(VERIDEON_CONTRACT_ADDRESS, VERIDEON_ABI, signer);
+
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const tokenURI = `${apiBaseUrl}/metadata/project/${project.id}`;
+
+        setLoadingText('Mencetak NFT di Polygon...');
+
+        const tx = await contract.mintProject(issuerWallet, tokenURI);
+        
+        setLoadingText('Menunggu konfirmasi jaringan...');
+        
+        const receipt = await tx.wait();
+        const txHash = tx.hash;
+
+        setLoadingText('Menyimpan data ke server...');
+        await onList(project.id, txHash); 
+        
+      } catch (error) {
+        console.error("Minting Error:", error);
+        const errorMsg = error.code === 'ACTION_REJECTED' 
+          ? 'Kamu membatalkan transaksi di MetaMask.' 
+          : 'Gagal mencetak NFT. Pastikan kamu memiliki saldo POL yang cukup untuk gas fee.';
+        Swal.fire('Gagal Minting', errorMsg, 'error');
       } finally {
         setIsSubmitting(false);
+        setLoadingText('Publishing...');
       }
     }
   };
@@ -453,7 +513,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
                    disabled={isSubmitting} 
                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: '600', opacity: isSubmitting ? 0.7 : 1, transition: 'all 0.2s ease' }}
                  >
-                   <FaRocket /> {isSubmitting ? 'Publishing...' : 'Publish'}
+                   <FaRocket /> {loadingText}
                  </button>
              </div>
           </div>

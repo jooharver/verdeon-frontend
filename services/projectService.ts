@@ -79,9 +79,13 @@ export const projectService = {
   },
 
   // Admin me-listing proyek yang sudah lolos audit
-  adminListProject: async (id) => {
+  adminListProject: async (id, txHash) => {
     return api(`/admin/projects/${id}/list`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ tx_hash: txHash }), // 👇 Kirim ke backend
     });
   },
 

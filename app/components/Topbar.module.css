@@ -238,3 +238,38 @@
     transform: translateY(0);
   }
 }
+
+/* --- (BARU) STYLE TOMBOL WEB3 WALLET --- */
+.walletButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: var(--brand-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.walletButton:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.walletButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.walletConnected {
+  /* Jika sudah konek, warnanya sedikit berubah agar beda dengan primary button lain */
+  background-color: #1e293b; /* Biru sangat gelap */
+  color: #f8fafc;
+  border: 1px solid var(--border-color);
+}

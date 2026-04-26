@@ -1,11 +1,12 @@
 'use client'; 
 
-// 1. Impor FaSun dan FaMoon
 import React, { useState, useRef, useEffect } from "react";
-import { FaBell, FaSun, FaMoon } from "react-icons/fa"; 
+import { FaBell, FaSun, FaMoon, FaWallet } from "react-icons/fa"; 
 import Link from 'next/link';
 import styles from "./Topbar.module.css";
 import { useAuth } from "../../context/AuthContext"; 
+// Impor ethers untuk koneksi Web3
+import { ethers } from "ethers";
 
 const capitalizeRole = (role) => {
   if (!role) return "User"; 
@@ -13,13 +14,15 @@ const capitalizeRole = (role) => {
 };
 
 const Topbar = ({ title, breadcrumbs = [] }) => {
-  // 2. Ambil 'updateTheme' dari useAuth
   const { user, isLoading, logout, updateTheme } = useAuth();
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Logika untuk menutup dropdown (Tidak berubah)
+  // --- STATE WEB3 ---
+  const [walletAddress, setWalletAddress] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -32,15 +35,41 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
     };
   }, [dropdownRef]);
 
-  // Handler untuk Logout (Tidak berubah)
+  // --- FUNGSI CONNECT WALLET ---
+  const connectWallet = async () => {
+    // Cek apakah ekstensi MetaMask terpasang di browser
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        setIsConnecting(true);
+        // Meminta izin kepada MetaMask untuk connect
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        // Simpan alamat dompet pertama yang terpilih
+        setWalletAddress(accounts[0]);
+      } catch (error) {
+        console.error("Gagal koneksi ke MetaMask:", error);
+      } finally {
+        setIsConnecting(false);
+      }
+    } else {
+      alert("Tolong install ekstensi MetaMask di browser kamu untuk menggunakan fitur Web3!");
+    }
+  };
+
+  // Helper untuk mempersingkat alamat dompet (misal: 0x123...ABCD)
+  const formatAddress = (address) => {
+    if (!address) return "";
+    return `${address.substring(0, 5)}...${address.substring(address.length - 4)}`;
+  };
+
   const handleLogout = () => {
     setIsDropdownOpen(false); 
+    // Hapus koneksi wallet saat logout (hanya state lokal)
+    setWalletAddress("");
     logout(); 
   };
 
-  // 3. Buat fungsi untuk toggle tema
   const handleThemeToggle = () => {
-    if (!user) return; // Guard clause jika user belum ada
+    if (!user) return; 
     const newTheme = user.theme === 'dark' ? 'light' : 'dark';
     updateTheme(newTheme);
   };
@@ -56,39 +85,40 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
 
       <div className={styles.right}>
 
-        {/* 4. TAMBAHKAN TOMBOL TEMA BARU DI SINI */}
-        {/* Tampil hanya jika user sudah loading & punya data tema */}
-        {/*           --- ▼▼▼ INI PERUBAHAN UTAMANYA ▼▼▼ ---
-          Kita ganti <button> menjadi <label> dengan <input> tersembunyi
-        */}
+        {/* --- TOMBOL CONNECT WALLET (HANYA UNTUK ADMIN) --- */}
+        {!isLoading && user && user.role === 'admin' && (
+          <button 
+            className={`${styles.walletButton} ${walletAddress ? styles.walletConnected : ''}`} 
+            onClick={connectWallet}
+            disabled={isConnecting}
+          >
+            <FaWallet />
+            <span>
+              {isConnecting ? "Connecting..." : (walletAddress ? formatAddress(walletAddress) : "Connect Wallet")}
+            </span>
+          </button>
+        )}
+
+        {/* Switch Tema */}
         {!isLoading && user && user.theme && (
           <label className={styles.themeSwitch}>
             <input 
               type="checkbox"
               className={styles.switchInput}
               onChange={handleThemeToggle}
-              // 'checked' berarti mode gelap aktif
               checked={user.theme === 'dark'} 
             />
-            {/* Ini adalah "track" (rel) dari switch */}
             <span className={styles.switchSlider}>
-              {/* Ini adalah "knob" (tombol geser) yang berisi ikon */}
               <span className={styles.switchIcon}>
-                {user.theme === 'dark' ? (
-                  <FaMoon /> // Saat gelap, ikon di knob adalah matahari
-                ) : (
-                  <FaSun /> // Saat terang, ikon di knob adalah bulan
-                )}
+                {user.theme === 'dark' ? <FaMoon /> : <FaSun />}
               </span>
             </span>
           </label>
         )}
-        {/* --- ▲▲▲ AKHIR DARI PERUBAHAN ▲▲▲ --- */}
       
         <FaBell className={styles.icon} />
         
         {isLoading || !user ? (
-          // --- Placeholder saat loading (Tidak berubah) ---
           <div className={styles.profilePlaceholder}>
             <div className={styles.profileAvatar} style={{ background: '#eee' }} />
             <div>
@@ -97,7 +127,6 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
             </div>
           </div>
         ) : (
-          // --- Container profile + dropdown (Tidak berubah) ---
           <div className={styles.profileContainer} ref={dropdownRef}>
             <button 
               className={styles.profileButton} 
@@ -116,7 +145,6 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
               </div>
             </button>
 
-            {/* Dropdown Menu (Tidak berubah) */}
             {isDropdownOpen && (
               <div className={styles.dropdownMenu}>
                 <Link 

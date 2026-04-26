@@ -154,14 +154,25 @@ export default function AdminProject() {
     }
   };
 
-  const handleFinalList = async (projectId) => {
+  // Pastikan parameter txHash tetap ada
+  const handleFinalList = async (projectId, txHash) => {
     try {
-      await projectService.adminListProject(projectId);
-      Swal.fire('Listed!', 'Project is now live on the Carbon Market.', 'success');
+      // Panggil API
+      await projectService.adminListProject(projectId, txHash);
+      
+      Swal.fire('Berhasil!', 'Proyek resmi masuk ke Market dan NFT telah dicetak!', 'success');
       setIsListingModalOpen(false); 
-      fetchProjects(); 
+      fetchProjects(); // Refresh data tabel
+      
     } catch (error) {
-      Swal.fire('Error', error.response?.data?.message || 'Failed to list project.', 'error');
+      // 👇 INI KUNCINYA: Mengambil pesan error spesifik dari backend 👇
+      const errorMessage = error.response?.data?.message || 'Terjadi kesalahan sistem.';
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Tersimpan',
+        text: errorMessage, // Menampilkan error asli dari Laravel
+      });
     }
   };
 

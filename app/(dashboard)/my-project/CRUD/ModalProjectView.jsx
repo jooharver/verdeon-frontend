@@ -6,7 +6,7 @@ import {
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
   FaRulerCombined, FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
-  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield
+  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaShieldAlt
 } from 'react-icons/fa';
 
 export default function ModalProjectView({ project, onClose }) {
@@ -75,13 +75,10 @@ export default function ModalProjectView({ project, onClose }) {
   const auditDocs = allDocs.filter(d => (d.type === 'audit_report' || d.type === 'document') && d.uploader_role === 'auditor');
   const auditImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'auditor');
   
-  // 👇 INI YANG DIPERBAIKI (Urutannya dibalik) 👇
-  // Memastikan frontend bisa menangkap data baik dari audit_report maupun auditReport
   const reportData = activeVersion.audit_report || activeVersion.auditReport;
   
   // Mengambil nama auditor dari relasi tabel audit_reports
   const auditorUser = reportData?.auditor || project.auditor || null;
-  // 👆 ------------------------------------------------ 👆
 
   const auditDetail = (activeVersion.auditor_verification_status !== 'pending' && reportData) ? {
     audit_status: activeVersion.auditor_verification_status,
@@ -225,6 +222,61 @@ export default function ModalProjectView({ project, onClose }) {
                       )}
                     </div>
                   </div>
+
+                  {/* ================= BLOCKCHAIN PROOF ================= */}
+                  {project.tx_hash && (
+                    <div className={styles.section} style={{ marginTop: '20px' }}>
+                      <h4 className={styles.sectionTitle}>
+                        <FaShieldAlt style={{ color: '#0d9488' }} /> ON-CHAIN EVIDENCE
+                      </h4>
+                      <div 
+                        className={styles.descriptionBox} 
+                        style={{ 
+                          backgroundColor: '#f0fdfa', 
+                          borderColor: '#5eead4', 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: '10px' 
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem', color: '#0f766e', fontWeight: '600' }}>Polygon Smart Contract</span>
+                          <a 
+                            href={`https://amoy.polygonscan.com/tx/${project.tx_hash}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            style={{ 
+                              color: '#0284c7', 
+                              fontSize: '0.85rem', 
+                              textDecoration: 'none', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px',
+                              fontWeight: 'bold' 
+                            }}
+                          >
+                            View on Explorer <FaExternalLinkAlt size={12} />
+                          </a>
+                        </div>
+                        <code 
+                          style={{ 
+                            fontSize: '0.75rem', 
+                            backgroundColor: '#ccfbf1', 
+                            padding: '8px 10px', 
+                            borderRadius: '6px', 
+                            color: '#115e59',
+                            wordBreak: 'break-all',
+                            border: '1px solid #99f6e4',
+                            fontWeight: '500'
+                          }}
+                        >
+                          TxHash: {project.tx_hash}
+                        </code>
+                      </div>
+                    </div>
+                  )}
+                  {/* ==================================================== */}
+
                 </div>
 
                 <div className={styles.colRight}>
@@ -277,18 +329,15 @@ export default function ModalProjectView({ project, onClose }) {
                   </div>
 
                   {/* --- ADMIN NOTES / REVIEW --- */}
-                  {/* Sembunyikan sepenuhnya jika masih Draft murni di sisi Issuer */}
                   {activeVersion.status !== 'draft' && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}><FaUserShield /> ADMIN NOTES / REVIEW</h4>
                       
-                      {/* Cek apakah masih menunggu review admin */}
                       {(!activeVersion.admin_verification_status || activeVersion.admin_verification_status === 'pending') ? (
                         <div className={styles.descriptionBox} style={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db', color: '#6b7280' }}>
                           <FaClock style={{ display: 'inline', marginRight: '6px', marginBottom: '-2px' }} /> Menunggu proses review dari Admin.
                         </div>
                       ) : (
-                        /* Jika sudah direview (Approved / Rejected) */
                         <div 
                           className={styles.descriptionBox} 
                           style={{ 
