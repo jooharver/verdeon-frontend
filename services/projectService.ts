@@ -13,16 +13,14 @@ export const projectService = {
     return api(`/projects/${id}`);
   },
 
-  createProject: async (payload) => { // payload sekarang berupa FormData
+  createProject: async (payload: FormData) => { 
     return api("/projects", {
       method: "POST",
       body: payload, // Langsung kirim, jangan di JSON.stringify
-      // Catatan: Pastikan file services/api.ts kamu TIDAK memaksa header 
-      // "Content-Type": "application/json" jika body berupa FormData.
     });
   },
 
-  updateProject: async (id, payload) => { // payload berupa FormData
+  updateProject: async (id: number, payload: FormData) => { 
     // TRIK LARAVEL: File upload harus pakai POST, lalu kita spoofing methodnya
     payload.append('_method', 'PATCH'); 
 
@@ -40,14 +38,14 @@ export const projectService = {
   },
 
   //Revise proyek
-  reviseProject: async (id) => {
+  reviseProject: async (id: number) => {
     return api(`/projects/${id}/revise`, {
       method: "POST",
     });
   },
 
   // Hapus proyek
-  deleteProject: async (id) => {
+  deleteProject: async (id: number) => {
     return api(`/projects/${id}`, {
       method: "DELETE",
     });
@@ -62,30 +60,41 @@ export const projectService = {
     return api("/admin/projects");
   },
 
-  // Admin menyetujui proyek
-  adminApprove: async (id) => {
+  // 👉 BARU DITAMBAHKAN: Mengambil antrean proyek yang sudah lolos audit (siap minting)
+  getAdminListingQueue: async () => {
+    return api("/admin/projects/listing-queue");
+  },
+
+  // Admin menyetujui proyek (Menerima txHash)
+  adminApprove: async (id: number, txHash: string) => {
     return api(`/admin/projects/${id}/approve`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ tx_hash: txHash }), 
     });
   },
 
   // Admin menolak proyek
-  adminReject: async (id, data) => {
-    // data berisi { note: "Alasan penolakan..." }
+  adminReject: async (id: number, data: any) => {
     return api(`/admin/projects/${id}/reject`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(data),
     });
   },
 
   // Admin me-listing proyek yang sudah lolos audit
-  adminListProject: async (id, txHash) => {
+  adminListProject: async (id: number, txHash: string) => {
     return api(`/admin/projects/${id}/list`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ tx_hash: txHash }), // 👇 Kirim ke backend
+      body: JSON.stringify({ tx_hash: txHash }),
     });
   },
 
@@ -97,18 +106,40 @@ export const projectService = {
     return api("/auditor/projects");
   },
 
-  // Ubah fungsi ini agar menerima payload FormData
-  auditorVerify: async (id, formData) => {
-      return api(`/auditor/projects/${id}/verify`, {
-        method: "POST",
-        body: formData, // Kirim form data langsung
-      });
-    },
+  // Menerima formData dan txHash
+  auditorVerify: async (id: number, formData: FormData, txHash: string) => {
+    if (txHash) {
+      formData.append('tx_hash', txHash);
+    }
+    
+    return api(`/auditor/projects/${id}/verify`, {
+      method: "POST",
+      body: formData, 
+    });
+  },
 
-  auditorReject: async (id, data) => {
+  // Menerima data note dan txHash
+  auditorReject: async (id: number, data: any, txHash: string) => {
+    const payload = {
+      ...data,
+      tx_hash: txHash
+    };
+
     return api(`/auditor/projects/${id}/reject`, {
       method: "POST",
-      body: JSON.stringify(data), // { note: "Alasan..." }
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload), 
     });
+  },
+
+  // ==========================================
+  // PUBLIC / GENERAL ENDPOINTS
+  // ==========================================
+
+  // 👉 BARU DITAMBAHKAN: Memanggil snapshot spesifik untuk pembuktian saat sidang
+  getProjectSnapshot: async (projectId: number, versionId: number, status: string) => {
+    return api(`/projects/${projectId}/versions/${versionId}/snapshot/${status}`);
   },
 };
