@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import styles from './ModalProjectForm.module.css';
 import { 
   FaTimes, FaCloudUploadAlt, FaCheckCircle, FaExclamationCircle, 
-  FaFilePdf, FaImage, FaArrowRight, FaArrowLeft, FaBolt
+  FaFilePdf, FaImage, FaArrowRight, FaArrowLeft, FaBolt, FaCalendarAlt
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { projectService } from '../../../../services/projectService';
+import { api } from '../../../../services/api';
 
 export default function ModalProjectForm({ project, onClose, onSave }) {
   const activeVersion = project?.active_version;
@@ -17,20 +18,26 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    location_country: 'Indonesia',
-    location_province: '',
-    location_city: '',
+    kode_provinsi: '',
+    kode_kota: '',
+    kode_kecamatan: '',
+    kode_kelurahan: '',
     address: '',
     project_type: 'solar',
-    panel_capacity_wp: '',
+    total_system_capacity_kwp: '',
     inverter_capacity_kw: '',
-    area_size_m2: '',
-    number_of_panels: '',
     installation_date: '',
-    installation_type: 'Rooftop',
     panel_brand: '',
-    inverter_brand: ''
+    inverter_brand: '',
+    // 👉 NEW: Tambahkan state untuk claim period
+    period_start: '',
+    period_end: ''
   });
+
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [villages, setVillages] = useState([]);
 
   const [newImages, setNewImages] = useState([]);
   const [newDocs, setNewDocs] = useState([]);
@@ -40,30 +47,91 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
 
   useEffect(() => {
     if (project && activeVersion) {
+      // Potong format timestamp ISO (YYYY-MM-DDTHH:mm:ss.sssZ) menjadi YYYY-MM-DD untuk input type date
+      const formatForInput = (dateStr) => dateStr ? dateStr.split('T')[0] : '';
+      
       setFormData({
         name: activeVersion.name || '',
         description: activeVersion.description || '',
-        location_country: activeVersion.location_country || 'Indonesia',
-        location_province: activeVersion.location_province || '',
-        location_city: activeVersion.location_city || '',
+        kode_provinsi: activeVersion.kode_provinsi || '',
+        kode_kota: activeVersion.kode_kota || '',
+        kode_kecamatan: activeVersion.kode_kecamatan || '',
+        kode_kelurahan: activeVersion.kode_kelurahan || '',
         address: activeVersion.address || '',
         project_type: activeVersion.project_type || 'solar',
-        panel_capacity_wp: activeVersion.panel_capacity_wp || '',
+        total_system_capacity_kwp: activeVersion.total_system_capacity_kwp || '',
         inverter_capacity_kw: activeVersion.inverter_capacity_kw || '',
-        area_size_m2: activeVersion.area_size_m2 || '',
-        number_of_panels: activeVersion.number_of_panels || '',
-        installation_date: activeVersion.installation_date || '',
-        installation_type: activeVersion.installation_type || 'Rooftop',
+        installation_date: formatForInput(activeVersion.installation_date),
         panel_brand: activeVersion.panel_brand || '',
-        inverter_brand: activeVersion.inverter_brand || ''
+        inverter_brand: activeVersion.inverter_brand || '',
+        // 👉 NEW: Set state dari data existing
+        period_start: formatForInput(activeVersion.period_start),
+        period_end: formatForInput(activeVersion.period_end),
       });
     }
   }, [project, activeVersion]);
+
+  // Fetch Wilayah
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const res = await api('/wilayah/provinsi'); 
+        setProvinces(res || []);
+      } catch (err) {
+        console.error("Gagal memuat provinsi", err);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
+  useEffect(() => {
+    if (formData.kode_provinsi) {
+      api(`/wilayah/kota?provinsi=${formData.kode_provinsi}`)
+        .then(res => setCities(res || [])).catch(() => setCities([]));
+    } else {
+      setCities([]);
+    }
+  }, [formData.kode_provinsi]);
+
+  useEffect(() => {
+    if (formData.kode_kota) {
+      api(`/wilayah/kecamatan?kota=${formData.kode_kota}`)
+        .then(res => setDistricts(res || [])).catch(() => setDistricts([]));
+    } else {
+      setDistricts([]);
+    }
+  }, [formData.kode_kota]);
+
+  useEffect(() => {
+    if (formData.kode_kecamatan) {
+      api(`/wilayah/kelurahan?kecamatan=${formData.kode_kecamatan}`)
+        .then(res => setVillages(res || [])).catch(() => setVillages([]));
+    } else {
+      setVillages([]);
+    }
+  }, [formData.kode_kecamatan]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (!isEditable) return;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegionChange = (e) => {
+    const { name, value } = e.target;
+    if (!isEditable) return;
+
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      if (name === 'kode_provinsi') {
+        newData.kode_kota = ''; newData.kode_kecamatan = ''; newData.kode_kelurahan = '';
+      } else if (name === 'kode_kota') {
+        newData.kode_kecamatan = ''; newData.kode_kelurahan = '';
+      } else if (name === 'kode_kecamatan') {
+        newData.kode_kelurahan = '';
+      }
+      return newData;
+    });
   };
 
   const handleFileChange = (e, type) => {
@@ -76,7 +144,7 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
 
   const handleNextStep = (e) => {
     e.preventDefault(); 
-    if (!formData.name || !formData.location_province || !formData.location_city || !formData.address) {
+    if (!formData.name || !formData.kode_provinsi || !formData.kode_kota || !formData.kode_kecamatan || !formData.kode_kelurahan || !formData.address) {
       Swal.fire('Data Belum Lengkap', 'Mohon lengkapi semua field wajib (*) di halaman ini.', 'warning');
       return;
     }
@@ -154,7 +222,6 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
               </div>
             )}
 
-            {/* ================= STEP 1: GENERAL INFO ================= */}
             {step === 1 && (
                 <div className={styles.stepContainer}>
                     <h4 className={styles.sectionTitle} style={{marginTop: 0}}>General Information</h4>
@@ -180,55 +247,70 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
 
                         <div className={styles.formGroup}>
                             <label>Province <span className={styles.required}>*</span></label>
-                            <input name="location_province" value={formData.location_province} onChange={handleChange} disabled={!isEditable} />
+                            <select name="kode_provinsi" value={formData.kode_provinsi} onChange={handleRegionChange} disabled={!isEditable}>
+                                <option value="">Pilih Provinsi</option>
+                                {provinces.map(prov => (
+                                    <option key={prov.kode} value={prov.kode}>{prov.nama}</option>
+                                ))}
+                            </select>
                         </div>
                         
                         <div className={styles.formGroup}>
                             <label>City <span className={styles.required}>*</span></label>
-                            <input name="location_city" value={formData.location_city} onChange={handleChange} disabled={!isEditable} />
+                            <select name="kode_kota" value={formData.kode_kota} onChange={handleRegionChange} disabled={!isEditable || !formData.kode_provinsi}>
+                                <option value="">Pilih Kota/Kabupaten</option>
+                                {cities.map(city => (
+                                    <option key={city.kode} value={city.kode}>{city.nama}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label>District <span className={styles.required}>*</span></label>
+                            <select name="kode_kecamatan" value={formData.kode_kecamatan} onChange={handleRegionChange} disabled={!isEditable || !formData.kode_kota}>
+                                <option value="">Pilih Kecamatan</option>
+                                {districts.map(dist => (
+                                    <option key={dist.kode} value={dist.kode}>{dist.nama}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label>Village <span className={styles.required}>*</span></label>
+                            <select name="kode_kelurahan" value={formData.kode_kelurahan} onChange={handleRegionChange} disabled={!isEditable || !formData.kode_kecamatan}>
+                                <option value="">Pilih Kelurahan/Desa</option>
+                                {villages.map(vill => (
+                                    <option key={vill.kode} value={vill.kode}>{vill.nama}</option>
+                                ))}
+                            </select>
                         </div>
                         
                         <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                             <label>Full Address <span className={styles.required}>*</span></label>
-                            <input name="address" value={formData.address} onChange={handleChange} disabled={!isEditable} />
+                            <input name="address" value={formData.address} onChange={handleChange} disabled={!isEditable} placeholder="Nama jalan, RT/RW, Patokan..." />
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ================= STEP 2: TECHNICAL & MEDIA ================= */}
             {step === 2 && (
                 <div className={styles.stepContainer}>
                     <h4 className={styles.sectionTitle} style={{marginTop: 0}}><FaBolt /> Technical Specifications</h4>
                     <div className={styles.formGrid}>
                         <div className={styles.formGroup}>
-                            <label>Capacity (Wp)</label>
-                            <input name="panel_capacity_wp" type="number" step="0.01" value={formData.panel_capacity_wp} onChange={handleChange} disabled={!isEditable} placeholder="e.g. 5000" />
+                            <label>Total System Capacity (kWp)</label>
+                            <input name="total_system_capacity_kwp" type="number" step="0.01" value={formData.total_system_capacity_kwp} onChange={handleChange} disabled={!isEditable} placeholder="e.g. 5.5" />
                         </div>
                         <div className={styles.formGroup}>
                             <label>Inverter Capacity (kW)</label>
                             <input name="inverter_capacity_kw" type="number" step="0.01" value={formData.inverter_capacity_kw} onChange={handleChange} disabled={!isEditable} placeholder="e.g. 5" />
                         </div>
                         <div className={styles.formGroup}>
-                            <label>Area Size (m²)</label>
-                            <input name="area_size_m2" type="number" step="0.01" value={formData.area_size_m2} onChange={handleChange} disabled={!isEditable} placeholder="e.g. 25" />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Total Panels</label>
-                            <input name="number_of_panels" type="number" value={formData.number_of_panels} onChange={handleChange} disabled={!isEditable} />
-                        </div>
-                        <div className={styles.formGroup}>
                             <label>Installation Date</label>
                             <input name="installation_date" type="date" value={formData.installation_date} onChange={handleChange} disabled={!isEditable} />
                         </div>
-                        <div className={styles.formGroup}>
-                            <label>Installation Type</label>
-                            <select name="installation_type" value={formData.installation_type} onChange={handleChange} disabled={!isEditable}>
-                                <option value="Rooftop">Rooftop</option>
-                                <option value="Ground Mounted">Ground Mounted</option>
-                                <option value="Floating">Floating</option>
-                            </select>
-                        </div>
+                        <div className={styles.formGroup}></div> {/* Spacer */}
+                        
                         <div className={styles.formGroup}>
                             <label>Panel Brand</label>
                             <input name="panel_brand" type="text" value={formData.panel_brand} onChange={handleChange} disabled={!isEditable} placeholder="e.g. Longi, Jinko" />
@@ -236,6 +318,19 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
                         <div className={styles.formGroup}>
                             <label>Inverter Brand</label>
                             <input name="inverter_brand" type="text" value={formData.inverter_brand} onChange={handleChange} disabled={!isEditable} placeholder="e.g. Huawei, Growatt" />
+                        </div>
+                    </div>
+                    
+                    {/* 👉 NEW: Claim Period Section */}
+                    <h4 className={styles.sectionTitle} style={{marginTop: '20px'}}><FaCalendarAlt /> Claim Verification Period</h4>
+                    <div className={styles.formGrid}>
+                        <div className={styles.formGroup}>
+                            <label>Period Start Date</label>
+                            <input name="period_start" type="date" value={formData.period_start} onChange={handleChange} disabled={!isEditable} />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Period End Date</label>
+                            <input name="period_end" type="date" value={formData.period_end} onChange={handleChange} disabled={!isEditable} />
                         </div>
                     </div>
 

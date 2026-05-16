@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import styles from './ModalProjectView.module.css'; 
 import { 
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
-  FaRulerCombined, FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
+  FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
   FaAlignLeft, FaPaperPlane
 } from 'react-icons/fa';
@@ -50,14 +50,13 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
   const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
   
   const issuerSpecs = {
-    panel_capacity_wp: activeVersion.panel_capacity_wp,
+    total_system_capacity_kwp: activeVersion.total_system_capacity_kwp,
     inverter_capacity_kw: activeVersion.inverter_capacity_kw,
-    area_size_m2: activeVersion.area_size_m2,
-    number_of_panels: activeVersion.number_of_panels,
     installation_date: activeVersion.installation_date,
-    installation_type: activeVersion.installation_type || 'Rooftop',
     panel_brand: activeVersion.panel_brand,
     inverter_brand: activeVersion.inverter_brand,
+    period_start: activeVersion.period_start,
+    period_end: activeVersion.period_end,
   };
 
   // --- HANDLERS ---
@@ -197,18 +196,24 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
                 <div className={styles.section}>
                   <h4 className={styles.sectionTitle}><FaBolt /> TECHNICAL SPECIFICATIONS</h4>
                   <div className={styles.specsGrid}>
-                    <SpecItem icon={<FaSolarPanel/>} label="Capacity" value={issuerSpecs.panel_capacity_wp} unit="Wp" />
+                    <SpecItem icon={<FaSolarPanel/>} label="Total Capacity" value={issuerSpecs.total_system_capacity_kwp} unit="kWp" />
                     <SpecItem icon={<FaBolt/>} label="Inverter" value={issuerSpecs.inverter_capacity_kw} unit="kW" />
-                    <SpecItem icon={<FaRulerCombined/>} label="Area Size" value={issuerSpecs.area_size_m2} unit="m²" />
-                    <SpecItem icon={<FaSolarPanel/>} label="Total Panels" value={issuerSpecs.number_of_panels} unit="Unit" />
                     <SpecItem icon={<FaCalendarDay/>} label="Installation" value={formatDate(issuerSpecs.installation_date)} unit="" />
-                    <SpecItem icon={<FaInfoCircle/>} label="Type" value={issuerSpecs.installation_type} unit="" />
                   </div>
                 </div>
 
                 <div className={styles.brandRow}>
                   <div className={styles.brandBadge}>Panel: <strong>{issuerSpecs.panel_brand || '-'}</strong></div>
                   <div className={styles.brandBadge}>Inverter: <strong>{issuerSpecs.inverter_brand || '-'}</strong></div>
+                </div>
+
+                {/* CLAIM PERIOD */}
+                <div className={styles.section} style={{marginTop: '20px'}}>
+                  <h4 className={styles.sectionTitle}><FaCalendarDay /> CLAIM VERIFICATION PERIOD</h4>
+                  <div className={styles.specsGrid}>
+                    <SpecItem icon={<FaCalendarDay/>} label="Start Date" value={formatDate(issuerSpecs.period_start)} unit="" />
+                    <SpecItem icon={<FaCalendarDay/>} label="End Date" value={formatDate(issuerSpecs.period_end)} unit="" />
+                  </div>
                 </div>
 
                 <div className={styles.divider}></div>
@@ -222,16 +227,20 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
                       <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.address || '-'}</strong>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                      <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>City</span>
-                      <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_city || '-'}</strong>
+                      <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Kelurahan</span>
+                      <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.kelurahan?.nama || activeVersion.kode_kelurahan || '-'}</strong>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                      <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Province</span>
-                      <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_province || '-'}</strong>
+                      <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Kecamatan</span>
+                      <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.kecamatan?.nama || activeVersion.kode_kecamatan || '-'}</strong>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                      <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Country</span>
-                      <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_country || 'Indonesia'}</strong>
+                      <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Kota/Kab.</span>
+                      <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.kota?.nama || activeVersion.kode_kota || '-'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Provinsi</span>
+                      <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.provinsi?.nama || activeVersion.kode_provinsi || '-'}</strong>
                     </div>
                   </div>
                 </div>

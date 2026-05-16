@@ -56,8 +56,13 @@ export default function ModalVerifiedProject({ project, onClose, onSave }) {
               <span className={styles.metaItem}>
                 <strong>Issuer:</strong> {project.issuer?.name || 'Unknown'}
               </span>
+              {/* 👉 UPDATE: Menyesuaikan pemanggilan data lokasi dari relasi wilayah */}
               <span className={styles.metaItem}>
-                <strong>Location:</strong> {activeVersion?.location_city}, {activeVersion?.location_province}
+                <strong>Location:</strong> {activeVersion?.kota?.nama || activeVersion?.kode_kota || 'Unknown'}, {activeVersion?.provinsi?.nama || activeVersion?.kode_provinsi || 'Unknown'}
+              </span>
+              {/* 👉 NEW: Menambahkan info kapasitas untuk sekilas pandang admin */}
+              <span className={styles.metaItem}>
+                <strong>Capacity:</strong> {activeVersion?.total_system_capacity_kwp ? `${activeVersion.total_system_capacity_kwp} kWp` : '-'}
               </span>
             </div>
           </div>

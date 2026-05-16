@@ -4,29 +4,26 @@ import React, { useState, useEffect } from 'react';
 import styles from './ModalProjectView.module.css';
 import { 
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
-  FaRulerCombined, FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
+  FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
   FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaShieldAlt
 } from 'react-icons/fa';
 
 export default function ModalProjectView({ project, onClose }) {
-  // --- STATE ---
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'audit'
+  const [activeTab, setActiveTab] = useState('overview');
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   useEffect(() => {
     setActiveImgIndex(0);
-    setActiveTab('overview'); // Reset tab saat buka project baru
+    setActiveTab('overview');
   }, [project]);
 
   if (!project) return null;
 
-  // --- MAPPING DATA LARAVEL (VERSIONING) ---
   const activeVersion = project.active_version || {};
   const projectIdString = String(project.id).padStart(4, '0');
 
-  // --- HELPERS ---
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('id-ID', {
@@ -36,64 +33,50 @@ export default function ModalProjectView({ project, onClose }) {
 
   const getFullUrl = (filePath) => {
       if (!filePath) return '';
-      
-      // Hilangkan backslash jika ada
       let cleanPath = filePath.replace(/\\/g, '/');
-      
-      // Jika path dari DB mengandung awalan 'public/', buang awalannya
       if (cleanPath.startsWith('public/')) {
         cleanPath = cleanPath.replace('public/', '');
       }
-
-      // Ambil base URL Laravel dengan membuang '/api' dari belakangnya
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-      const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); // Hasil: http://localhost:8000
-
-      // Gabungkan dengan folder storage (Sesuai screenshot foldermu)
+      const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); 
       return `${backendRoot}/storage/${cleanPath}`;
     };
 
-  // --- DATA FILTERING ---
   const allDocs = activeVersion.documents || [];
-
-  // 1. DATA ISSUER
   const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'issuer');
   const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
   
   const issuerSpecs = {
-    panel_capacity_wp: activeVersion.panel_capacity_wp,
+    total_system_capacity_kwp: activeVersion.total_system_capacity_kwp,
     inverter_capacity_kw: activeVersion.inverter_capacity_kw,
-    area_size_m2: activeVersion.area_size_m2,
-    number_of_panels: activeVersion.number_of_panels,
     installation_date: activeVersion.installation_date,
-    installation_type: activeVersion.installation_type || 'Rooftop',
     panel_brand: activeVersion.panel_brand,
     inverter_brand: activeVersion.inverter_brand,
+    // 👉 NEW: Ambil periode dari activeVersion
+    period_start: activeVersion.period_start,
+    period_end: activeVersion.period_end,
   };
 
-  // 2. DATA AUDITOR
   const auditDocs = allDocs.filter(d => (d.type === 'audit_report' || d.type === 'document') && d.uploader_role === 'auditor');
   const auditImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'auditor');
-  
   const reportData = activeVersion.audit_report || activeVersion.auditReport;
-  
-  // Mengambil nama auditor dari relasi tabel audit_reports
   const auditorUser = reportData?.auditor || project.auditor || null;
 
   const auditDetail = (activeVersion.auditor_verification_status !== 'pending' && reportData) ? {
     audit_status: activeVersion.auditor_verification_status,
     verified_at: reportData.created_at || activeVersion.updated_at,
     audit_notes: reportData.audit_notes,
+    calculation_method: reportData.calculation_method,
+    verification_checklist: reportData.verification_checklist || [],
     verified_installed_capacity_kwp: reportData.verified_installed_capacity_kwp,
-    verified_annual_generation_kwh: reportData.verified_annual_generation_kwh,
+    verified_generation_kwh: reportData.verified_generation_kwh,
     baseline_emission_factor: reportData.baseline_emission_factor,
-    expected_carbon_reduction_ton_per_year: reportData.expected_carbon_reduction_ton_per_year,
+    carbon_reduction_amount_ton: reportData.carbon_reduction_amount_ton,
     onsite_measurement_date: reportData.onsite_measurement_date,
   } : null;
 
   const currentGallery = activeTab === 'overview' ? issuerImages : auditImages;
 
-  // --- HANDLERS ---
   const handleNextImage = (e) => {
     e.stopPropagation();
     if (currentGallery.length === 0) return;
@@ -112,7 +95,7 @@ export default function ModalProjectView({ project, onClose }) {
       <div className={styles.specContent}>
         <span className={styles.specLabel}>{label}</span>
         <strong className={styles.specValue}>
-          {value ? value.toLocaleString() : '-'} {unit && value ? <span className={styles.unit}>{unit}</span> : ''}
+          {value ? (typeof value === 'number' ? value.toLocaleString() : value) : '-'} {unit && value && value !== '-' ? <span className={styles.unit}>{unit}</span> : ''}
         </strong>
       </div>
       {verified && <div className={styles.verifiedBadge}><FaCheckDouble /></div>}
@@ -158,7 +141,6 @@ export default function ModalProjectView({ project, onClose }) {
 
           <div className={styles.content}>
             
-            {/* ================= TAB 1: OVERVIEW ================= */}
             {activeTab === 'overview' && (
               <div className={styles.tabContentAnim}>
                 <div className={styles.colLeft}>
@@ -223,7 +205,6 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
                   </div>
 
-                  {/* ================= BLOCKCHAIN PROOF ================= */}
                   {project.tx_hash && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}>
@@ -275,26 +256,30 @@ export default function ModalProjectView({ project, onClose }) {
                       </div>
                     </div>
                   )}
-                  {/* ==================================================== */}
-
                 </div>
 
                 <div className={styles.colRight}>
                   <div className={styles.section}>
-                    <h4 className={styles.sectionTitle}><FaBolt /> TECHNICAL SPECIFICATIONS (ISSUER CLAIM)</h4>
+                    <h4 className={styles.sectionTitle}><FaBolt /> TECHNICAL SPECIFICATIONS</h4>
                     <div className={styles.specsGrid}>
-                      <SpecItem icon={<FaSolarPanel/>} label="Capacity" value={issuerSpecs.panel_capacity_wp} unit="Wp" />
+                      <SpecItem icon={<FaSolarPanel/>} label="Total Capacity" value={issuerSpecs.total_system_capacity_kwp} unit="kWp" />
                       <SpecItem icon={<FaBolt/>} label="Inverter" value={issuerSpecs.inverter_capacity_kw} unit="kW" />
-                      <SpecItem icon={<FaRulerCombined/>} label="Area Size" value={issuerSpecs.area_size_m2} unit="m²" />
-                      <SpecItem icon={<FaSolarPanel/>} label="Total Panels" value={issuerSpecs.number_of_panels} unit="Unit" />
                       <SpecItem icon={<FaCalendarDay/>} label="Installation" value={formatDate(issuerSpecs.installation_date)} unit="" />
-                      <SpecItem icon={<FaInfoCircle/>} label="Type" value={issuerSpecs.installation_type} unit="" />
                     </div>
                   </div>
 
                   <div className={styles.brandRow}>
                     <div className={styles.brandBadge}>Panel: <strong>{issuerSpecs.panel_brand || '-'}</strong></div>
                     <div className={styles.brandBadge}>Inverter: <strong>{issuerSpecs.inverter_brand || '-'}</strong></div>
+                  </div>
+
+                  {/* 👉 NEW: Tampilkan usulan Claim Period dari Issuer */}
+                  <div className={styles.section} style={{marginTop: '20px'}}>
+                    <h4 className={styles.sectionTitle}><FaCalendarDay /> CLAIM VERIFICATION PERIOD</h4>
+                    <div className={styles.specsGrid}>
+                      <SpecItem icon={<FaCalendarDay/>} label="Start Date" value={formatDate(issuerSpecs.period_start)} unit="" />
+                      <SpecItem icon={<FaCalendarDay/>} label="End Date" value={formatDate(issuerSpecs.period_end)} unit="" />
+                    </div>
                   </div>
 
                   <div className={styles.divider}></div>
@@ -307,16 +292,20 @@ export default function ModalProjectView({ project, onClose }) {
                         <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.address || '-'}</strong>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>City</span>
-                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_city || '-'}</strong>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Kelurahan</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.kelurahan?.nama || activeVersion.kode_kelurahan || '-'}</strong>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Province</span>
-                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_province || '-'}</strong>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Kecamatan</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.kecamatan?.nama || activeVersion.kode_kecamatan || '-'}</strong>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Country</span>
-                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_country || 'Indonesia'}</strong>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Kota/Kab.</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.kota?.nama || activeVersion.kode_kota || '-'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Provinsi</span>
+                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.provinsi?.nama || activeVersion.kode_provinsi || '-'}</strong>
                       </div>
                     </div>
                   </div>
@@ -328,11 +317,9 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
                   </div>
 
-                  {/* --- ADMIN NOTES / REVIEW --- */}
                   {activeVersion.status !== 'draft' && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}><FaUserShield /> ADMIN NOTES / REVIEW</h4>
-                      
                       {(!activeVersion.admin_verification_status || activeVersion.admin_verification_status === 'pending') ? (
                         <div className={styles.descriptionBox} style={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db', color: '#6b7280' }}>
                           <FaClock style={{ display: 'inline', marginRight: '6px', marginBottom: '-2px' }} /> Menunggu proses review dari Admin.
@@ -351,12 +338,23 @@ export default function ModalProjectView({ project, onClose }) {
                       )}
                     </div>
                   )}
+
+                  {(activeVersion.auditor_verification_status === 'rejected' || activeVersion.auditor_notes) && (
+                    <div className={styles.section} style={{ marginTop: '20px' }}>
+                      <h4 className={styles.sectionTitle}><FaClipboardCheck style={{ color: '#d97706' }}/> AUDITOR NOTES / REASON</h4>
+                      <div 
+                        className={styles.descriptionBox} 
+                        style={{ backgroundColor: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}
+                      >
+                        {activeVersion.auditor_notes ? activeVersion.auditor_notes : "Proyek ditolak oleh Auditor, namun tidak ada catatan spesifik yang diberikan."}
+                      </div>
+                    </div>
+                  )}
                   
                 </div>
               </div>
             )}
 
-            {/* ================= TAB 2: AUDIT REPORT ================= */}
             {activeTab === 'audit' && (
               <div className={styles.tabContentAnim}>
                 {auditDetail ? (
@@ -438,13 +436,30 @@ export default function ModalProjectView({ project, onClose }) {
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaCheckDouble /> VERIFIED SPECIFICATIONS</h4>
                         <div className={styles.specsGrid}>
-                          <SpecItem verified icon={<FaSolarPanel/>} label="Verified Capacity" value={auditDetail.verified_installed_capacity_kwp} unit="KWp" />
-                          <SpecItem verified icon={<FaBolt/>} label="Est. Annual Generation" value={auditDetail.verified_annual_generation_kwh} unit="KWh" />
+                          <SpecItem verified icon={<FaSolarPanel/>} label="Verified Capacity" value={auditDetail.verified_installed_capacity_kwp} unit="kWp" />
+                          <SpecItem verified icon={<FaInfoCircle/>} label="Method" value={auditDetail.calculation_method === 'system_estimated' ? 'System Est.' : 'Actual Inv.'} unit="" />
+                          {/* 👉 UPDATE: Tetap tampilkan periode di sini sebagai referensi verifikasi */}
+                          <SpecItem verified icon={<FaCalendarDay/>} label="Period Start" value={formatDate(issuerSpecs.period_start)} unit="" />
+                          <SpecItem verified icon={<FaCalendarDay/>} label="Period End" value={formatDate(issuerSpecs.period_end)} unit="" />
+                          <SpecItem verified icon={<FaBolt/>} label="Verified Generation" value={auditDetail.verified_generation_kwh} unit="kWh" />
                           <SpecItem verified icon={<FaLeaf/>} label="Emission Factor" value={auditDetail.baseline_emission_factor} unit="" />
-                          <SpecItem verified icon={<FaLeaf/>} label="Carbon Reduction" value={auditDetail.expected_carbon_reduction_ton_per_year} unit="Ton/Year" />
-                          <SpecItem verified icon={<FaCalendarDay/>} label="On-site Date" value={formatDate(auditDetail.onsite_measurement_date)} unit="" />
+                          <SpecItem verified icon={<FaLeaf/>} label="Carbon Reduction" value={auditDetail.carbon_reduction_amount_ton} unit="Ton" />
+                          <SpecItem verified icon={<FaCalendarDay/>} label="On-site Date" value={auditDetail.onsite_measurement_date ? formatDate(auditDetail.onsite_measurement_date) : 'N/A (System)'} unit="" />
                         </div>
                       </div>
+
+                      {auditDetail.verification_checklist && auditDetail.verification_checklist.length > 0 && (
+                        <div className={styles.section}>
+                          <h4 className={styles.sectionTitle}><FaClipboardCheck /> VERIFICATION CHECKLIST</h4>
+                          <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {auditDetail.verification_checklist.map((item, idx) => (
+                              <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', color: '#374151' }}>
+                                <FaCheckDouble color="#10b981" /> {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaAlignLeft /> AUDITOR NOTES / FINDINGS</h4>

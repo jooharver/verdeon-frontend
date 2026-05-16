@@ -4,24 +4,23 @@ import React, { useState, useEffect } from 'react';
 import styles from '../../../my-project/CRUD/ModalProjectView.module.css'; 
 import { 
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
-  FaRulerCombined, FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
+  FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
   FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaRocket
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { ethers } from 'ethers';
 
-// 👇 SESUAIKAN PATH INI DENGAN LOKASI FILE web3Config.js KAMU 👇
-import { VERIDEON_CONTRACT_ADDRESS, VERIDEON_ABI } from '../../../../utils/web3Config'; 
+// Import Helper Web3 (Tetap di-import untuk kebutuhan nanti)
+import { connectWallet, addTrackingToBlockchain, mintCarbonTokens } from '../../../../utils/web3Config'; 
 
 export default function ModalListingProject({ project, onClose, onList }) {
   const [activeTab, setActiveTab] = useState('overview'); 
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   
-  // State untuk melacak status proses Web3
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingText, setLoadingText] = useState('Publishing...');
+  const [loadingText, setLoadingText] = useState('Publish & Mint Token');
 
   useEffect(() => {
     setActiveImgIndex(0);
@@ -42,31 +41,30 @@ export default function ModalListingProject({ project, onClose, onList }) {
   };
 
   const getFullUrl = (filePath) => {
-      if (!filePath) return '';
-      let cleanPath = filePath.replace(/\\/g, '/');
-      if (cleanPath.startsWith('public/')) {
-        cleanPath = cleanPath.replace('public/', '');
-      }
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-      const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); 
-      return `${backendRoot}/storage/${cleanPath}`;
-    };
+    if (!filePath) return '';
+    let cleanPath = filePath.replace(/\\/g, '/');
+    if (cleanPath.startsWith('public/')) {
+      cleanPath = cleanPath.replace('public/', '');
+    }
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    const backendRoot = apiBaseUrl.replace(/\/api\/?$/, ''); 
+    return `${backendRoot}/storage/${cleanPath}`;
+  };
 
   // --- DATA FILTERING ---
   const allDocs = activeVersion.documents || [];
-
   const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'issuer');
   const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
   
+  // 👉 UPDATE: Bersihkan dari field lama (area_size, number_of_panels, dsb)
   const issuerSpecs = {
-    panel_capacity_wp: activeVersion.panel_capacity_wp,
+    total_system_capacity_kwp: activeVersion.total_system_capacity_kwp,
     inverter_capacity_kw: activeVersion.inverter_capacity_kw,
-    area_size_m2: activeVersion.area_size_m2,
-    number_of_panels: activeVersion.number_of_panels,
     installation_date: activeVersion.installation_date,
-    installation_type: activeVersion.installation_type || 'Rooftop',
     panel_brand: activeVersion.panel_brand,
     inverter_brand: activeVersion.inverter_brand,
+    period_start: activeVersion.period_start,
+    period_end: activeVersion.period_end,
   };
 
   const auditDocs = allDocs.filter(d => (d.type === 'audit_report' || d.type === 'document') && d.uploader_role === 'auditor');
@@ -77,14 +75,17 @@ export default function ModalListingProject({ project, onClose, onList }) {
 
   const isAuditorReviewed = ['approved', 'rejected', 'verified'].includes(activeVersion.auditor_verification_status);
 
+  // 👉 UPDATE: Mapping detail laporan audit terkomputasi otomatis
   const auditDetail = isAuditorReviewed ? {
     audit_status: activeVersion.auditor_verification_status,
     verified_at: reportData?.created_at || activeVersion.updated_at,
     audit_notes: activeVersion.auditor_notes || reportData?.audit_notes, 
+    calculation_method: reportData?.calculation_method,
+    verification_checklist: reportData?.verification_checklist || [],
     verified_installed_capacity_kwp: reportData?.verified_installed_capacity_kwp,
-    verified_annual_generation_kwh: reportData?.verified_annual_generation_kwh,
+    verified_generation_kwh: reportData?.verified_generation_kwh,
     baseline_emission_factor: reportData?.baseline_emission_factor,
-    expected_carbon_reduction_ton_per_year: reportData?.expected_carbon_reduction_ton_per_year,
+    carbon_reduction_amount_ton: reportData?.carbon_reduction_amount_ton, 
     onsite_measurement_date: reportData?.onsite_measurement_date,
   } : null;
 
@@ -103,79 +104,78 @@ export default function ModalListingProject({ project, onClose, onList }) {
     setActiveImgIndex((prev) => (prev === 0 ? currentGallery.length - 1 : prev - 1));
   };
 
-// --- LOGIKA WEB3 MINTING ---
+  // ==============================================================
+  // 🔥 LOGIKA WEB3: MOCKING BYPASS UNTUK AKURASI TESTING WEB2
+  // ==============================================================
   const handleConfirmList = async () => {
     const issuerWallet = project.issuer?.wallet_address;
-    if (!issuerWallet) {
-      Swal.fire('Error', 'Issuer belum memiliki Wallet Address. Tidak dapat mencetak NFT.', 'error');
+    
+    // Safety Guard: Cek kelengkapan alamat wallet tujuan pencetakan ERC-20
+    if (!issuerWallet || issuerWallet === "") {
+      Swal.fire('Error', 'Issuer belum mengatur Wallet Address di profil! Token VCT tidak dapat dicetak.', 'error');
       return;
     }
 
+    const calculatedCarbon = auditDetail?.carbon_reduction_amount_ton || 0;
+
     const result = await Swal.fire({
-      title: 'List to Market & Mint NFT?',
-      text: `Proyek ini akan dicetak ke dalam jaringan Polygon dan dikirim ke dompet Issuer (${issuerWallet.substring(0, 6)}...). Pastikan MetaMask kamu terhubung.`,
+      title: 'List to Market?',
+      text: `Proyek akan resmi di-list dan ${calculatedCarbon.toLocaleString()} VCT Token akan dicetak ke dompet Issuer (${issuerWallet.substring(0, 6)}...).`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#22c55e', 
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Ya, Mint & Publish!',
+      confirmButtonText: 'Ya, Publish & Mint Token!',
       cancelButtonText: 'Batal'
     });
 
     if (result.isConfirmed) {
-      if (typeof window.ethereum === 'undefined') {
-        Swal.fire('Error', 'MetaMask tidak terdeteksi di browser ini!', 'error');
-        return;
-      }
-
       setIsSubmitting(true);
-      setLoadingText('Meminta persetujuan MetaMask...');
+      setLoadingText('Publishing...');
 
       try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        // --- 1. MOCKING: GENERATE DUMMY HASH BLOCKCHAIN ---
+        const dummyTxHash = "0xMockMintVCT" + Math.random().toString(16).slice(2, 12);
+        const txHash = dummyTxHash;
 
-        // --- 👇 TAMBAHAN BARU: Memaksa MetaMask pindah ke Polygon Amoy otomatis 👇 ---
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            // 0x13882 adalah kode Hexadecimal untuk Chain ID 80002 (Polygon Amoy)
-            params: [{ chainId: '0x13882' }], 
-          });
-        } catch (switchError) {
-          console.error("Gagal ganti jaringan:", switchError);
-          Swal.fire('Error Jaringan', 'Tolong ubah jaringan MetaMask kamu ke Polygon Amoy Testnet secara manual.', 'error');
-          setIsSubmitting(false);
-          return;
-        }
-        // --- 👆 AKHIR TAMBAHAN BARU 👆 ---
-
-        const signer = await provider.getSigner();
-        const contract = new ethers.Contract(VERIDEON_CONTRACT_ADDRESS, VERIDEON_ABI, signer);
-
+        /* ===> BLOK KODE WEB3 INTEGRASI ASLI (DI-COMMENT SEMENTARA) <===
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-        const tokenURI = `${apiBaseUrl}/metadata/project/${project.id}`;
+        const versionId = project.active_version.id;
+        const versionNumber = project.active_version.version_number;
 
-        setLoadingText('Mencetak NFT di Polygon...');
+        const metaRes = await fetch(`${apiBaseUrl}/projects/${project.id}/versions/${versionId}/metadata?status=listed`);
+        const metaJson = await metaRes.json();
+        if (!metaRes.ok) throw new Error(metaJson.error || "Gagal mengambil metadata.");
 
-        const tx = await contract.mintProject(issuerWallet, tokenURI);
+        const { dataHash } = metaJson;
+        const tokenId = project.id; 
+        const carbonAmountStr = calculatedCarbon.toString();
+
+        await connectWallet(); 
+
+        setLoadingText('Transaksi 1: Mencatat Listing...');
+        await addTrackingToBlockchain(tokenId, versionNumber, 'listed', dataHash);
         
         setLoadingText('Menunggu konfirmasi jaringan...');
-        
-        const receipt = await tx.wait();
-        const txHash = tx.hash;
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-        setLoadingText('Menyimpan data ke server...');
+        setLoadingText(`Transaksi 2: Mencetak ${calculatedCarbon} VCT...`);
+        const amountInWei = ethers.parseUnits(carbonAmountStr, 18);
+        
+        const receiptMint = await mintCarbonTokens(issuerWallet, tokenId, amountInWei);
+        const txHash = receiptMint.hash || receiptMint.transactionHash;
+        === BAGIAN AKHIR COMMENT WEB3 === */
+
+        // --- 2. SINKRONISASI UPDATE STATUS KE LARAVEL BACKEND ---
+        setLoadingText('Finalisasi data di server...');
         await onList(project.id, txHash); 
         
       } catch (error) {
-        console.error("Minting Error:", error);
-        const errorMsg = error.code === 'ACTION_REJECTED' 
-          ? 'Kamu membatalkan transaksi di MetaMask.' 
-          : 'Gagal mencetak NFT. Pastikan kamu memiliki saldo POL yang cukup untuk gas fee.';
-        Swal.fire('Gagal Minting', errorMsg, 'error');
+        console.error("Listing Web3 Error:", error);
+        Swal.fire('Gagal Listing', error.message || 'Terjadi kesalahan sistem.', 'error');
       } finally {
         setIsSubmitting(false);
-        setLoadingText('Publishing...');
+        setLoadingText('Publish & Mint Token');
       }
     }
   };
@@ -186,7 +186,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
       <div className={styles.specContent}>
         <span className={styles.specLabel}>{label}</span>
         <strong className={styles.specValue}>
-          {value ? value.toLocaleString() : '-'} {unit && value ? <span className={styles.unit}>{unit}</span> : ''}
+          {value ? (typeof value === 'number' ? value.toLocaleString() : value) : '-'} {unit && value && value !== '-' ? <span className={styles.unit}>{unit}</span> : ''}
         </strong>
       </div>
       {verified && <div className={styles.verifiedBadge}><FaCheckDouble /></div>}
@@ -214,11 +214,10 @@ export default function ModalListingProject({ project, onClose, onList }) {
                 </div>
             </div>
 
-            {/* Banner Info */}
             <div style={{ padding: '0 32px' }}>
                 <div style={{ backgroundColor: '#f0fdf4', padding: '12px 16px', borderRadius: '8px', color: '#166534', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '10px', border: '1px solid #bbf7d0', marginBottom: '16px' }}>
                 <FaInfoCircle style={{fontSize: '1.2rem', flexShrink: 0}} /> 
-                <span>Please review the auditor's final report before publishing this project to the Carbon Market.</span>
+                <span>Tinjau laporan komputasi auditor sebelum merilis proyek ke Carbon Market dan menerbitkan token VCT.</span>
                 </div>
             </div>
 
@@ -249,27 +248,8 @@ export default function ModalListingProject({ project, onClose, onList }) {
                     {currentGallery.length > 0 ? (
                       <div className={styles.galleryContainer}>
                         <div className={styles.mainImageWrapper} onClick={() => setIsLightboxOpen(true)}>
-                          <img 
-                            src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} 
-                            alt="Main Preview" className={styles.mainImg}
-                            onError={(e) => { e.target.src = "https://via.placeholder.com/600x400?text=Image+Error"; }}
-                          />
-                          <div className={styles.mainImageOverlay}>
-                            <FaExpand /> <span>View Fullscreen</span>
-                          </div>
+                          <img src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} className={styles.mainImg} alt="Preview" />
                         </div>
-                        {currentGallery.length > 1 && (
-                          <div className={styles.thumbnailStrip}>
-                            {currentGallery.map((img, idx) => (
-                              <div key={img.id} 
-                                className={`${styles.thumbItem} ${idx === activeImgIndex ? styles.thumbActive : ''}`}
-                                onClick={() => setActiveImgIndex(idx)}
-                              >
-                                <img src={getFullUrl(img.file_path)} alt={`thumb-${idx}`} />
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className={styles.emptyMedia}><FaImage size={24} /> <span>No images provided</span></div>
@@ -300,7 +280,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
                           <FaExternalLinkAlt className={styles.linkIcon} />
                         </a>
                       )) : (
-                        <div className={styles.emptyStateSimple}>No legal documents attached.</div>
+                        <div className={styles.emptyStateSimple}>No documents attached.</div>
                       )}
                     </div>
                   </div>
@@ -308,14 +288,11 @@ export default function ModalListingProject({ project, onClose, onList }) {
 
                 <div className={styles.colRight}>
                   <div className={styles.section}>
-                    <h4 className={styles.sectionTitle}><FaBolt /> TECHNICAL SPECIFICATIONS (ISSUER CLAIM)</h4>
+                    <h4 className={styles.sectionTitle}><FaBolt /> TECHNICAL SPECS</h4>
                     <div className={styles.specsGrid}>
-                      <SpecItem icon={<FaSolarPanel/>} label="Capacity" value={issuerSpecs.panel_capacity_wp} unit="Wp" />
+                      <SpecItem icon={<FaSolarPanel/>} label="Total Capacity" value={issuerSpecs.total_system_capacity_kwp} unit="kWp" />
                       <SpecItem icon={<FaBolt/>} label="Inverter" value={issuerSpecs.inverter_capacity_kw} unit="kW" />
-                      <SpecItem icon={<FaRulerCombined/>} label="Area Size" value={issuerSpecs.area_size_m2} unit="m²" />
-                      <SpecItem icon={<FaSolarPanel/>} label="Total Panels" value={issuerSpecs.number_of_panels} unit="Unit" />
                       <SpecItem icon={<FaCalendarDay/>} label="Installation" value={formatDate(issuerSpecs.installation_date)} unit="" />
-                      <SpecItem icon={<FaInfoCircle/>} label="Type" value={issuerSpecs.installation_type} unit="" />
                     </div>
                   </div>
 
@@ -324,27 +301,24 @@ export default function ModalListingProject({ project, onClose, onList }) {
                     <div className={styles.brandBadge}>Inverter: <strong>{issuerSpecs.inverter_brand || '-'}</strong></div>
                   </div>
 
+                  <div className={styles.section} style={{marginTop: '20px'}}>
+                    <h4 className={styles.sectionTitle}><FaCalendarDay /> CLAIM VERIFICATION PERIOD</h4>
+                    <div className={styles.specsGrid}>
+                      <SpecItem icon={<FaCalendarDay/>} label="Start Date" value={formatDate(issuerSpecs.period_start)} unit="" />
+                      <SpecItem icon={<FaCalendarDay/>} label="End Date" value={formatDate(issuerSpecs.period_end)} unit="" />
+                    </div>
+                  </div>
+
                   <div className={styles.divider}></div>
 
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaMapMarkerAlt /> LOCATION DETAILS</h4>
                     <div className={styles.locationCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Address</span>
-                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.address || '-'}</strong>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>City</span>
-                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_city || '-'}</strong>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Province</span>
-                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_province || '-'}</strong>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <span style={{ width: '100px', color: '#6b7280', fontSize: '0.9rem' }}>Country</span>
-                        <strong style={{ flex: 1, color: '#374151', fontSize: '0.95rem' }}>{activeVersion.location_country || 'Indonesia'}</strong>
-                      </div>
+                      <p><strong>Address:</strong> {activeVersion.address || '-'}</p>
+                      <p><strong>Kelurahan:</strong> {activeVersion.kelurahan?.nama || '-'}</p>
+                      <p><strong>Kecamatan:</strong> {activeVersion.kecamatan?.nama || '-'}</p>
+                      <p><strong>Kota/Kab:</strong> {activeVersion.kota?.nama || '-'}</p>
+                      <p><strong>Provinsi:</strong> {activeVersion.provinsi?.nama || '-'}</p>
                     </div>
                   </div>
 
@@ -354,30 +328,6 @@ export default function ModalListingProject({ project, onClose, onList }) {
                       {activeVersion.description || "No description provided."}
                     </div>
                   </div>
-                  
-                  {activeVersion.status !== 'draft' && (
-                    <div className={styles.section} style={{ marginTop: '20px' }}>
-                      <h4 className={styles.sectionTitle}><FaUserShield /> ADMIN NOTES / REVIEW</h4>
-                      
-                      {(!activeVersion.admin_verification_status || activeVersion.admin_verification_status === 'pending') ? (
-                        <div className={styles.descriptionBox} style={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db', color: '#6b7280' }}>
-                          <FaClock style={{ display: 'inline', marginRight: '6px', marginBottom: '-2px' }} /> Menunggu proses review dari Admin.
-                        </div>
-                      ) : (
-                        <div 
-                          className={styles.descriptionBox} 
-                          style={{ 
-                            backgroundColor: activeVersion.admin_verification_status === 'rejected' ? '#fef2f2' : '#f0fdf4', 
-                            borderColor: activeVersion.admin_verification_status === 'rejected' ? '#fca5a5' : '#bbf7d0', 
-                            color: '#374151' 
-                          }}
-                        >
-                          {activeVersion.admin_notes ? activeVersion.admin_notes : "Proyek disetujui tanpa catatan tambahan dari Admin."}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                 </div>
               </div>
             )}
@@ -391,9 +341,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaClipboardCheck /> AUDIT STATUS</h4>
                         <div className={`${styles.auditStatusCard} ${styles[auditDetail.audit_status?.toLowerCase()]}`}>
-                          <div className={styles.auditStatusIcon}>
-                             {auditDetail.audit_status === 'approved' || auditDetail.audit_status === 'verified' ? <FaCheckDouble /> : <FaInfoCircle />}
-                          </div>
+                          <div className={styles.auditStatusIcon}><FaCheckDouble /></div>
                           <div>
                             <h4 className={styles.auditStatusTitle}>{auditDetail.audit_status.toUpperCase()}</h4>
                             <span className={styles.auditStatusDate}>Verified on: {formatDate(auditDetail.verified_at)}</span>
@@ -406,27 +354,11 @@ export default function ModalListingProject({ project, onClose, onList }) {
                         {currentGallery.length > 0 ? (
                           <div className={styles.galleryContainer}>
                             <div className={styles.mainImageWrapper} onClick={() => setIsLightboxOpen(true)}>
-                              <img 
-                                src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} 
-                                alt="Audit Evidence" className={styles.mainImg}
-                              />
-                              <div className={styles.mainImageOverlay}><FaExpand /> View</div>
+                              <img src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} className={styles.mainImg} alt="Evidence" />
                             </div>
-                            {currentGallery.length > 1 && (
-                              <div className={styles.thumbnailStrip}>
-                                {currentGallery.map((img, idx) => (
-                                  <div key={img.id} 
-                                    className={`${styles.thumbItem} ${idx === activeImgIndex ? styles.thumbActive : ''}`}
-                                    onClick={() => setActiveImgIndex(idx)}
-                                  >
-                                    <img src={getFullUrl(img.file_path)} alt="evidence" />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         ) : (
-                          <div className={styles.emptyMedia}><FaImage /> No evidence photos uploaded.</div>
+                          <div className={styles.emptyMedia}>No evidence photos provided.</div>
                         )}
                       </div>
 
@@ -464,25 +396,35 @@ export default function ModalListingProject({ project, onClose, onList }) {
                       <div className={styles.section}>
                         <h4 className={styles.sectionTitle}><FaCheckDouble /> VERIFIED SPECIFICATIONS</h4>
                         <div className={styles.specsGrid}>
-                          <SpecItem verified icon={<FaSolarPanel/>} label="Verified Capacity" value={auditDetail.verified_installed_capacity_kwp} unit="KWp" />
-                          <SpecItem verified icon={<FaBolt/>} label="Est. Annual Generation" value={auditDetail.verified_annual_generation_kwh} unit="KWh" />
+                          <SpecItem verified icon={<FaSolarPanel/>} label="Verified Capacity" value={auditDetail.verified_installed_capacity_kwp} unit="kWp" />
+                          <SpecItem verified icon={<FaInfoCircle/>} label="Method" value={auditDetail.calculation_method === 'system_estimated' ? 'System Est.' : 'Actual Inv.'} unit="" />
+                          <SpecItem verified icon={<FaCalendarDay/>} label="Period Start" value={formatDate(issuerSpecs.period_start)} unit="" />
+                          <SpecItem verified icon={<FaCalendarDay/>} label="Period End" value={formatDate(issuerSpecs.period_end)} unit="" />
+                          <SpecItem verified icon={<FaBolt/>} label="Verified Generation" value={auditDetail.verified_generation_kwh} unit="kWh" />
                           <SpecItem verified icon={<FaLeaf/>} label="Emission Factor" value={auditDetail.baseline_emission_factor} unit="" />
-                          <SpecItem verified icon={<FaLeaf/>} label="Carbon Reduction" value={auditDetail.expected_carbon_reduction_ton_per_year} unit="Ton/Year" />
-                          <SpecItem verified icon={<FaCalendarDay/>} label="On-site Date" value={formatDate(auditDetail.onsite_measurement_date)} unit="" />
+                          <SpecItem verified icon={<FaLeaf/>} label="Carbon Reduction" value={auditDetail.carbon_reduction_amount_ton} unit="Ton" />
+                          <SpecItem verified icon={<FaCalendarDay/>} label="On-site Date" value={auditDetail.onsite_measurement_date ? formatDate(auditDetail.onsite_measurement_date) : 'N/A (System)'} unit="" />
                         </div>
                       </div>
 
+                      {/* CHECKLIST VERIFIKASI AUDITOR */}
+                      {auditDetail.verification_checklist && auditDetail.verification_checklist.length > 0 && (
+                        <div className={styles.section}>
+                          <h4 className={styles.sectionTitle}><FaClipboardCheck /> VERIFICATION CHECKLIST</h4>
+                          <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {auditDetail.verification_checklist.map((item, idx) => (
+                              <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', color: '#374151' }}>
+                                <FaCheckDouble color="#10b981" /> {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
                       <div className={styles.section}>
-                        <h4 className={styles.sectionTitle}><FaAlignLeft /> AUDITOR NOTES / FINDINGS</h4>
-                        <div 
-                          className={`${styles.descriptionBox} ${styles.auditNotesBox}`}
-                          style={{ 
-                            backgroundColor: auditDetail.audit_status === 'rejected' ? '#fef2f2' : '#f0fdf4', 
-                            borderColor: auditDetail.audit_status === 'rejected' ? '#fca5a5' : '#bbf7d0', 
-                            color: '#374151' 
-                          }}
-                        >
-                          {auditDetail.audit_notes ? auditDetail.audit_notes : "Proyek diverifikasi tanpa catatan tambahan dari Auditor."}
+                        <h4 className={styles.sectionTitle}><FaAlignLeft /> AUDITOR NOTES</h4>
+                        <div className={styles.descriptionBox} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                          {auditDetail.audit_notes || "Verified without notes."}
                         </div>
                       </div>
                     </div>
@@ -490,9 +432,8 @@ export default function ModalListingProject({ project, onClose, onList }) {
                 ) : (
                   <div className={styles.fullWidthEmpty}>
                     <div className={styles.emptyStateAudit}>
-                      <div className={styles.emptyIcon}><FaClock /></div>
+                      <FaClock size={40} color="#9ca3af" />
                       <h3>Audit Pending</h3>
-                      <p>This project has not been fully verified yet.</p>
                     </div>
                   </div>
                 )}
@@ -500,9 +441,8 @@ export default function ModalListingProject({ project, onClose, onList }) {
             )}
           </div>
 
-          {/* FOOTER ACTIONS */}
-          <div className={styles.footer} style={{ justifyContent: 'space-between', gap: '12px' }}>
-             <div className={styles.footerNote}>Please review auditor data before publishing.</div>
+          <div className={styles.footer} style={{ platform: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+             <div className={styles.footerNote}>Tinjau data auditor sebelum menerbitkan proyek ke market.</div>
              <div style={{ display: 'flex', gap: '12px' }}>
                  <button type="button" onClick={onClose} disabled={isSubmitting} className={styles.closeBtnBottom}>
                    Cancel
@@ -513,24 +453,17 @@ export default function ModalListingProject({ project, onClose, onList }) {
                    disabled={isSubmitting} 
                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: '600', opacity: isSubmitting ? 0.7 : 1, transition: 'all 0.2s ease' }}
                  >
-                   <FaRocket /> {loadingText}
+                   <FaRocket /> {isSubmitting ? 'Processing...' : loadingText}
                  </button>
              </div>
           </div>
-
         </div>
       </div>
 
-      {isLightboxOpen && currentGallery.length > 0 && (
+      {isLightboxOpen && (
         <div className={styles.lightboxOverlay} onClick={() => setIsLightboxOpen(false)}>
-          <button className={styles.lightboxCloseBtn}><FaTimes /></button>
           <div className={styles.lightboxContent} onClick={e => e.stopPropagation()}>
-            <button className={styles.navBtn} onClick={handlePrevImage}><FaChevronLeft /></button>
-            <div className={styles.lightboxImageWrapper}>
-              <img src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} alt="Full View" className={styles.lightboxImg} />
-              <div className={styles.lightboxCounter}>{activeImgIndex + 1} / {currentGallery.length}</div>
-            </div>
-            <button className={styles.navBtn} onClick={handleNextImage}><FaChevronRight /></button>
+            <img src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} className={styles.lightboxImg} alt="Lightbox" />
           </div>
         </div>
       )}

@@ -15,6 +15,10 @@ import Swal from 'sweetalert2';
 
 // Import Services
 import { projectService } from '../../../../services/projectService';
+import { api } from '../../../../services/api'; 
+
+// 👉 IMPORT WEB3 (Di-comment untuk sementara waktu)
+import { connectWallet, addTrackingToBlockchain } from '../../../utils/web3Config';
 
 // Modals
 import ModalProjectView from '../../my-project/CRUD/ModalProjectView'; 
@@ -31,23 +35,18 @@ export default function AuditorReviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // State Row Expand
   const [expandedRows, setExpandedRows] = useState([]);
-
-  // View Modal State
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [projectToView, setProjectToView] = useState(null);
 
-  // Audit Modal State
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [projectToAudit, setProjectToAudit] = useState(null);
 
-  // Pagination & Sort
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
-  // --- 1. FETCH DATA KHUSUS AUDITOR ---
+  // --- FETCH DATA ---
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
@@ -65,7 +64,6 @@ export default function AuditorReviewPage() {
     fetchProjects();
   }, []);
 
-  // --- FUNGSI HELPER URL ---
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
     let cleanPath = filePath.replace(/\\/g, '/');
@@ -83,7 +81,6 @@ export default function AuditorReviewPage() {
     return null;
   };
 
-  // --- 3. DATA PROCESSING ---
   const stats = useMemo(() => {
     const total = projects.length;
     const pending = projects.filter(p => p.active_version?.status === 'admin_approved').length;
@@ -125,7 +122,6 @@ export default function AuditorReviewPage() {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const paginatedProjects = processedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // --- 4. HANDLERS ---
   const handleView = (project, specificVersion = null) => {
     const projectDataToView = specificVersion ? { ...project, active_version: specificVersion } : project;
     setProjectToView(projectDataToView);
@@ -137,25 +133,69 @@ export default function AuditorReviewPage() {
     setIsAuditModalOpen(true);
   };
 
+  // ==============================================================
+  // 🔥 FUNGSI UTAMA: MOCKING WEB3 UNTUK TESTING ALUR
+  // ==============================================================
   const handleSaveAudit = async (projectId, payload) => {
     try {
+      Swal.fire({
+        title: 'Memproses Laporan...',
+        html: 'Mengunggah dokumen audit ke server Verideon.',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+      });
+
       const isFormData = payload instanceof FormData;
       const action = isFormData ? payload.get('action') : payload.action;
-
-      if (action === 'verify') {
-        await projectService.auditorVerify(projectId, payload);
-      } else if (action === 'reject') {
-        await projectService.auditorReject(projectId, { note: payload.audit_notes });
-      } else {
-         throw new Error("Aksi tidak valid");
-      }
       
-      Swal.fire('Success', 'Audit decision submitted successfully!', 'success');
+      // 1. 👉 SIMPAN KE LARAVEL DULU
+      let responseData;
+      if (action === 'verify') {
+        responseData = await projectService.auditorVerify(projectId, payload, null);
+      } else {
+        responseData = await projectService.auditorReject(projectId, { note: payload.audit_notes }, null);
+      }
+
+      // Ambil hash resmi hasil snapshot Laravel
+      const expectedHash = responseData.dataHash;
+      if (!expectedHash) throw new Error("Gagal mendapatkan Hash valid dari server.");
+
+      // --- 2. 👉 MOCKING: BUAT DUMMY HASH SEBAGAI GANTI METAMASK ---
+      const dummyTxHash = "0xMockAuditTx" + Math.random().toString(16).slice(2, 12);
+      
+      /* ===> BLOK KODE WEB3 ASLI (DI-COMMENT SEMENTARA) <===
+      await connectWallet(); 
+      Swal.update({ title: 'Mencatat Hasil Audit...', html: 'Mohon konfirmasi transaksi di MetaMask.' });
+
+      const actionStatus = action === 'verify' ? 'auditor_verified' : 'rejected';
+      const versionNumber = projectToAudit.active_version.version_number;
+      const tokenId = projectToAudit.id; 
+      
+      const receipt = await addTrackingToBlockchain(tokenId, versionNumber, actionStatus, expectedHash);
+      const txHash = receipt.hash || receipt.transactionHash;
+      === BAGIAN AKHIR COMMENT WEB3 === */
+      
+      const txHash = dummyTxHash;
+
+      // 3. 👉 SINKRONISASI TX HASH KE DATABASE
+      Swal.update({ 
+        title: 'Sinkronisasi...', 
+        html: 'Mencatat bukti transaksi ke server...' 
+      });
+
+      await api(`/projects/${projectId}/save-tx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tx_hash: txHash })
+      });
+      
+      Swal.fire('Success', 'Hasil Audit berhasil dicatat (Mode Mocking).', 'success');
       setIsAuditModalOpen(false);
       fetchProjects(); 
+      
     } catch (error) {
       console.error("Audit Submit Error:", error);
-      const msg = error.response?.data?.message || error.message || 'Failed to submit audit report.';
+      const msg = error.response?.data?.message || error.message || 'Gagal memproses transaksi blockchain.';
       Swal.fire('Error', msg, 'error');
     }
   };
@@ -382,7 +422,6 @@ export default function AuditorReviewPage() {
   );
 }
 
-// Tambahkan tepat di baris paling bawah file!
 function StatCard({ icon, className, label, value }) {
   return (
     <div className={styles.statCard}>
