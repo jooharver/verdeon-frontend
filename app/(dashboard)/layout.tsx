@@ -14,30 +14,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   
-  // --- 🚀 PERUBAHAN DI SINI 🚀 ---
-  // 1. Ambil 'isLoggingOut' dari context
   const { user, isLoading, isLoggingOut } = useAuth();
-  // --- AKHIR PERUBAHAN ---
-  
   const router = useRouter();
 
-  // 2. EFEK UNTUK PROTEKSI RUTE (GUARD) - DIMODIFIKASI
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
-        
-        // --- 🚀 PERUBAHAN DI SINI 🚀 ---
-        // 2. Cek state 'isLoggingOut'
         if (isLoggingOut) {
-          // Ini adalah logout yang disengaja.
-          // JANGAN lakukan apa-apa. Biarkan fungsi logout
-          // menyelesaikan redirect-nya.
           return; 
         }
-        // --- AKHIR PERUBAHAN ---
 
-        // Jika user tidak ada DAN BUKAN proses logout,
-        // baru kita tampilkan alert akses ilegal.
         Swal.fire({
           title: 'Akses Ditolak',
           text: 'Anda harus login terlebih dahulu untuk mengakses halaman ini.',
@@ -52,27 +38,26 @@ export default function DashboardLayout({
         });
       }
     }
-    // 3. Tambahkan 'isLoggingOut' ke dependency array
   }, [user, isLoading, router, isLoggingOut]); 
 
-  // Efek untuk Tema (Ini sudah ada dari tugas kita sebelumnya)
+  // --- 🚀 PERBAIKAN TYPESCRIPT DI SINI 🚀 ---
   useEffect(() => {
-    if (user && user.theme) {
+    // Kita "paksa" TypeScript mengenali currentUser memiliki properti bebas
+    // untuk menghindari error 'never' saat proses build di Vercel.
+    const currentUser = user as any;
+
+    if (currentUser && currentUser.theme) {
       const root = document.documentElement; 
       root.classList.remove('light', 'dark');
-      root.classList.add(user.theme);
+      root.classList.add(currentUser.theme);
     }
   }, [user]);
+  // --- AKHIR PERBAIKAN ---
 
-  // TAMPILKAN 'null' SELAMA LOADING
-  // Ini untuk mencegah "flash" halaman dashboard
-  // dan agar tidak ada teks "Loading..." di belakang modal.
   if (isLoading || !user) {
     return null; 
   }
 
-  // JIKA LOADING SELESAI DAN USER ADA
-  // Baru kita render layout dashboard yang sebenarnya
   return (
     <div className={styles.dashboardContainer}>
       <Sidebar />

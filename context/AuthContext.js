@@ -2,21 +2,12 @@
 
 'use client';
 
-import React,
-{
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback
-} from 'react';
-
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-
   const router = useRouter();
 
   const [user, setUser] = useState(null);
@@ -29,165 +20,134 @@ export function AuthProvider({ children }) {
   FETCH PROFILE (/me)
   =====================================================
   */
-
   const fetchProfile = useCallback(async (currentToken) => {
-
     try {
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${currentToken}`,
-            Accept: 'application/json',
-          },
-        }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/me`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+          Accept: 'application/json',
+        },
+      });
 
       if (!res.ok) throw new Error('Token invalid');
 
       const userData = await res.json();
 
-      setUser(userData);
+      // Ambil properti 'user' di dalam JSON-nya (jika ada), 
+      // atau gunakan userData langsung sebagai fallback
+      const finalUser = userData.user || userData; 
+
+      setUser(finalUser); 
       setToken(currentToken);
-
     } catch (err) {
-
       console.error('Session invalid:', err);
-      localStorage.removeItem('authToken');
+      // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
+      localStorage.removeItem('token'); 
       setUser(null);
       setToken(null);
-
     } finally {
       setIsLoading(false);
     }
-
   }, []);
-
 
   /*
   =====================================================
   AUTO LOGIN (PAGE REFRESH)
   =====================================================
   */
-
   useEffect(() => {
-
-    const storedToken = localStorage.getItem('authToken');
+    // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
+    const storedToken = localStorage.getItem('token'); 
 
     if (storedToken) {
       fetchProfile(storedToken);
     } else {
       setIsLoading(false);
     }
-
   }, [fetchProfile]);
-
 
   /*
   =====================================================
   LOGIN
   =====================================================
   */
-
   const login = useCallback(async (newToken, userData) => {
-
-    localStorage.setItem('authToken', newToken);
+    // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
+    localStorage.setItem('token', newToken); 
 
     setToken(newToken);
     setUser(userData);
-
     setIsLoading(false);
 
     return userData;
-
   }, []);
-
 
   /*
   =====================================================
   LOGOUT (SANCTUM SAFE)
   =====================================================
   */
-
   const logout = useCallback(async () => {
-
     setIsLoggingOut(true);
 
     try {
-
-      const storedToken = localStorage.getItem('authToken');
+      // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
+      const storedToken = localStorage.getItem('token'); 
 
       if (storedToken) {
-        await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/logout`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${storedToken}`,
-              Accept: 'application/json',
-            },
-          }
-        );
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/logout`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${storedToken}`,
+            Accept: 'application/json',
+          },
+        });
       }
-
     } catch (error) {
       console.error('Logout API gagal:', error);
     }
 
-    localStorage.removeItem('authToken');
+    // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
+    localStorage.removeItem('token'); 
 
     setUser(null);
     setToken(null);
 
     router.push('/login');
-
   }, [router]);
-
 
   /*
   =====================================================
   UPDATE PROFILE
   =====================================================
   */
-
   const updateProfile = useCallback(async (payload) => {
-
     if (!token) return;
 
     try {
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/profile`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
       if (!res.ok) throw new Error('Update gagal');
 
       const updatedUser = await res.json();
-
       setUser(updatedUser);
-
     } catch (err) {
       console.error(err);
     }
-
   }, [token]);
-
 
   /*
   =====================================================
   CONTEXT VALUE
   =====================================================
   */
-
   const value = {
     user,
     token,
@@ -205,15 +165,12 @@ export function AuthProvider({ children }) {
   );
 }
 
-
 /*
 =====================================================
 HOOK
 =====================================================
 */
-
 export const useAuth = () => {
-
   const context = useContext(AuthContext);
 
   if (!context) {
