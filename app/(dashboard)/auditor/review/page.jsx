@@ -17,7 +17,7 @@ import Swal from 'sweetalert2';
 import { projectService } from '../../../../services/projectService';
 import { api } from '../../../../services/api'; 
 
-// 👉 IMPORT WEB3 (Di-comment untuk sementara waktu)
+// 👉 IMPORT WEB3 AKTIF
 import { connectWallet, addTrackingToBlockchain } from '../../../utils/web3Config';
 
 // Modals
@@ -134,13 +134,13 @@ export default function AuditorReviewPage() {
   };
 
   // ==============================================================
-  // 🔥 FUNGSI UTAMA: MOCKING WEB3 UNTUK TESTING ALUR
+  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 (MOCKING DIHAPUS)
   // ==============================================================
   const handleSaveAudit = async (projectId, payload) => {
     try {
       Swal.fire({
         title: 'Memproses Laporan...',
-        html: 'Mengunggah dokumen audit ke server Verideon.',
+        html: 'Menghitung reduksi emisi & menyimpan dokumen audit ke server...',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
       });
@@ -148,55 +148,75 @@ export default function AuditorReviewPage() {
       const isFormData = payload instanceof FormData;
       const action = isFormData ? payload.get('action') : payload.action;
       
-      // 1. 👉 SIMPAN KE LARAVEL DULU
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const versionId = projectToAudit.active_version.id;
+      const versionNumber = projectToAudit.active_version.version_number;
+      const actionStatus = action === 'verify' ? 'auditor_verified' : 'rejected';
+
+      // 1. 👉 SIMPAN DATA AUDIT KE LARAVEL (MENGHASILKAN SNAPSHOT BARU)
       let responseData;
       if (action === 'verify') {
+        // Kita tidak mengirimkan TxHash dulu karena akan di-update nanti
         responseData = await projectService.auditorVerify(projectId, payload, null);
       } else {
         responseData = await projectService.auditorReject(projectId, { note: payload.audit_notes }, null);
       }
 
-      // Ambil hash resmi hasil snapshot Laravel
-      const expectedHash = responseData.dataHash;
-      if (!expectedHash) throw new Error("Gagal mendapatkan Hash valid dari server.");
-
-      // --- 2. 👉 MOCKING: BUAT DUMMY HASH SEBAGAI GANTI METAMASK ---
-      const dummyTxHash = "0xMockAuditTx" + Math.random().toString(16).slice(2, 12);
+      // Ambil hash dari hasil snapshot komputasi audit
+      const currentDataHash = responseData.dataHash;
+      if (!currentDataHash) throw new Error("Gagal mendapatkan Hash valid dari server Laravel.");
       
-      /* ===> BLOK KODE WEB3 ASLI (DI-COMMENT SEMENTARA) <===
+      const currentUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/${actionStatus}`;
+
+      // 2. 👉 KONEKSI METAMASK & CATAT KE BLOCKCHAIN (AUDIT TRAIL)
+      Swal.update({ 
+        title: 'Mencatat Hasil Audit...', 
+        html: 'Mohon konfirmasi transaksi pencatatan (*Add Tracking*) di dompet MetaMask Anda.' 
+      });
+      
       await connectWallet(); 
-      Swal.update({ title: 'Mencatat Hasil Audit...', html: 'Mohon konfirmasi transaksi di MetaMask.' });
-
-      const actionStatus = action === 'verify' ? 'auditor_verified' : 'rejected';
-      const versionNumber = projectToAudit.active_version.version_number;
-      const tokenId = projectToAudit.id; 
       
-      const receipt = await addTrackingToBlockchain(tokenId, versionNumber, actionStatus, expectedHash);
-      const txHash = receipt.hash || receipt.transactionHash;
-      === BAGIAN AKHIR COMMENT WEB3 === */
-      
-      const txHash = dummyTxHash;
+      const eventNameAuditor = action === 'verify' 
+          ? "Auditor Technical Verification Approved" 
+          : "Auditor Technical Verification Rejected";
 
-      // 3. 👉 SINKRONISASI TX HASH KE DATABASE
+      const receiptTrack = await addTrackingToBlockchain(
+          projectId,            // Token ID
+          projectId,            // Project ID
+          versionNumber,        // Nomor Versi Proyek
+          eventNameAuditor,     // Event Name yang sangat deskriptif
+          actionStatus,         // "auditor_verified" atau "rejected"
+          currentDataHash,      // Hash komputasi karbon dari Laravel
+          currentUri            // URI menuju snapshot auditor_verified
+      );
+      
+      const finalTxHash = receiptTrack.hash || receiptTrack.transactionHash;
+
+      // 3. 👉 SINKRONISASI TX HASH FINAL KE DATABASE LARAVEL
       Swal.update({ 
         title: 'Sinkronisasi...', 
-        html: 'Mencatat bukti transaksi ke server...' 
+        html: 'Menyimpan bukti transaksi Web3 ke server Verideon...' 
       });
 
       await api(`/projects/${projectId}/save-tx`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tx_hash: txHash })
+        body: JSON.stringify({ tx_hash: finalTxHash })
       });
       
-      Swal.fire('Success', 'Hasil Audit berhasil dicatat (Mode Mocking).', 'success');
+      Swal.fire('Success', 'Hasil Audit MRV berhasil dikomputasi dan dicatat permanen ke Blockchain.', 'success');
       setIsAuditModalOpen(false);
       fetchProjects(); 
       
     } catch (error) {
       console.error("Audit Submit Error:", error);
-      const msg = error.response?.data?.message || error.message || 'Gagal memproses transaksi blockchain.';
-      Swal.fire('Error', msg, 'error');
+      
+      if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
+         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask.', 'warning');
+      } else {
+         const msg = error.response?.data?.message || error.message || 'Gagal memproses transaksi blockchain.';
+         Swal.fire('Error', msg, 'error');
+      }
     }
   };
 

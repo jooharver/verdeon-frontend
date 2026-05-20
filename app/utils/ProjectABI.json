@@ -8,8 +8,18 @@
       },
       {
         "internalType": "uint256",
-        "name": "version",
+        "name": "projectId",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "versionNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "eventName",
+        "type": "string"
       },
       {
         "internalType": "string",
@@ -19,6 +29,11 @@
       {
         "internalType": "string",
         "name": "dataHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "metadataUri",
         "type": "string"
       }
     ],
@@ -161,18 +176,28 @@
         "type": "address"
       },
       {
-        "internalType": "string",
-        "name": "initialUri",
-        "type": "string"
+        "internalType": "uint256",
+        "name": "projectId",
+        "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "initialVersion",
+        "name": "versionNumber",
         "type": "uint256"
       },
       {
         "internalType": "string",
+        "name": "eventName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
         "name": "initialDataHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "initialUri",
         "type": "string"
       }
     ],
@@ -499,8 +524,18 @@
         "components": [
           {
             "internalType": "uint256",
-            "name": "version",
+            "name": "projectId",
             "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "versionNumber",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "eventName",
+            "type": "string"
           },
           {
             "internalType": "string",
@@ -510,6 +545,11 @@
           {
             "internalType": "string",
             "name": "dataHash",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "metadataUri",
             "type": "string"
           },
           {
@@ -523,7 +563,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct VerideonProject.TrackingEvent[]",
+        "internalType": "struct VerdeonProject.TrackingEvent[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -617,8 +657,18 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "version",
+        "name": "projectId",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "versionNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "eventName",
+        "type": "string"
       },
       {
         "internalType": "string",
@@ -628,6 +678,11 @@
       {
         "internalType": "string",
         "name": "dataHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "metadataUri",
         "type": "string"
       },
       {
@@ -690,19 +745,6 @@
         "internalType": "string",
         "name": "",
         "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "totalSupply",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",

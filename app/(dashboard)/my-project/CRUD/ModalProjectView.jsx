@@ -6,22 +6,85 @@ import {
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
   FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
-  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaShieldAlt
+  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaShieldAlt,
+  FaCopy, FaLink, FaSpinner, FaSearch
 } from 'react-icons/fa';
+import Swal from 'sweetalert2';
+import { ethers } from 'ethers';
+
+// 👉 IMPORT WEB3
+import { getProjectContract } from '../../../utils/web3Config'; 
 
 export default function ModalProjectView({ project, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
+  const [blockchainHistory, setBlockchainHistory] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  const activeVersion = project?.active_version || {};
+  const projectVersions = project?.versions || [activeVersion];
+
   useEffect(() => {
     setActiveImgIndex(0);
     setActiveTab('overview');
+    
+    if (project && project.tx_hash && !project.tx_hash.includes('Mock')) {
+      fetchBlockchainHistory(project.id);
+    }
   }, [project]);
+
+  // 🔥 FUNGSI HYBRID WEB2.5: Menggabungkan Data Polygon dengan Database Laravel
+  const fetchBlockchainHistory = async (projectId) => {
+    if (typeof window === 'undefined' || !window.ethereum) return;
+    setIsLoadingHistory(true);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = getProjectContract(provider);
+      
+      // 1. Tarik jejak abadi dari Polygon
+      const history = await contract.getProjectHistory(projectId);
+      
+      // 2. Cocokkan dengan data tx_hash dari tabel versi Laravel-mu
+      const enrichedHistory = history.map((log, index) => {
+        const isLatest = index === history.length - 1;
+        
+        // Cari versi di Laravel yang statusnya sesuai dengan event blockchain
+        const matchedVersion = projectVersions.find(v => v.status === log.status);
+        
+        // Jika backend sudah menyimpan tx_hash per versi, pakai itu. 
+        // Jika tidak, kita fallback pakai tx_hash utama untuk langkah terakhir.
+        const exactTxHash = matchedVersion?.tx_hash || (isLatest ? project.tx_hash : null);
+
+        return {
+          eventName: log.eventName,
+          timestamp: log.timestamp,
+          actor: log.actor,
+          dataHash: log.dataHash,
+          metadataUri: log.metadataUri,
+          status: log.status,
+          txHash: exactTxHash // 👉 Inject TxHash ke dalam history
+        };
+      });
+
+      setBlockchainHistory(enrichedHistory);
+    } catch (error) {
+      console.error("Gagal menarik data dari Blockchain:", error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const formatBlockchainTime = (epochTimestamp) => {
+    const date = new Date(Number(epochTimestamp) * 1000);
+    return date.toLocaleString('id-ID', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }) + ' WIB';
+  };
 
   if (!project) return null;
 
-  const activeVersion = project.active_version || {};
   const projectIdString = String(project.id).padStart(4, '0');
 
   const formatDate = (dateString) => {
@@ -52,7 +115,6 @@ export default function ModalProjectView({ project, onClose }) {
     installation_date: activeVersion.installation_date,
     panel_brand: activeVersion.panel_brand,
     inverter_brand: activeVersion.inverter_brand,
-    // 👉 NEW: Ambil periode dari activeVersion
     period_start: activeVersion.period_start,
     period_end: activeVersion.period_end,
   };
@@ -89,6 +151,19 @@ export default function ModalProjectView({ project, onClose }) {
     setActiveImgIndex((prev) => (prev === 0 ? currentGallery.length - 1 : prev - 1));
   };
 
+  const handleCopyHash = (hash) => {
+    navigator.clipboard.writeText(hash);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Disalin ke clipboard!',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true,
+    });
+  };
+
   const SpecItem = ({ icon, label, value, unit, verified = false }) => (
     <div className={`${styles.specItem} ${verified ? styles.specVerified : ''}`}>
       <div className={styles.specIcon}>{icon}</div>
@@ -104,7 +179,7 @@ export default function ModalProjectView({ project, onClose }) {
 
   return (
     <>
-      <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.overlay}>
         <div className={styles.modal} onClick={e => e.stopPropagation()}>
           
           <div className={styles.header}>
@@ -144,6 +219,7 @@ export default function ModalProjectView({ project, onClose }) {
             {activeTab === 'overview' && (
               <div className={styles.tabContentAnim}>
                 <div className={styles.colLeft}>
+                  
                   <div className={styles.section}>
                     <h4 className={styles.sectionTitle}><FaImage /> PROJECT GALLERY</h4>
                     {currentGallery.length > 0 ? (
@@ -205,54 +281,112 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
                   </div>
 
+                  {/* 🔥 UI/UX UPGRADE: TIMELINE DENGAN TOMBOL TRANSAKSI */}
                   {project.tx_hash && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}>
-                        <FaShieldAlt style={{ color: '#0d9488' }} /> ON-CHAIN EVIDENCE
+                        <FaShieldAlt style={{ color: '#0d9488' }} /> ON-CHAIN AUDIT TRAIL
                       </h4>
-                      <div 
-                        className={styles.descriptionBox} 
-                        style={{ 
-                          backgroundColor: '#f0fdfa', 
-                          borderColor: '#5eead4', 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          gap: '10px' 
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#0f766e', fontWeight: '600' }}>Polygon Smart Contract</span>
-                          <a 
-                            href={`https://amoy.polygonscan.com/tx/${project.tx_hash}`} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            style={{ 
-                              color: '#0284c7', 
-                              fontSize: '0.85rem', 
-                              textDecoration: 'none', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '6px',
-                              fontWeight: 'bold' 
-                            }}
-                          >
-                            View on Explorer <FaExternalLinkAlt size={12} />
-                          </a>
-                        </div>
-                        <code 
-                          style={{ 
-                            fontSize: '0.75rem', 
-                            backgroundColor: '#ccfbf1', 
-                            padding: '8px 10px', 
-                            borderRadius: '6px', 
-                            color: '#115e59',
-                            wordBreak: 'break-all',
-                            border: '1px solid #99f6e4',
-                            fontWeight: '500'
-                          }}
-                        >
-                          TxHash: {project.tx_hash}
-                        </code>
+                      
+                      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px 16px' }}>
+                        
+                        {isLoadingHistory ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#6b7280', fontSize: '0.9rem', justifyContent: 'center' }}>
+                            <FaSpinner className="fa-spin" /> Fetching immutable ledger from Polygon...
+                          </div>
+                        ) : blockchainHistory.length > 0 ? (
+                          
+                          <div style={{ position: 'relative', paddingLeft: '16px', borderLeft: '2px solid #cbd5e1', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            {blockchainHistory.map((log, index) => {
+                              let statusColor = '#3b82f6'; 
+                              if (log.status === 'listed') statusColor = '#22c55e'; 
+                              else if (log.status === 'rejected') statusColor = '#ef4444'; 
+                              else if (log.status === 'auditor_verified') statusColor = '#0ea5e9'; 
+
+                              return (
+                                <div key={index} style={{ position: 'relative' }}>
+                                  <div style={{ position: 'absolute', left: '-23px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: statusColor, border: '2px solid white', boxShadow: '0 0 0 1px #cbd5e1' }}></div>
+                                  
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                      <strong style={{ fontSize: '0.95rem', color: '#1f2937', lineHeight: '1.2' }}>{log.eventName}</strong>
+                                      <span style={{ fontSize: '0.75rem', color: '#6b7280', whiteSpace: 'nowrap', marginLeft: '10px' }}>
+                                        {formatBlockchainTime(log.timestamp)}
+                                      </span>
+                                    </div>
+                                    
+                                    <div style={{ fontSize: '0.75rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <FaUserTie /> Executed by: <code>{log.actor.substring(0,6)}...{log.actor.substring(38)}</code>
+                                    </div>
+
+                                    <div style={{ marginTop: '4px', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase' }}>Data Hash (SHA-256)</span>
+                                        <code style={{ fontSize: '0.75rem', color: '#334155' }}>
+                                          {log.dataHash.substring(0, 16)}...{log.dataHash.substring(log.dataHash.length - 8)}
+                                        </code>
+                                      </div>
+                                      <button onClick={() => handleCopyHash(log.dataHash)} title="Copy Full Data Hash" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}>
+                                        <FaCopy size={16} />
+                                      </button>
+                                    </div>
+
+                                    {/* 👉 TOMBOL ACTION DINAMIS */}
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                      {log.txHash ? (
+                                        <a 
+                                          href={`https://amoy.polygonscan.com/tx/${log.txHash}`} 
+                                          target="_blank" 
+                                          rel="noreferrer" 
+                                          style={{ fontSize: '0.75rem', color: '#0369a1', backgroundColor: '#e0f2fe', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
+                                        >
+                                          <FaExternalLinkAlt /> View Transaction
+                                        </a>
+                                      ) : (
+                                        <a 
+                                          href={`https://amoy.polygonscan.com/address/${log.actor}`} 
+                                          target="_blank" 
+                                          rel="noreferrer" 
+                                          title="TxHash belum tersimpan di DB, lihat log aktor"
+                                          style={{ fontSize: '0.75rem', color: '#4f46e5', backgroundColor: '#e0e7ff', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
+                                        >
+                                          <FaSearch /> View Actor Logs
+                                        </a>
+                                      )}
+                                      
+                                      {/* 👉 UPDATE: Belokkan ke halaman /snapshot */}
+                                      <a 
+                                        href={`/snapshot?url=${encodeURIComponent(log.metadataUri)}`} 
+                                        target="_blank" 
+                                        rel="noreferrer" 
+                                        style={{ fontSize: '0.75rem', color: '#0d9488', backgroundColor: '#ccfbf1', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
+                                      >
+                                        <FaFilePdf /> Data Snapshot
+                                      </a>
+                                    </div>
+
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '600' }}>Latest Transaction (Polygon)</span>
+                              <a href={`https://amoy.polygonscan.com/tx/${project.tx_hash}`} target="_blank" rel="noreferrer"
+                                style={{ color: '#0284c7', fontSize: '0.85rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                                View on Explorer <FaExternalLinkAlt size={12} />
+                              </a>
+                            </div>
+                            <code style={{ fontSize: '0.75rem', backgroundColor: '#e2e8f0', padding: '8px 10px', borderRadius: '6px', color: '#334155', wordBreak: 'break-all' }}>
+                              {project.tx_hash}
+                            </code>
+                          </div>
+                        )}
+
                       </div>
                     </div>
                   )}
@@ -273,7 +407,6 @@ export default function ModalProjectView({ project, onClose }) {
                     <div className={styles.brandBadge}>Inverter: <strong>{issuerSpecs.inverter_brand || '-'}</strong></div>
                   </div>
 
-                  {/* 👉 NEW: Tampilkan usulan Claim Period dari Issuer */}
                   <div className={styles.section} style={{marginTop: '20px'}}>
                     <h4 className={styles.sectionTitle}><FaCalendarDay /> CLAIM VERIFICATION PERIOD</h4>
                     <div className={styles.specsGrid}>
@@ -438,7 +571,6 @@ export default function ModalProjectView({ project, onClose }) {
                         <div className={styles.specsGrid}>
                           <SpecItem verified icon={<FaSolarPanel/>} label="Verified Capacity" value={auditDetail.verified_installed_capacity_kwp} unit="kWp" />
                           <SpecItem verified icon={<FaInfoCircle/>} label="Method" value={auditDetail.calculation_method === 'system_estimated' ? 'System Est.' : 'Actual Inv.'} unit="" />
-                          {/* 👉 UPDATE: Tetap tampilkan periode di sini sebagai referensi verifikasi */}
                           <SpecItem verified icon={<FaCalendarDay/>} label="Period Start" value={formatDate(issuerSpecs.period_start)} unit="" />
                           <SpecItem verified icon={<FaCalendarDay/>} label="Period End" value={formatDate(issuerSpecs.period_end)} unit="" />
                           <SpecItem verified icon={<FaBolt/>} label="Verified Generation" value={auditDetail.verified_generation_kwh} unit="kWh" />

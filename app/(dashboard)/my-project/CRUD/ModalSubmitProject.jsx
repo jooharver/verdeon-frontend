@@ -108,7 +108,7 @@ export default function ModalSubmitProject({ project, onClose, onSubmit }) {
 
   return (
     <>
-      <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.overlay}>
         <div className={styles.modal} onClick={e => e.stopPropagation()}>
           
           {/* HEADER */}

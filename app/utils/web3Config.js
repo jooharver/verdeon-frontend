@@ -2,9 +2,9 @@ import { ethers } from 'ethers';
 import ProjectABI from './ProjectABI.json';
 import TokenABI from './TokenABI.json';
 
-// Contract Address di Polygon Amoy Testnet
-export const PROJECT_ADDRESS = "0xEA9fa303E23A6A680D94723828a17CA69E143C58";
-export const TOKEN_ADDRESS = "0x652B68a2F68F6cbb6F6e84A3dF056078E2fB60Db";
+// Contract Address di Polygon Amoy Testnet (👉 PASTIKAN UPDATE DENGAN ADDRESS BARU)
+export const PROJECT_ADDRESS = "0x6d529771DbaD24B8b1b84726D65A549b59Cb57A7";
+export const TOKEN_ADDRESS = "0xd070D1dE0052c3Cb3Ec9A9F61adFfcA2d0Be7611";
 
 // 1. Fungsi untuk konek ke MetaMask
 export const connectWallet = async () => {
@@ -42,24 +42,39 @@ const getAmoyGasConfig = () => {
     return {
         // Minimal Amoy adalah 25 Gwei, kita set 30 Gwei agar cepat diproses
         maxPriorityFeePerGas: ethers.parseUnits("25", "gwei"),
-        // Max fee kita set 40 Gwei (Base + Priority)
+        // Max fee kita set 35 Gwei (Base + Priority)
         maxFeePerGas: ethers.parseUnits("35", "gwei")
     };
 };
 
 // ==============================================================
-// HELPER TRANSAKSI MRV (Tinggal panggil dari komponen React)
+// HELPER TRANSAKSI MRV
 // ==============================================================
 
 /**
  * Mendaftarkan Proyek Baru ke Blockchain (Cetak NFT)
  */
-export const submitProjectToBlockchain = async (issuerWallet, tokenURI, version, dataHash) => {
+export const submitProjectToBlockchain = async (
+    issuerWallet, 
+    projectId, 
+    versionNumber, 
+    eventName, 
+    initialDataHash, 
+    initialUri
+) => {
     const { signer } = await connectWallet();
     const contract = getProjectContract(signer);
     
-    // 👉 Sisipkan getAmoyGasConfig() di argumen terakhir
-    const tx = await contract.mintProject(issuerWallet, tokenURI, version, dataHash, getAmoyGasConfig());
+    // Sesuai dengan urutan parameter di fungsi mintProject Solidity baru
+    const tx = await contract.mintProject(
+        issuerWallet, 
+        projectId, 
+        versionNumber, 
+        eventName, 
+        initialDataHash, 
+        initialUri, 
+        getAmoyGasConfig()
+    );
     
     const receipt = await tx.wait();
     return receipt;
@@ -68,12 +83,29 @@ export const submitProjectToBlockchain = async (issuerWallet, tokenURI, version,
 /**
  * Menambahkan Riwayat Audit / Perubahan Status
  */
-export const addTrackingToBlockchain = async (tokenId, version, newStatus, dataHash) => {
+export const addTrackingToBlockchain = async (
+    tokenId, 
+    projectId, 
+    versionNumber, 
+    eventName, 
+    newStatus, 
+    dataHash, 
+    metadataUri
+) => {
     const { signer } = await connectWallet();
     const contract = getProjectContract(signer);
     
-    // 👉 Sisipkan getAmoyGasConfig() di argumen terakhir
-    const tx = await contract.addTrackingEvent(tokenId, version, newStatus, dataHash, getAmoyGasConfig());
+    // Sesuai dengan urutan parameter di fungsi addTrackingEvent Solidity baru
+    const tx = await contract.addTrackingEvent(
+        tokenId, 
+        projectId, 
+        versionNumber, 
+        eventName, 
+        newStatus, 
+        dataHash, 
+        metadataUri, 
+        getAmoyGasConfig()
+    );
     
     const receipt = await tx.wait();
     return receipt;
@@ -86,8 +118,13 @@ export const mintCarbonTokens = async (issuerWallet, projectId, carbonTons) => {
     const { signer } = await connectWallet();
     const contract = getTokenContract(signer);
     
-    // 👉 Sisipkan getAmoyGasConfig() di argumen terakhir
-    const tx = await contract.mintCarbonCredits(issuerWallet, projectId, carbonTons, getAmoyGasConfig());
+    // Fix: Memanggil fungsi mintCarbonTokens sesuai dengan nama fungsi di VoluntaryCarbonToken.sol
+    const tx = await contract.mintCarbonTokens(
+        issuerWallet, 
+        projectId, 
+        carbonTons, 
+        getAmoyGasConfig()
+    );
     
     const receipt = await tx.wait();
     return receipt;

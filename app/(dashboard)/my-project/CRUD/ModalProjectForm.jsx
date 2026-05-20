@@ -1,15 +1,109 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './ModalProjectForm.module.css';
 import { 
   FaTimes, FaCloudUploadAlt, FaCheckCircle, FaExclamationCircle, 
-  FaFilePdf, FaImage, FaArrowRight, FaArrowLeft, FaBolt, FaCalendarAlt
+  FaFilePdf, FaImage, FaArrowRight, FaArrowLeft, FaBolt, FaCalendarAlt,
+  FaChevronDown // 👉 NEW: Import icon chevron untuk dropdown
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { projectService } from '../../../../services/projectService';
 import { api } from '../../../../services/api';
 
+// ======================================================================
+// 🔥 KOMPONEN KUSTOM: DROPDOWN PENCARIAN (Searchable Select)
+// ======================================================================
+const SearchableSelect = ({ options, value, onChange, name, placeholder, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapperRef = useRef(null);
+
+  // Menutup dropdown jika user klik di luar area
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Menyelaraskan teks input dengan nama dari kode yang terpilih
+  useEffect(() => {
+    if (!isOpen) {
+      const selected = options.find(opt => String(opt.kode) === String(value));
+      setSearch(selected ? selected.nama : '');
+    }
+  }, [isOpen, value, options]);
+
+  // Filter logika pencarian (Case-insensitive)
+  const filteredOptions = options.filter(opt =>
+    opt.nama.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelect = (opt) => {
+    setSearch(opt.nama);
+    setIsOpen(false);
+    onChange({ target: { name, value: opt.kode } }); // Simulasi event standard
+  };
+
+  const handleInputChange = (e) => {
+    setSearch(e.target.value);
+    if (!isOpen) setIsOpen(true);
+    if (e.target.value === '') {
+       onChange({ target: { name, value: '' } });
+    }
+  };
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+         <input
+            type="text"
+            value={isOpen ? search : (options.find(opt => String(opt.kode) === String(value))?.nama || '')}
+            onChange={handleInputChange}
+            onClick={() => !disabled && setIsOpen(true)}
+            disabled={disabled}
+            placeholder={placeholder}
+            autoComplete="off"
+            style={{ width: '100%', paddingRight: '30px' }} // Memberi ruang untuk icon panah
+         />
+         <FaChevronDown style={{ position: 'absolute', right: '10px', color: '#9ca3af', pointerEvents: 'none' }} />
+      </div>
+
+      {isOpen && !disabled && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+          background: 'white', border: '1px solid #d1d5db', borderRadius: '6px',
+          marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        }}>
+          {filteredOptions.length > 0 ? filteredOptions.map(opt => (
+            <div
+              key={opt.kode}
+              onClick={() => handleSelect(opt)}
+              style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '0.9rem', color: '#374151', transition: 'background 0.2s' }}
+              onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+              onMouseLeave={(e) => e.target.style.background = 'white'}
+            >
+              {opt.nama}
+            </div>
+          )) : (
+            <div style={{ padding: '10px 12px', color: '#9ca3af', fontSize: '0.9rem' }}>
+              Wilayah tidak ditemukan...
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ======================================================================
+// KOMPONEN UTAMA: MODAL PROJECT FORM
+// ======================================================================
 export default function ModalProjectForm({ project, onClose, onSave }) {
   const activeVersion = project?.active_version;
 
@@ -29,7 +123,6 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
     installation_date: '',
     panel_brand: '',
     inverter_brand: '',
-    // 👉 NEW: Tambahkan state untuk claim period
     period_start: '',
     period_end: ''
   });
@@ -47,7 +140,6 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
 
   useEffect(() => {
     if (project && activeVersion) {
-      // Potong format timestamp ISO (YYYY-MM-DDTHH:mm:ss.sssZ) menjadi YYYY-MM-DD untuk input type date
       const formatForInput = (dateStr) => dateStr ? dateStr.split('T')[0] : '';
       
       setFormData({
@@ -64,7 +156,6 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
         installation_date: formatForInput(activeVersion.installation_date),
         panel_brand: activeVersion.panel_brand || '',
         inverter_brand: activeVersion.inverter_brand || '',
-        // 👉 NEW: Set state dari data existing
         period_start: formatForInput(activeVersion.period_start),
         period_end: formatForInput(activeVersion.period_end),
       });
@@ -195,7 +286,8 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    // 👉 UPDATE: Hapus onClick={onClose} agar tidak ter-cancel kalau salah klik di luar
+    <div className={styles.overlay}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         
         <div className={styles.header}>
@@ -245,44 +337,53 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
                             <textarea name="description" rows="3" value={formData.description} onChange={handleChange} disabled={!isEditable} />
                         </div>
 
+                        {/* 👉 UPDATE: Ganti semua Select bawaan HTML dengan SearchableSelect */}
                         <div className={styles.formGroup}>
                             <label>Province <span className={styles.required}>*</span></label>
-                            <select name="kode_provinsi" value={formData.kode_provinsi} onChange={handleRegionChange} disabled={!isEditable}>
-                                <option value="">Pilih Provinsi</option>
-                                {provinces.map(prov => (
-                                    <option key={prov.kode} value={prov.kode}>{prov.nama}</option>
-                                ))}
-                            </select>
+                            <SearchableSelect 
+                                name="kode_provinsi" 
+                                value={formData.kode_provinsi} 
+                                options={provinces}
+                                onChange={handleRegionChange} 
+                                disabled={!isEditable} 
+                                placeholder="Cari provinsi..."
+                            />
                         </div>
                         
                         <div className={styles.formGroup}>
                             <label>City <span className={styles.required}>*</span></label>
-                            <select name="kode_kota" value={formData.kode_kota} onChange={handleRegionChange} disabled={!isEditable || !formData.kode_provinsi}>
-                                <option value="">Pilih Kota/Kabupaten</option>
-                                {cities.map(city => (
-                                    <option key={city.kode} value={city.kode}>{city.nama}</option>
-                                ))}
-                            </select>
+                            <SearchableSelect 
+                                name="kode_kota" 
+                                value={formData.kode_kota} 
+                                options={cities}
+                                onChange={handleRegionChange} 
+                                disabled={!isEditable || !formData.kode_provinsi} 
+                                placeholder="Cari kota/kabupaten..."
+                            />
                         </div>
 
                         <div className={styles.formGroup}>
                             <label>District <span className={styles.required}>*</span></label>
-                            <select name="kode_kecamatan" value={formData.kode_kecamatan} onChange={handleRegionChange} disabled={!isEditable || !formData.kode_kota}>
-                                <option value="">Pilih Kecamatan</option>
-                                {districts.map(dist => (
-                                    <option key={dist.kode} value={dist.kode}>{dist.nama}</option>
-                                ))}
-                            </select>
+                            <SearchableSelect 
+                                name="kode_kecamatan" 
+                                value={formData.kode_kecamatan} 
+                                options={districts}
+                                onChange={handleRegionChange} 
+                                disabled={!isEditable || !formData.kode_kota} 
+                                placeholder="Cari kecamatan..."
+                            />
                         </div>
 
                         <div className={styles.formGroup}>
                             <label>Village <span className={styles.required}>*</span></label>
-                            <select name="kode_kelurahan" value={formData.kode_kelurahan} onChange={handleRegionChange} disabled={!isEditable || !formData.kode_kecamatan}>
-                                <option value="">Pilih Kelurahan/Desa</option>
-                                {villages.map(vill => (
-                                    <option key={vill.kode} value={vill.kode}>{vill.nama}</option>
-                                ))}
-                            </select>
+                            <SearchableSelect 
+                                name="kode_kelurahan" 
+                                value={formData.kode_kelurahan} 
+                                options={villages}
+                                onChange={handleRegionChange} 
+                                disabled={!isEditable || !formData.kode_kecamatan} 
+                                placeholder="Cari kelurahan/desa..."
+                            />
                         </div>
                         
                         <div className={`${styles.formGroup} ${styles.fullWidth}`}>
@@ -321,7 +422,6 @@ export default function ModalProjectForm({ project, onClose, onSave }) {
                         </div>
                     </div>
                     
-                    {/* 👉 NEW: Claim Period Section */}
                     <h4 className={styles.sectionTitle} style={{marginTop: '20px'}}><FaCalendarAlt /> Claim Verification Period</h4>
                     <div className={styles.formGrid}>
                         <div className={styles.formGroup}>

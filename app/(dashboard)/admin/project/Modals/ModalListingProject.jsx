@@ -11,7 +11,7 @@ import {
 import Swal from 'sweetalert2';
 import { ethers } from 'ethers';
 
-// Import Helper Web3 (Tetap di-import untuk kebutuhan nanti)
+// 👉 IMPORT WEB3 AKTIF
 import { connectWallet, addTrackingToBlockchain, mintCarbonTokens } from '../../../../utils/web3Config'; 
 
 export default function ModalListingProject({ project, onClose, onList }) {
@@ -56,7 +56,6 @@ export default function ModalListingProject({ project, onClose, onList }) {
   const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'issuer');
   const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
   
-  // 👉 UPDATE: Bersihkan dari field lama (area_size, number_of_panels, dsb)
   const issuerSpecs = {
     total_system_capacity_kwp: activeVersion.total_system_capacity_kwp,
     inverter_capacity_kw: activeVersion.inverter_capacity_kw,
@@ -75,7 +74,6 @@ export default function ModalListingProject({ project, onClose, onList }) {
 
   const isAuditorReviewed = ['approved', 'rejected', 'verified'].includes(activeVersion.auditor_verification_status);
 
-  // 👉 UPDATE: Mapping detail laporan audit terkomputasi otomatis
   const auditDetail = isAuditorReviewed ? {
     audit_status: activeVersion.auditor_verification_status,
     verified_at: reportData?.created_at || activeVersion.updated_at,
@@ -105,18 +103,22 @@ export default function ModalListingProject({ project, onClose, onList }) {
   };
 
   // ==============================================================
-  // 🔥 LOGIKA WEB3: MOCKING BYPASS UNTUK AKURASI TESTING WEB2
+  // 🔥 LOGIKA WEB3: FINAL LISTING & MINTING ERC-20 TOKENS
   // ==============================================================
   const handleConfirmList = async () => {
     const issuerWallet = project.issuer?.wallet_address;
     
-    // Safety Guard: Cek kelengkapan alamat wallet tujuan pencetakan ERC-20
+    // Safety Guard: Pastikan dompet Issuer ada untuk menerima token
     if (!issuerWallet || issuerWallet === "") {
       Swal.fire('Error', 'Issuer belum mengatur Wallet Address di profil! Token VCT tidak dapat dicetak.', 'error');
       return;
     }
 
     const calculatedCarbon = auditDetail?.carbon_reduction_amount_ton || 0;
+    if (calculatedCarbon <= 0) {
+      Swal.fire('Error', 'Jumlah reduksi karbon 0. Token tidak dapat dicetak.', 'error');
+      return;
+    }
 
     const result = await Swal.fire({
       title: 'List to Market?',
@@ -131,48 +133,61 @@ export default function ModalListingProject({ project, onClose, onList }) {
 
     if (result.isConfirmed) {
       setIsSubmitting(true);
-      setLoadingText('Publishing...');
-
+      
       try {
-        // --- 1. MOCKING: GENERATE DUMMY HASH BLOCKCHAIN ---
-        const dummyTxHash = "0xMockMintVCT" + Math.random().toString(16).slice(2, 12);
-        const txHash = dummyTxHash;
-
-        /* ===> BLOK KODE WEB3 INTEGRASI ASLI (DI-COMMENT SEMENTARA) <===
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
         const versionId = project.active_version.id;
         const versionNumber = project.active_version.version_number;
 
-        const metaRes = await fetch(`${apiBaseUrl}/projects/${project.id}/versions/${versionId}/metadata?status=listed`);
+        // 1. Ambil Metadata Final (Status: Listed) untuk Data Hash
+        setLoadingText('Mengambil Data Server...');
+        const metadataUri = `${apiBaseUrl}/projects/${project.id}/versions/${versionId}/metadata?status=listed`;
+        const metaRes = await fetch(metadataUri);
         const metaJson = await metaRes.json();
-        if (!metaRes.ok) throw new Error(metaJson.error || "Gagal mengambil metadata.");
-
-        const { dataHash } = metaJson;
-        const tokenId = project.id; 
-        const carbonAmountStr = calculatedCarbon.toString();
+        
+        if (!metaRes.ok) throw new Error(metaJson.error || "Gagal mengambil metadata server.");
+        
+        // Asumsi struktur data kembalian dari backend-mu
+        const currentDataHash = metaJson.hash_info?.expected_blockchain_hash || metaJson.dataHash;
 
         await connectWallet(); 
 
-        setLoadingText('Transaksi 1: Mencatat Listing...');
-        await addTrackingToBlockchain(tokenId, versionNumber, 'listed', dataHash);
+        // 2. Transaksi Smart Contract Ke-1: Buku Log Blockchain
+        setLoadingText('Mencatat Listing (1/2)...');
+        await addTrackingToBlockchain(
+          project.id,              // tokenId
+          project.id,              // projectId
+          versionNumber,           // versionNumber
+          "Project Officially Listed to Market", // eventName
+          'listed',                // status
+          currentDataHash,         // dataHash
+          metadataUri              // metadataUri
+        );
         
-        setLoadingText('Menunggu konfirmasi jaringan...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        setLoadingText('Menunggu Blok Sinkron...');
+        await new Promise(resolve => setTimeout(resolve, 3500));
 
-        setLoadingText(`Transaksi 2: Mencetak ${calculatedCarbon} VCT...`);
+        // 3. Transaksi Smart Contract Ke-2: Mencetak Koin VCT
+        setLoadingText(`Mencetak ${calculatedCarbon} VCT (2/2)...`);
+        
+        // Konversi jumlah ton ke Wei (18 desimal) standar ERC-20
+        const carbonAmountStr = calculatedCarbon.toString();
         const amountInWei = ethers.parseUnits(carbonAmountStr, 18);
         
-        const receiptMint = await mintCarbonTokens(issuerWallet, tokenId, amountInWei);
-        const txHash = receiptMint.hash || receiptMint.transactionHash;
-        === BAGIAN AKHIR COMMENT WEB3 === */
+        const receiptMint = await mintCarbonTokens(issuerWallet, project.id, amountInWei);
+        const finalTxHash = receiptMint.hash || receiptMint.transactionHash;
 
-        // --- 2. SINKRONISASI UPDATE STATUS KE LARAVEL BACKEND ---
+        // 4. SINKRONISASI UPDATE STATUS KE LARAVEL BACKEND
         setLoadingText('Finalisasi data di server...');
-        await onList(project.id, txHash); 
+        await onList(project.id, finalTxHash); 
         
       } catch (error) {
         console.error("Listing Web3 Error:", error);
-        Swal.fire('Gagal Listing', error.message || 'Terjadi kesalahan sistem.', 'error');
+        if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
+           Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask.', 'warning');
+        } else {
+           Swal.fire('Gagal Listing', error.message || 'Terjadi kesalahan sistem.', 'error');
+        }
       } finally {
         setIsSubmitting(false);
         setLoadingText('Publish & Mint Token');
@@ -441,7 +456,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
             )}
           </div>
 
-          <div className={styles.footer} style={{ platform: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+          <div className={styles.footer} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
              <div className={styles.footerNote}>Tinjau data auditor sebelum menerbitkan proyek ke market.</div>
              <div style={{ display: 'flex', gap: '12px' }}>
                  <button type="button" onClick={onClose} disabled={isSubmitting} className={styles.closeBtnBottom}>
@@ -453,7 +468,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
                    disabled={isSubmitting} 
                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: '600', opacity: isSubmitting ? 0.7 : 1, transition: 'all 0.2s ease' }}
                  >
-                   <FaRocket /> {isSubmitting ? 'Processing...' : loadingText}
+                   <FaRocket /> {isSubmitting ? loadingText : loadingText}
                  </button>
              </div>
           </div>

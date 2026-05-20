@@ -203,8 +203,8 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
                     <div className={styles.inputGroup} style={{ gridColumn: 'span 2' }}>
                       <label>Metode Penghitungan kWh Listrik <span className={styles.req}>*</span></label>
                       <select name="calculation_method" className={styles.input} value={formData.calculation_method} onChange={handleChange} required>
-                        <option value="system_estimated">Conservative System Estimation (Otomatis Rumus PSH NASA)</option>
-                        <option value="actual_inverter">Actual Inverter Data (Input Manual dari Log Perangkat)</option>
+                        <option value="system_estimated">System Estimation</option>
+                        <option value="actual_inverter">Actual Inverter Data</option>
                       </select>
                     </div>
                   </div>
@@ -214,7 +214,7 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
                       <label>Verified Generation (kWh) <span className={styles.req}>*</span></label>
                       {formData.calculation_method === 'system_estimated' ? (
                         <div style={{ position: 'relative' }}>
-                          <input type="text" className={styles.input} style={{ background: '#f3f4f6', color: '#9ca3af', fontStyle: 'italic' }} disabled value="Auto-Calculated by Backend via NASA PSH" />
+                          <input type="text" className={styles.input} style={{ background: '#f3f4f6', color: '#9ca3af', fontStyle: 'italic' }} disabled value="Auto-Calculated" />
                           <FaInfoCircle style={{ position: 'absolute', right: '12px', top: '12px', color: '#9ca3af' }} title="Sistem otomatis mengalikan kapasitas klaim awal dengan akumulasi radiasi harian NASA." />
                         </div>
                       ) : (
