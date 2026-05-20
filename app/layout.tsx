@@ -12,7 +12,11 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Verdeon",
-  description: "Verdeon Solar Token Platform",
+  description: "Platform Tokenisasi Karbon",
+  icons: {
+    icon: "/images/logo-verdeon-bg-putih.png", // Ganti dengan nama file logomu yang ada di folder images
+    apple: "/images/logo-verdeon-bg-putih.png", // Opsional: Untuk icon kalau dosen save webnya di home screen HP
+  },
 };
 
 export default function RootLayout({
