@@ -152,7 +152,7 @@ function SnapshotContent() {
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>
-              <FaShieldAlt /> VERIDEON DATA SNAPSHOT
+              <FaShieldAlt /> VERDEON DATA SNAPSHOT
             </h1>
             <p className={styles.subtitle}>
               <FaCheckCircle color="#10b981" /> Immutable On-Chain Data Record

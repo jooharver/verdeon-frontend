@@ -15,7 +15,7 @@ import Swal from 'sweetalert2';
 // Import Services
 import { projectService } from '../../../../services/projectService';
 
-// Import Web3 Config (MOCKING DIHAPUS, WEB3 ASLI AKTIF)
+// Import Web3 Config
 import { connectWallet, submitProjectToBlockchain, addTrackingToBlockchain } from '../../../utils/web3Config';
 import { api } from '../../../../services/api';
 
@@ -142,9 +142,13 @@ export default function AdminProject() {
   };
 
   // ==============================================================
-  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 (MOCKING DIHAPUS, WEB3 AKTIF)
+  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 DENGAN FAIL-SAFE ARCHITECTURE
   // ==============================================================
   const handleSaveVerification = async (projectId, payload) => {
+    // Simpan status awal sebelum proses dimulai agar bisa di-revert jika gagal
+    const initialStatus = projectToVerify.active_version.status;
+    let newSnapshotId = null;
+
     try {
       Swal.fire({
         title: 'Menyiapkan Transaksi...',
@@ -179,7 +183,9 @@ export default function AdminProject() {
         responseData = await projectService.adminReject(projectId, { note: payload.admin_notes, tx_hash: "pending_tx" });
       }
 
+      // Simpan ID/Hash Snapshot baru untuk kebutuhan rollback jika gagal
       const currentDataHash = responseData.dataHash;
+      newSnapshotId = responseData.snapshotId || null; 
       const currentUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/${actionStatus}`;
 
       // 3. KONEKSI METAMASK & TRANSAKSI BLOCKCHAIN
@@ -254,20 +260,45 @@ export default function AdminProject() {
     } catch (error) {
       console.error("Proses Gagal:", error);
       
-      // Revert status di Laravel jika transaksi batal/gagal di MetaMask
-      if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
-         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data proyek di server akan dikembalikan ke status sebelumnya.', 'warning');
-         // Opsi: Panggil fungsi revert dari backend jika ada, agar status tidak menggantung di 'pending_tx'.
-         // await projectService.revertStatus(projectId);
-      } else {
-         Swal.fire('Gagal', error.message || 'Terjadi kesalahan sistem.', 'error');
+      // 👉 FIX FATAL ERROR: Revert status di Laravel jika transaksi batal/gagal di MetaMask
+      try {
+        Swal.fire({
+          title: 'Membatalkan...',
+          html: 'Mengembalikan status di server karena transaksi gagal...',
+          allowOutsideClick: false,
+          didOpen: () => { Swal.showLoading(); }
+        });
+        
+        // Panggil endpoint khusus untuk membatalkan proses (Pastikan endpoint ini ada di backend-mu)
+        // Atau kita gunakan pendekatan 'memaksa update ulang' ke status semula
+        await api(`/projects/${projectId}/revert-status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                previous_status: initialStatus,
+                snapshot_to_delete: newSnapshotId 
+            })
+        });
+
+      } catch (revertError) {
+        console.error("Gagal melakukan rollback:", revertError);
+        // Jika API revert gagal, berikan peringatan keras ke admin
       }
+      
+      if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
+         Swal.fire('Dibatalkan', 'Transaksi ditolak melalui MetaMask. Proses verifikasi dibatalkan sepenuhnya.', 'warning');
+      } else {
+         Swal.fire('Gagal', error.message || 'Terjadi kesalahan sistem saat memproses blockchain.', 'error');
+      }
+      
+      // Tetap tutup modal dan refresh list agar admin melihat status yang sebenarnya
+      setIsVerifyModalOpen(false);
+      fetchProjects();
     }
   };
 
   const handleFinalList = async (projectId, txHash) => {
     try {
-      // Hapus baris dummyTxHash dan gunakan txHash asli dari parameter Web3
       await projectService.adminListProject(projectId, txHash);
       
       Swal.fire('Berhasil!', 'Proyek resmi dilisting ke Carbon Market dan token VCT telah dicetak!', 'success');

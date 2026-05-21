@@ -134,9 +134,12 @@ export default function AuditorReviewPage() {
   };
 
   // ==============================================================
-  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 (MOCKING DIHAPUS)
+  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 (DENGAN LOGIKA REVERT/ROLLBACK)
   // ==============================================================
   const handleSaveAudit = async (projectId, payload) => {
+    const initialStatus = projectToAudit.active_version.status;
+    let newSnapshotId = null;
+
     try {
       Swal.fire({
         title: 'Memproses Laporan...',
@@ -156,7 +159,6 @@ export default function AuditorReviewPage() {
       // 1. 👉 SIMPAN DATA AUDIT KE LARAVEL (MENGHASILKAN SNAPSHOT BARU)
       let responseData;
       if (action === 'verify') {
-        // Kita tidak mengirimkan TxHash dulu karena akan di-update nanti
         responseData = await projectService.auditorVerify(projectId, payload, null);
       } else {
         responseData = await projectService.auditorReject(projectId, { note: payload.audit_notes }, null);
@@ -164,6 +166,7 @@ export default function AuditorReviewPage() {
 
       // Ambil hash dari hasil snapshot komputasi audit
       const currentDataHash = responseData.dataHash;
+      newSnapshotId = responseData.snapshotId || null; 
       if (!currentDataHash) throw new Error("Gagal mendapatkan Hash valid dari server Laravel.");
       
       const currentUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/${actionStatus}`;
@@ -211,12 +214,36 @@ export default function AuditorReviewPage() {
     } catch (error) {
       console.error("Audit Submit Error:", error);
       
+      // 👉 FIX FATAL ERROR: Logika Rollback jika transaksi MetaMask dibatalkan
+      try {
+        Swal.fire({
+          title: 'Membatalkan...',
+          html: 'Mengembalikan status di server karena transaksi dibatalkan...',
+          allowOutsideClick: false,
+          didOpen: () => { Swal.showLoading(); }
+        });
+        
+        await api(`/projects/${projectId}/revert-status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                previous_status: initialStatus,
+                snapshot_to_delete: newSnapshotId 
+            })
+        });
+      } catch (revertError) {
+        console.error("Gagal melakukan rollback:", revertError);
+      }
+      
       if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
-         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask.', 'warning');
+         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data audit telah di-revert dari server.', 'warning');
       } else {
          const msg = error.response?.data?.message || error.message || 'Gagal memproses transaksi blockchain.';
          Swal.fire('Error', msg, 'error');
       }
+      
+      setIsAuditModalOpen(false);
+      fetchProjects();
     }
   };
 

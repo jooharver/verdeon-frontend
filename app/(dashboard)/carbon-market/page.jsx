@@ -303,9 +303,9 @@ export default function CarbonMarketPage() {
                 
                 // --- 👇 2. INI PERUBAHANNYA ---
                 <Link 
-                  href={`/carbon-market/${token.id}`} // <- Mengarahkan ke detail
-                  key={token.id} // <- Key dipindah ke Link
-                  className={styles.productLink} // <- Class untuk styling
+                  href={`/carbon-market/1`} // 👉 FIX: Semua diarahkan ke ID 1 untuk demo
+                  key={token.id} 
+                  className={styles.productLink} 
                 >
                   <div className={styles.productCard}> {/* <- Key dihapus dari sini */}
                     <img 

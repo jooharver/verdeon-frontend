@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styles from './ModalAuditProject.module.css';
 import { 
   FaTimes, FaClipboardCheck, FaFileUpload, FaSolarPanel, FaLeaf, FaCalendarAlt, FaPen, FaImage, FaInfoCircle, FaCheckSquare
@@ -134,7 +134,8 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
   if (!project) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    // 👉 FIX: onClick dihilangkan agar tidak menutup modal saat area luar terklik
+    <div className={styles.overlay}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         
         {/* HEADER */}
