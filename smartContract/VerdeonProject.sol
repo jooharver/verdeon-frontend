@@ -5,11 +5,11 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract VerdeonProject is ERC721URIStorage, Ownable {
-    uint256 private _nextTokenId;
+    // VARIABEL AUTO-INCREMENT TELAH DIHAPUS TOTAL UNTUK MENCEGAH CRASH WEB2-WEB3
 
     // --- STRUKTUR DATA BUKU LOG YANG BERSIH & INFORMATIF ---
     struct TrackingEvent {
-        uint256 projectId;     // ID Proyek 
+        uint256 projectId;     // ID Proyek dari Database Laravel
         uint256 versionNumber; // Nomor urut revisi (1, 2, 3, dst)
         string eventName;      // Deskripsi kejadian (contoh: "Issuer Initial Submission")
         string status;         // Status proyek ("submitted", "admin_approved", dll)
@@ -22,7 +22,8 @@ contract VerdeonProject is ERC721URIStorage, Ownable {
     // Mapping untuk menyimpan array riwayat per Token ID
     mapping(uint256 => TrackingEvent[]) public projectHistory;
 
-    constructor() ERC721("Verideon Carbon Project", "VCP") Ownable(msg.sender) {}
+    // 👉 FIX: Nama Platform menggunakan "Verdeon"
+    constructor() ERC721("Verdeon Carbon Project", "VCP") Ownable(msg.sender) {}
 
     // 1. FUNGSI MINTING
     function mintProject(
@@ -33,7 +34,11 @@ contract VerdeonProject is ERC721URIStorage, Ownable {
         string memory initialDataHash,
         string memory initialUri
     ) public onlyOwner returns (uint256) {
+        // Paksa Token ID sama persis dengan Project ID dari Laravel
         uint256 tokenId = projectId;
+        
+        // Pastikan ID ini belum pernah dicetak sebelumnya
+        require(_ownerOf(tokenId) == address(0), "Error: Project ID ini sudah dicetak di Blockchain!");
         
         _mint(issuerWallet, tokenId);
         _setTokenURI(tokenId, initialUri);

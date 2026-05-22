@@ -127,6 +127,11 @@
         "type": "uint256"
       },
       {
+        "internalType": "string",
+        "name": "projectName",
+        "type": "string"
+      },
+      {
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
@@ -198,6 +203,12 @@
         "internalType": "uint256",
         "name": "projectId",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "projectName",
+        "type": "string"
       },
       {
         "indexed": false,

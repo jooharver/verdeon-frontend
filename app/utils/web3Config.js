@@ -3,8 +3,8 @@ import ProjectABI from './ProjectABI.json';
 import TokenABI from './TokenABI.json';
 
 // Contract Address di Polygon Amoy Testnet (👉 PASTIKAN UPDATE DENGAN ADDRESS BARU)
-export const PROJECT_ADDRESS = "0x6d529771DbaD24B8b1b84726D65A549b59Cb57A7";
-export const TOKEN_ADDRESS = "0xd070D1dE0052c3Cb3Ec9A9F61adFfcA2d0Be7611";
+export const PROJECT_ADDRESS = "0xDb6b2035295D0F4a18A88c6ae7f5882551f6b23E";
+export const TOKEN_ADDRESS = "0x6FA3de9037C22dE5490e3eA575c00C903cA4a170";
 
 // 1. Fungsi untuk konek ke MetaMask
 export const connectWallet = async () => {
