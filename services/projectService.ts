@@ -142,4 +142,9 @@ export const projectService = {
   getProjectSnapshot: async (projectId: number, versionId: number, status: string) => {
     return api(`/projects/${projectId}/versions/${versionId}/snapshot/${status}`);
   },
+
+  // 👉 BARU: Mengambil data khusus untuk Carbon Market
+  getMarketProjects: async () => {
+    return api("/market/projects"); 
+  },
 };

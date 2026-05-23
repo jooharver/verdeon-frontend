@@ -114,15 +114,17 @@ export const addTrackingToBlockchain = async (
 /**
  * Mencetak Token Karbon berdasarkan hasil Audit
  */
-export const mintCarbonTokens = async (issuerWallet, projectId, carbonTons) => {
+// 👉 FIX: Menambahkan parameter projectName agar sinkron dengan VerdeonToken.sol
+export const mintCarbonTokens = async (issuerWallet, projectId, projectName, amountInWei) => {
     const { signer } = await connectWallet();
     const contract = getTokenContract(signer);
     
-    // Fix: Memanggil fungsi mintCarbonTokens sesuai dengan nama fungsi di VoluntaryCarbonToken.sol
+    // Sesuai dengan urutan parameter di fungsi mintCarbonTokens VerdeonToken.sol terbaru
     const tx = await contract.mintCarbonTokens(
         issuerWallet, 
         projectId, 
-        carbonTons, 
+        projectName,
+        amountInWei, 
         getAmoyGasConfig()
     );
     

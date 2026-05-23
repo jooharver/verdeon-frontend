@@ -5,9 +5,8 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract VerdeonProject is ERC721URIStorage, Ownable {
-    // VARIABEL AUTO-INCREMENT TELAH DIHAPUS TOTAL UNTUK MENCEGAH CRASH WEB2-WEB3
 
-    // --- STRUKTUR DATA BUKU LOG YANG BERSIH & INFORMATIF ---
+    // --- STRUKTUR DATA BUKU LOG ---
     struct TrackingEvent {
         uint256 projectId;     // ID Proyek dari Database Laravel
         uint256 versionNumber; // Nomor urut revisi (1, 2, 3, dst)
@@ -22,7 +21,7 @@ contract VerdeonProject is ERC721URIStorage, Ownable {
     // Mapping untuk menyimpan array riwayat per Token ID
     mapping(uint256 => TrackingEvent[]) public projectHistory;
 
-    // 👉 FIX: Nama Platform menggunakan "Verdeon"
+    // Nama Platform menggunakan "Verdeon"
     constructor() ERC721("Verdeon Carbon Project", "VCP") Ownable(msg.sender) {}
 
     // 1. FUNGSI MINTING
@@ -86,6 +85,7 @@ contract VerdeonProject is ERC721URIStorage, Ownable {
         }));
     }
 
+    // FUNGSI Project Histroy
     function getProjectHistory(uint256 tokenId) public view returns (TrackingEvent[] memory) {
         return projectHistory[tokenId];
     }

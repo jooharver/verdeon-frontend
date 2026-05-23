@@ -10,10 +10,10 @@ contract VerdeonToken is ERC20, Ownable {
     // Ini krusial agar satu proyek tidak bisa melakukan klaim pencetakan token berkali-kali (Double-Minting Safeguard)
     mapping(uint256 => bool) public isProjectMinted;
 
-    // 👉 FIX: Event diperbarui untuk menyertakan 'projectName' agar riwayat di Polygonscan lebih informatif
+    // Event diperbarui untuk menyertakan 'projectName' agar riwayat di Polygonscan lebih informatif
     event CarbonTokensMinted(address indexed issuerWallet, uint256 indexed projectId, string projectName, uint256 amount);
 
-    // 👉 FIX: Nama Token dipastikan "Verdeon Carbon Token"
+    // Nama Token dipastikan "Verdeon Carbon Token"
     constructor() ERC20("Verdeon Carbon Token", "VCT") Ownable(msg.sender) {}
 
     /**
