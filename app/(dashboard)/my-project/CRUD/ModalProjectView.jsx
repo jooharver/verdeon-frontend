@@ -300,8 +300,8 @@ export default function ModalProjectView({ project, onClose }) {
                             {blockchainHistory.map((log, index) => {
                               let statusColor = '#3b82f6'; 
                               if (log.status === 'listed') statusColor = '#22c55e'; 
-                              else if (log.status === 'rejected') statusColor = '#ef4444'; 
-                              else if (log.status === 'auditor_verified') statusColor = '#0ea5e9'; 
+                              else if (log.status === 'admin_rejected' || log.status === 'auditor_rejected' || log.status === 'rejected') statusColor = '#ef4444'; 
+                              else if (log.status === 'auditor_verified') statusColor = '#0ea5e9';
 
                               return (
                                 <div key={index} style={{ position: 'relative' }}>

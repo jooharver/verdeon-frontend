@@ -11,13 +11,14 @@ import {
   FaChevronLeft, FaChevronRight, FaImage, FaEdit, FaSpinner, FaRocket, FaChevronDown, FaHistory
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import { ethers } from 'ethers'; 
 
 // Import Services
 import { projectService } from '../../../../services/projectService';
-
-// Import Web3 Config
-import { connectWallet, submitProjectToBlockchain, addTrackingToBlockchain } from '../../../utils/web3Config';
 import { api } from '../../../../services/api';
+
+// Import lengkap fungsi Web3
+import { connectWallet, submitProjectToBlockchain, addTrackingToBlockchain, mintCarbonTokens } from '../../../utils/web3Config';
 
 // Modals
 import ModalProjectView from '../../my-project/CRUD/ModalProjectView'; 
@@ -34,18 +35,13 @@ export default function AdminProject() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // State Row Expand
   const [expandedRows, setExpandedRows] = useState([]);
-
-  // View Modal State
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [projectToView, setProjectToView] = useState(null);
 
-  // Review Modal State
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [projectToVerify, setProjectToVerify] = useState(null);
 
-  // Listing Modal State
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [projectToList, setProjectToList] = useState(null);
 
@@ -142,175 +138,161 @@ export default function AdminProject() {
   };
 
   // ==============================================================
-  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 DENGAN FAIL-SAFE ARCHITECTURE
+  // 🔥 FUNGSI 1: ADMIN REVIEW VERIFICATION (POST-TRANSACTION)
   // ==============================================================
   const handleSaveVerification = async (projectId, payload) => {
-    // Simpan status awal sebelum proses dimulai agar bisa di-revert jika gagal
-    const initialStatus = projectToVerify.active_version.status;
-    let newSnapshotId = null;
-
     try {
+      // 👉 FIX: Mencegah penutupan Swal
       Swal.fire({
         title: 'Menyiapkan Transaksi...',
-        html: 'Mengambil snapshot data dari server...',
+        html: 'Menghubungkan ke Blockchain...',
         allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
         didOpen: () => { Swal.showLoading(); }
       });
 
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
       const versionId = projectToVerify.active_version.id;
       const versionNumber = projectToVerify.active_version.version_number;
-      const actionStatus = payload.action === 'approve' ? 'admin_approved' : 'rejected';
+      const actionStatus = payload.action === 'approve' ? 'admin_approved' : 'admin_rejected';
       
       const issuerWallet = projectToVerify.issuer?.wallet_address;
-      if (!issuerWallet) {
-          throw new Error("Issuer belum mengatur dompet MetaMask! Proses tidak bisa dilanjutkan.");
-      }
+      if (!issuerWallet) throw new Error("Issuer belum mengatur dompet MetaMask! Proses tidak bisa dilanjutkan.");
 
-      // 1. Ambil data asli saat Issuer Submit
       const submittedUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/submitted`;
       const submittedRes = await fetch(submittedUri);
-      if (!submittedRes.ok) throw new Error("Gagal mengambil snapshot awal Issuer.");
+      if (!submittedRes.ok) throw new Error("Gagal mengambil snapshot awal Issuer dari server.");
       const submittedJson = await submittedRes.json();
       const initialDataHash = submittedJson.hash_info.expected_blockchain_hash;
 
-      // 2. Simpan sementara keputusan Admin ke Laravel untuk membuat snapshot baru
-      Swal.update({ title: 'Menyimpan Keputusan...', html: 'Menyusun snapshot Admin...' });
-      let responseData;
-      if (payload.action === 'approve') {
-        responseData = await projectService.adminApprove(projectId, "pending_tx");
-      } else {
-        responseData = await projectService.adminReject(projectId, { note: payload.admin_notes, tx_hash: "pending_tx" });
-      }
-
-      // Simpan ID/Hash Snapshot baru untuk kebutuhan rollback jika gagal
-      const currentDataHash = responseData.dataHash;
-      newSnapshotId = responseData.snapshotId || null; 
-      const currentUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/${actionStatus}`;
-
-      // 3. KONEKSI METAMASK & TRANSAKSI BLOCKCHAIN
       const { signer } = await connectWallet();
       
       let finalTxHash;
       if (!projectToVerify.tx_hash) {
-        // A. Jika proyek sama sekali belum punya NFT (Baru pertama kali masuk)
-        Swal.update({ title: 'Transaksi 1 (Mint NFT)', html: 'Mohon konfirmasi di jendela MetaMask Anda.' });
-        
+        Swal.update({ title: 'Transaksi 1 (Mint NFT)', html: 'Mohon konfirmasi pencetakan aset di jendela MetaMask Anda.' });
         await submitProjectToBlockchain(
-            issuerWallet,         // Dompet Issuer yang akan menerima NFT
-            projectId,            // ID Proyek dari DB
-            versionNumber,        // Versi proyek (contoh: 1)
-            "Issuer Project Initial Submission", // Event Name yang deskriptif
-            initialDataHash,      // Hash dari data saat Issuer mensubmit
-            submittedUri          // URI menuju snapshot data Issuer
+            issuerWallet, projectId, versionNumber, "Issuer Project Initial Submission", initialDataHash, submittedUri
         );
-        
         Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok transaksi 1 tercatat...' });
         await new Promise(resolve => setTimeout(resolve, 4000));
 
-        // B. Transaksi pencatatan keputusan Admin
-        Swal.update({ title: 'Transaksi 2 (Catat Log)', html: 'Mohon konfirmasi di jendela MetaMask Anda.' });
-        const eventNameAdmin = payload.action === 'approve' 
-          ? "Admin Document Verification Approved" 
-          : "Admin Document Verification Rejected";
-          
+        Swal.update({ title: 'Transaksi 2 (Catat Log)', html: 'Mohon konfirmasi pencatatan keputusan di MetaMask Anda.' });
+        const eventNameAdmin = payload.action === 'approve' ? "Admin Document Verification Approved" : "Admin Document Verification Rejected";
         const receiptTrack = await addTrackingToBlockchain(
-            projectId,            // Token ID (Sama dengan Project ID)
-            projectId,            // Project ID
-            versionNumber,        // Versi proyek
-            eventNameAdmin,       // Nama aksi
-            actionStatus,         // "admin_approved" atau "rejected"
-            currentDataHash,      // Hash dari snapshot yang baru saja dibuat
-            currentUri            // URI menuju snapshot Admin
+            projectId, projectId, versionNumber, eventNameAdmin, actionStatus, initialDataHash, submittedUri 
         );
         finalTxHash = receiptTrack.hash || receiptTrack.transactionHash;
-        
       } else {
-        // C. Jika Proyek sudah punya NFT (Misal ini adalah Revisi)
         Swal.update({ title: 'Mencatat Keputusan', html: 'Mohon konfirmasi pencatatan di MetaMask Anda.' });
-        const eventNameAdmin = payload.action === 'approve' 
-          ? "Admin Document Verification Approved" 
-          : "Admin Document Verification Rejected";
-          
+        const eventNameAdmin = payload.action === 'approve' ? "Admin Document Verification Approved" : "Admin Document Verification Rejected";
         const receiptTrack = await addTrackingToBlockchain(
-            projectId, 
-            projectId, 
-            versionNumber, 
-            eventNameAdmin, 
-            actionStatus, 
-            currentDataHash, 
-            currentUri
+            projectId, projectId, versionNumber, eventNameAdmin, actionStatus, initialDataHash, submittedUri
         );
         finalTxHash = receiptTrack.hash || receiptTrack.transactionHash;
       }
 
-      // 4. Sinkronisasi Final TxHash kembali ke Laravel
-      Swal.update({ title: 'Finalisasi...', html: 'Menyimpan Transaction Hash ke server Verideon.' });
-      
-      await api(`/projects/${projectId}/save-tx`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tx_hash: finalTxHash })
-      });
+      Swal.update({ title: 'Finalisasi...', html: 'Menyimpan data dan snapshot ke server Verideon.' });
+      if (payload.action === 'approve') {
+        await projectService.adminApprove(projectId, finalTxHash);
+      } else {
+        await projectService.adminReject(projectId, { note: payload.admin_notes, tx_hash: finalTxHash });
+      }
 
-      Swal.fire('Berhasil!', 'Proyek telah diulas dan jejak terekam di Blockchain.', 'success');
+      Swal.fire('Berhasil!', 'Proyek telah diulas dan jejak terekam permanen di Blockchain.', 'success');
       setIsVerifyModalOpen(false);
       fetchProjects();
 
     } catch (error) {
       console.error("Proses Gagal:", error);
-      
-      // 👉 FIX FATAL ERROR: Revert status di Laravel jika transaksi batal/gagal di MetaMask
-      try {
-        Swal.fire({
-          title: 'Membatalkan...',
-          html: 'Mengembalikan status di server karena transaksi gagal...',
-          allowOutsideClick: false,
-          didOpen: () => { Swal.showLoading(); }
-        });
-        
-        // Panggil endpoint khusus untuk membatalkan proses (Pastikan endpoint ini ada di backend-mu)
-        // Atau kita gunakan pendekatan 'memaksa update ulang' ke status semula
-        await api(`/projects/${projectId}/revert-status`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                previous_status: initialStatus,
-                snapshot_to_delete: newSnapshotId 
-            })
-        });
-
-      } catch (revertError) {
-        console.error("Gagal melakukan rollback:", revertError);
-        // Jika API revert gagal, berikan peringatan keras ke admin
-      }
-      
       if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
-         Swal.fire('Dibatalkan', 'Transaksi ditolak melalui MetaMask. Proses verifikasi dibatalkan sepenuhnya.', 'warning');
+         Swal.fire('Dibatalkan', 'Transaksi ditolak melalui MetaMask. Karena Blockchain batal, data di sistem tidak berubah.', 'warning');
       } else {
          Swal.fire('Gagal', error.message || 'Terjadi kesalahan sistem saat memproses blockchain.', 'error');
       }
-      
-      // Tetap tutup modal dan refresh list agar admin melihat status yang sebenarnya
       setIsVerifyModalOpen(false);
       fetchProjects();
     }
   };
 
-  const handleFinalList = async (projectId, txHash) => {
+  // ==============================================================
+  // 🔥 FUNGSI 2: FINAL LISTING & MINT TOKENS (POST-TRANSACTION)
+  // ==============================================================
+  const handleFinalList = async (projectId, payload) => {
     try {
-      await projectService.adminListProject(projectId, txHash);
+      // 👉 FIX: Mencegah penutupan Swal
+      Swal.fire({
+        title: 'Memproses Listing...',
+        html: 'Menghubungkan ke Blockchain...',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => { Swal.showLoading(); }
+      });
+
+      const { calculatedCarbon, issuerWallet, project } = payload;
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const versionId = project.active_version.id;
+      const versionNumber = project.active_version.version_number;
+
+      // 1. Ambil data asli (Auditor Verified Snapshot) sebagai basis hash
+      const auditorUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/auditor_verified`;
+      const auditorRes = await fetch(auditorUri);
+      let initialDataHash = "";
+      if (auditorRes.ok) {
+        const auditorJson = await auditorRes.json();
+        initialDataHash = auditorJson.hash_info.expected_blockchain_hash;
+      } else {
+        throw new Error("Gagal mengambil snapshot persetujuan auditor dari server.");
+      }
+
+      await connectWallet(); 
+
+      // 2. Transaksi Smart Contract 1: Buku Log Blockchain
+      Swal.update({ title: 'Mencatat Listing (1/2)', html: 'Mohon konfirmasi transaksi Add Tracking di MetaMask.' });
+      await addTrackingToBlockchain(
+        projectId,               // tokenId
+        projectId,               // projectId
+        versionNumber,           // versionNumber
+        "Project Officially Listed to Market", // eventName
+        'listed',                // status
+        initialDataHash,         // dataHash
+        auditorUri               // URI sementara menggunakan URI auditor
+      );
+      
+      Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok transaksi 1 tercatat...' });
+      await new Promise(resolve => setTimeout(resolve, 3500));
+
+      // 3. Transaksi Smart Contract 2: Mencetak Koin VCT
+      Swal.update({ title: `Mencetak ${calculatedCarbon} VCT (2/2)`, html: 'Mohon konfirmasi penerbitan aset di MetaMask.' });
+      const carbonAmountStr = calculatedCarbon.toString();
+      const amountInWei = ethers.parseUnits(carbonAmountStr, 18);
+
+      // Ambil nama proyek dari database untuk dicatat di blockchain
+      const projectName = project.active_version?.name || `Verdeon Project #${projectId}`;
+
+      // Kirimkan projectName sebagai parameter ke-3
+      const receiptMint = await mintCarbonTokens(issuerWallet, projectId, projectName, amountInWei);
+      const finalTxHash = receiptMint.hash || receiptMint.transactionHash;
+
+      // 4. SINKRONISASI UPDATE STATUS KE LARAVEL BACKEND (Hanya jika MetaMask sukses)
+      Swal.update({ title: 'Finalisasi...', html: 'Menyimpan status ke server Verideon...' });
+      await projectService.adminListProject(projectId, finalTxHash); 
       
       Swal.fire('Berhasil!', 'Proyek resmi dilisting ke Carbon Market dan token VCT telah dicetak!', 'success');
       setIsListingModalOpen(false); 
       fetchProjects(); 
+
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Terjadi kesalahan sistem.';
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Tersimpan',
-        text: errorMessage, 
-      });
+      console.error("Listing Web3 Error:", error);
+      if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
+         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data server tidak berubah.', 'warning');
+      } else {
+         const errorMessage = error.response?.data?.message || error.message || 'Terjadi kesalahan sistem.';
+         Swal.fire('Gagal Listing', errorMessage, 'error');
+      }
+      setIsListingModalOpen(false);
+      fetchProjects();
     }
   };
 

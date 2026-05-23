@@ -9,19 +9,12 @@ import {
   FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaRocket
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
-import { ethers } from 'ethers';
-
-// 👉 IMPORT WEB3 AKTIF
-import { connectWallet, addTrackingToBlockchain, mintCarbonTokens } from '../../../../utils/web3Config'; 
 
 export default function ModalListingProject({ project, onClose, onList }) {
   const [activeTab, setActiveTab] = useState('overview'); 
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingText, setLoadingText] = useState('Publish & Mint Token');
-
   useEffect(() => {
     setActiveImgIndex(0);
     setActiveTab('overview'); 
@@ -103,7 +96,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
   };
 
   // ==============================================================
-  // 🔥 LOGIKA WEB3: FINAL LISTING & MINTING ERC-20 TOKENS
+  // 🔥 FUNGSI PEMICU (Melempar eksekusi ke AdminProject.js)
   // ==============================================================
   const handleConfirmList = async () => {
     const issuerWallet = project.issuer?.wallet_address;
@@ -132,66 +125,12 @@ export default function ModalListingProject({ project, onClose, onList }) {
     });
 
     if (result.isConfirmed) {
-      setIsSubmitting(true);
-      
-      try {
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-        const versionId = project.active_version.id;
-        const versionNumber = project.active_version.version_number;
-
-        // 1. Ambil Metadata Final (Status: Listed) untuk Data Hash
-        setLoadingText('Mengambil Data Server...');
-        const metadataUri = `${apiBaseUrl}/projects/${project.id}/versions/${versionId}/metadata?status=listed`;
-        const metaRes = await fetch(metadataUri);
-        const metaJson = await metaRes.json();
-        
-        if (!metaRes.ok) throw new Error(metaJson.error || "Gagal mengambil metadata server.");
-        
-        // Asumsi struktur data kembalian dari backend-mu
-        const currentDataHash = metaJson.hash_info?.expected_blockchain_hash || metaJson.dataHash;
-
-        await connectWallet(); 
-
-        // 2. Transaksi Smart Contract Ke-1: Buku Log Blockchain
-        setLoadingText('Mencatat Listing (1/2)...');
-        await addTrackingToBlockchain(
-          project.id,              // tokenId
-          project.id,              // projectId
-          versionNumber,           // versionNumber
-          "Project Officially Listed to Market", // eventName
-          'listed',                // status
-          currentDataHash,         // dataHash
-          metadataUri              // metadataUri
-        );
-        
-        setLoadingText('Menunggu Blok Sinkron...');
-        await new Promise(resolve => setTimeout(resolve, 3500));
-
-        // 3. Transaksi Smart Contract Ke-2: Mencetak Koin VCT
-        setLoadingText(`Mencetak ${calculatedCarbon} VCT (2/2)...`);
-        
-        // Konversi jumlah ton ke Wei (18 desimal) standar ERC-20
-        const carbonAmountStr = calculatedCarbon.toString();
-        const amountInWei = ethers.parseUnits(carbonAmountStr, 18);
-        
-        const receiptMint = await mintCarbonTokens(issuerWallet, project.id, amountInWei);
-        const finalTxHash = receiptMint.hash || receiptMint.transactionHash;
-
-        // 4. SINKRONISASI UPDATE STATUS KE LARAVEL BACKEND
-        setLoadingText('Finalisasi data di server...');
-        await onList(project.id, finalTxHash); 
-        
-      } catch (error) {
-        console.error("Listing Web3 Error:", error);
-        if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
-           Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask.', 'warning');
-        } else {
-           Swal.fire('Gagal Listing', error.message || 'Terjadi kesalahan sistem.', 'error');
-        }
-      } finally {
-        setIsSubmitting(false);
-        setLoadingText('Publish & Mint Token');
-      }
+      // Lempar seluruh payload yang dibutuhkan ke fungsi handleFinalList di AdminProject.js
+      onList(project.id, { 
+        calculatedCarbon, 
+        issuerWallet, 
+        project 
+      });
     }
   };
 
@@ -223,7 +162,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
                   <span className={`${styles.badge} ${styles.auditor_verified}`}>
                     READY TO LIST
                   </span>
-                  <button className={styles.closeBtnHeader} onClick={onClose} disabled={isSubmitting}>
+                  <button className={styles.closeBtnHeader} onClick={onClose}>
                     <FaTimes />
                   </button>
                 </div>
@@ -459,16 +398,15 @@ export default function ModalListingProject({ project, onClose, onList }) {
           <div className={styles.footer} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
              <div className={styles.footerNote}>Tinjau data auditor sebelum menerbitkan proyek ke market.</div>
              <div style={{ display: 'flex', gap: '12px' }}>
-                 <button type="button" onClick={onClose} disabled={isSubmitting} className={styles.closeBtnBottom}>
+                 <button type="button" onClick={onClose} className={styles.closeBtnBottom}>
                    Cancel
                  </button>
                  <button 
                    type="button" 
                    onClick={handleConfirmList} 
-                   disabled={isSubmitting} 
-                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: '600', opacity: isSubmitting ? 0.7 : 1, transition: 'all 0.2s ease' }}
+                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
                  >
-                   <FaRocket /> {isSubmitting ? loadingText : loadingText}
+                   <FaRocket /> Publish & Mint Token
                  </button>
              </div>
           </div>

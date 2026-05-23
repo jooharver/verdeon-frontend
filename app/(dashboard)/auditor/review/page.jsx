@@ -133,18 +133,18 @@ export default function AuditorReviewPage() {
     setIsAuditModalOpen(true);
   };
 
-  // ==============================================================
-  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 (DENGAN LOGIKA REVERT/ROLLBACK)
+// ==============================================================
+  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 (POST-TRANSACTION UPDATE)
   // ==============================================================
   const handleSaveAudit = async (projectId, payload) => {
-    const initialStatus = projectToAudit.active_version.status;
-    let newSnapshotId = null;
-
     try {
+      // 👉 FIX: Mengunci SWAL agar user tidak bisa membatalkan transaksi lewat pop-up
       Swal.fire({
-        title: 'Memproses Laporan...',
-        html: 'Menghitung reduksi emisi & menyimpan dokumen audit ke server...',
+        title: 'Memproses...',
+        html: 'Menghubungkan ke Blockchain...',
         allowOutsideClick: false,
+        allowEscapeKey: false,       // Cegah tutup pakai tombol ESC
+        showConfirmButton: false,    // Sembunyikan tombol OK
         didOpen: () => { Swal.showLoading(); }
       });
 
@@ -154,31 +154,27 @@ export default function AuditorReviewPage() {
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
       const versionId = projectToAudit.active_version.id;
       const versionNumber = projectToAudit.active_version.version_number;
-      const actionStatus = action === 'verify' ? 'auditor_verified' : 'rejected';
+      const actionStatus = action === 'verify' ? 'auditor_verified' : 'auditor_rejected';
 
-      // 1. 👉 SIMPAN DATA AUDIT KE LARAVEL (MENGHASILKAN SNAPSHOT BARU)
-      let responseData;
-      if (action === 'verify') {
-        responseData = await projectService.auditorVerify(projectId, payload, null);
+      // 1. Ambil data asli (Admin Approved Snapshot) sebagai basis awal
+      const adminUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/admin_approved`;
+      const adminRes = await fetch(adminUri);
+      let initialDataHash = "";
+      if (adminRes.ok) {
+        const adminJson = await adminRes.json();
+        initialDataHash = adminJson.hash_info.expected_blockchain_hash;
       } else {
-        responseData = await projectService.auditorReject(projectId, { note: payload.audit_notes }, null);
+        throw new Error("Gagal mengambil snapshot persetujuan admin dari server.");
       }
 
-      // Ambil hash dari hasil snapshot komputasi audit
-      const currentDataHash = responseData.dataHash;
-      newSnapshotId = responseData.snapshotId || null; 
-      if (!currentDataHash) throw new Error("Gagal mendapatkan Hash valid dari server Laravel.");
-      
-      const currentUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/${actionStatus}`;
-
-      // 2. 👉 KONEKSI METAMASK & CATAT KE BLOCKCHAIN (AUDIT TRAIL)
-      Swal.update({ 
-        title: 'Mencatat Hasil Audit...', 
-        html: 'Mohon konfirmasi transaksi pencatatan (*Add Tracking*) di dompet MetaMask Anda.' 
-      });
-      
+      // 2. KONEKSI METAMASK & TRANSAKSI BLOCKCHAIN (DILAKUKAN LEBIH DULU)
       await connectWallet(); 
       
+      Swal.update({ 
+        title: 'Mencatat Hasil Audit', 
+        html: 'Mohon konfirmasi transaksi pencatatan (*Add Tracking*) di MetaMask Anda.' 
+      });
+
       const eventNameAuditor = action === 'verify' 
           ? "Auditor Technical Verification Approved" 
           : "Auditor Technical Verification Rejected";
@@ -187,25 +183,26 @@ export default function AuditorReviewPage() {
           projectId,            // Token ID
           projectId,            // Project ID
           versionNumber,        // Nomor Versi Proyek
-          eventNameAuditor,     // Event Name yang sangat deskriptif
-          actionStatus,         // "auditor_verified" atau "rejected"
-          currentDataHash,      // Hash komputasi karbon dari Laravel
-          currentUri            // URI menuju snapshot auditor_verified
+          eventNameAuditor,     // Event Name
+          actionStatus,         // "auditor_verified" atau "auditor_rejected"
+          initialDataHash,      // Gunakan hash sebelumnya
+          adminUri              // URI sementara menggunakan URI admin
       );
       
       const finalTxHash = receiptTrack.hash || receiptTrack.transactionHash;
 
-      // 3. 👉 SINKRONISASI TX HASH FINAL KE DATABASE LARAVEL
+      // 3. JIKA METAMASK SUKSES, BARU SIMPAN KE DATABASE LARAVEL
       Swal.update({ 
-        title: 'Sinkronisasi...', 
-        html: 'Menyimpan bukti transaksi Web3 ke server Verideon...' 
+        title: 'Finalisasi...', 
+        html: 'Menghitung reduksi emisi & menyimpan dokumen audit ke server Verideon...' 
       });
 
-      await api(`/projects/${projectId}/save-tx`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tx_hash: finalTxHash })
-      });
+      if (action === 'verify') {
+        // Jika formdata, kirim bersamaan dengan tx_hash
+        await projectService.auditorVerify(projectId, payload, finalTxHash);
+      } else {
+        await projectService.auditorReject(projectId, { note: payload.audit_notes }, finalTxHash);
+      }
       
       Swal.fire('Success', 'Hasil Audit MRV berhasil dikomputasi dan dicatat permanen ke Blockchain.', 'success');
       setIsAuditModalOpen(false);
@@ -214,29 +211,8 @@ export default function AuditorReviewPage() {
     } catch (error) {
       console.error("Audit Submit Error:", error);
       
-      // 👉 FIX FATAL ERROR: Logika Rollback jika transaksi MetaMask dibatalkan
-      try {
-        Swal.fire({
-          title: 'Membatalkan...',
-          html: 'Mengembalikan status di server karena transaksi dibatalkan...',
-          allowOutsideClick: false,
-          didOpen: () => { Swal.showLoading(); }
-        });
-        
-        await api(`/projects/${projectId}/revert-status`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                previous_status: initialStatus,
-                snapshot_to_delete: newSnapshotId 
-            })
-        });
-      } catch (revertError) {
-        console.error("Gagal melakukan rollback:", revertError);
-      }
-      
       if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
-         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data audit telah di-revert dari server.', 'warning');
+         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Karena Blockchain batal, dokumen audit tidak tersimpan.', 'warning');
       } else {
          const msg = error.response?.data?.message || error.message || 'Gagal memproses transaksi blockchain.';
          Swal.fire('Error', msg, 'error');
