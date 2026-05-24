@@ -41,7 +41,6 @@ export function AuthProvider({ children }) {
       setToken(currentToken);
     } catch (err) {
       console.error('Session invalid:', err);
-      // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
       localStorage.removeItem('token'); 
       setUser(null);
       setToken(null);
@@ -56,7 +55,6 @@ export function AuthProvider({ children }) {
   =====================================================
   */
   useEffect(() => {
-    // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
     const storedToken = localStorage.getItem('token'); 
 
     if (storedToken) {
@@ -72,7 +70,6 @@ export function AuthProvider({ children }) {
   =====================================================
   */
   const login = useCallback(async (newToken, userData) => {
-    // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
     localStorage.setItem('token', newToken); 
 
     setToken(newToken);
@@ -91,7 +88,6 @@ export function AuthProvider({ children }) {
     setIsLoggingOut(true);
 
     try {
-      // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
       const storedToken = localStorage.getItem('token'); 
 
       if (storedToken) {
@@ -107,7 +103,6 @@ export function AuthProvider({ children }) {
       console.error('Logout API gagal:', error);
     }
 
-    // 🚀 PERBAIKAN: Ubah 'authToken' jadi 'token'
     localStorage.removeItem('token'); 
 
     setUser(null);
@@ -145,6 +140,39 @@ export function AuthProvider({ children }) {
 
   /*
   =====================================================
+  👉 NEW: UPDATE WALLET (KHUSUS WEB3)
+  =====================================================
+  */
+  const updateWallet = useCallback(async (walletAddress) => {
+    if (!token) throw new Error("No auth token");
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/wallet`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ wallet_address: walletAddress }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Gagal menyimpan wallet address ke server.');
+    }
+
+    // Jika sukses, perbarui object 'user' di Context agar UI otomatis merender dompet baru
+    setUser((prev) => {
+      if (!prev) return prev;
+      return { ...prev, wallet_address: walletAddress };
+    });
+
+    return data;
+  }, [token]);
+
+  /*
+  =====================================================
   CONTEXT VALUE
   =====================================================
   */
@@ -154,6 +182,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     updateProfile,
+    updateWallet, // 👉 Daftarkan fungsi baru di sini
     isLoading,
     isLoggingOut,
   };

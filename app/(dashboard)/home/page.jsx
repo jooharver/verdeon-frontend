@@ -1,210 +1,296 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import styles from './Home.module.css';
-import Image from 'next/image';
 import Topbar from '../../components/Topbar';
+import Swal from 'sweetalert2';
 
-// 1. Impor 'useAuth'
-// Path ini (../../) sudah benar untuk keluar dari app/(dashboard)/home/
+// Context & Services
 import { useAuth } from '../../../context/AuthContext'; 
+import { projectService } from '../../../services/projectService';
+import { forceConnectWallet } from '../../utils/web3Config';
 
-// Impor ikon
-import { FiUser, FiTrendingUp, FiList, FiRss, FiCopy, FiArrowLeft, FiArrowRight } from 'react-icons/fi';
+// Icons
+import { 
+  FaUserCircle, FaWallet, FaCopy, FaLeaf, FaProjectDiagram, 
+  FaCheckCircle, FaArrowRight, FaPlus, FaClock 
+} from 'react-icons/fa';
 
 export default function HomePage() {
-  // Data untuk Topbar
   const pageTitle = "Home";
   const pageBreadcrumbs = ["Dashboard", "Home"]; 
   
-  // 2. Panggil hook 'useAuth'
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isUserLoading, updateWallet } = useAuth();
   
-  // --- DATA DUMMY (Hanya untuk data yang belum kita punya) ---
-  const portfolioData = {
-    // 'name' dan 'avatar' akan kita ambil dari 'user'
-    tokenSupply: "******",
-    walletID: "0x23457W7890J98032I987469286",
+  const [walletAddress, setWalletAddress] = useState('');
+  const [myProjects, setMyProjects] = useState([]);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(true);
+
+  // Sync wallet address dari user data
+  useEffect(() => {
+    if (user?.wallet_address) {
+      setWalletAddress(user.wallet_address);
+    }
+  }, [user]);
+
+  // Fetch data proyek asli dari database
+  useEffect(() => {
+    const fetchMyProjects = async () => {
+      try {
+        const data = await projectService.getMyProjects();
+        setMyProjects(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Gagal memuat proyek:", error);
+      } finally {
+        setIsProjectsLoading(false);
+      }
+    };
+    fetchMyProjects();
+  }, []);
+
+  // Kalkulasi KPI
+  const stats = React.useMemo(() => {
+    const total = myProjects.length;
+    const listed = myProjects.filter(p => p.active_version?.status === 'listed').length;
+    
+    // Hitung total VCT dari proyek yang sudah listed/auditor_verified
+    const totalTokens = myProjects.reduce((sum, p) => {
+      const v = p.active_version;
+      if (['auditor_verified', 'listed'].includes(v?.status)) {
+        return sum + (parseFloat(v.audit_report?.carbon_reduction_amount_ton) || 0);
+      }
+      return sum;
+    }, 0);
+
+    return { total, listed, totalTokens };
+  }, [myProjects]);
+
+  // Handler Wallet dengan Force Request & Context Update
+  const handleConnectWallet = async () => {
+    try {
+      // 1. Panggil fungsi force connect untuk memunculkan pop-up MetaMask
+      const { signer } = await forceConnectWallet();
+      const address = await signer.getAddress();
+      
+      // 2. Minta konfirmasi user agar tidak salah sambung dompet
+      const confirm = await Swal.fire({
+        title: 'Konfirmasi Dompet',
+        html: `Apakah Anda yakin ingin mengaitkan dompet <b>${address.substring(0, 6)}...${address.substring(address.length - 4)}</b> ke akun ini?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0ea5e9',
+        cancelButtonColor: '#ef4444',
+        confirmButtonText: 'Ya, Kaitkan!',
+        cancelButtonText: 'Batal'
+      });
+
+      if (confirm.isConfirmed) {
+        Swal.fire({
+          title: 'Menyimpan...',
+          text: 'Mengamankan wallet address ke database.',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => { Swal.showLoading(); }
+        });
+
+        // 3. Simpan ke backend via fungsi di AuthContext
+        await updateWallet(address);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Wallet Terhubung!',
+          text: 'Dompet MetaMask berhasil dikaitkan dan disimpan secara permanen.',
+          confirmButtonColor: '#0ea5e9'
+        });
+      }
+
+    } catch (error) {
+      console.error(error);
+      if (error.code === 4001 || error.message?.includes('User rejected')) {
+        Swal.fire('Batal', 'Anda membatalkan permintaan koneksi MetaMask.', 'info');
+      } else {
+        Swal.fire('Error', 'Gagal menghubungkan dompet: ' + error.message, 'error');
+      }
+    }
   };
 
-  // ... (Data dummy trendingProjects, allProjects, newsArticles tidak perlu diubah) ...
-  const trendingProjects = [
-    { id: 1, logo: "/images/project-logo-1.png", name: "PT Green Renewable Energy", availableTokens: "2034.8" },
-    { id: 2, logo: "/images/project-logo-2.png", name: "PT Energy Jaya Asri", availableTokens: "1702.3" },
-    { id: 3, logo: "/images/project-logo-3.png", name: "Pusat Solar Panel Indonesia", availableTokens: "1434.5" },
-  ];
-  const allProjects = [
-    { id: 1, logo: "/images/project-logo-1.png", name: "PT Green Renewable Energy", availableTokens: "2034.8" },
-    { id: 2, logo: "/images/project-logo-2.png", name: "PT Energy Jaya Asri", availableTokens: "1702.3" },
-    { id: 3, logo: "/images/project-logo-3.png", name: "Pusat Solar Panel Indonesia", availableTokens: "1434.5" },
-    { id: 4, logo: "/images/project-logo-1.png", name: "PT Green Renewable Energy", availableTokens: "2034.8" },
-    { id: 5, logo: "/images/project-logo-2.png", name: "PT Energy Jaya Asri", availableTokens: "1702.3" },
-    { id: 6, logo: "/images/project-logo-3.png", name: "Pusat Solar Panel Indonesia", availableTokens: "1434.5" },
-    { id: 7, logo: "/images/project-logo-1.png", name: "PT Green Renewable Energy", availableTokens: "2034.8" },
-  ];
-  const newsArticles = [
-    { id: 1, image: "/images/news-1.jpg", title: "MAHASISWA & DOSEN BERSINERGI KEMBANGKAN RISET SAHAM" },
-    { id: 2, image: "/images/news-2.jpg", title: "PEMERINTAH SIAP INVESTASI RP 16,5T, FOKUS KE SAHAM PENDANAAN" },
-    { id: 3, image: "/images/news-3.jpg", title: "SAHAM BANK BUMN & SWASTA PANTAU INDAH KAPUK MILIK NELAYAN" },
-    { id: 4, image: "/images/news-4.jpg", title: "KPK PERIKSA 3 SAKSI KASUS KORUPSI BERESKAN UTANG WHOOSH" },
-  ];
-  // --- AKHIR DATA DUMMY ---
+  const handleCopyWallet = () => {
+    if (!walletAddress) return;
+    navigator.clipboard.writeText(walletAddress);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Wallet Address disalin!',
+      showConfirmButton: false,
+      timer: 2000
+    });
+  };
+
+  // Render Status
+  const renderStatus = (status) => {
+    const s = status?.toLowerCase() || 'draft';
+    const badges = {
+      listed: { class: styles.badgeSuccess, label: 'Listed Market' },
+      auditor_verified: { class: styles.badgeSuccess, label: 'Verified' },
+      admin_approved: { class: styles.badgeWarning, label: 'Auditing' },
+      submitted: { class: styles.badgeWarning, label: 'Pending Admin' },
+      rejected: { class: styles.badgeDanger, label: 'Rejected' },
+      draft: { class: styles.badgeNeutral, label: 'Draft' }
+    };
+    const conf = badges[s] || badges.draft;
+    return <span className={`${styles.badge} ${conf.class}`}>{conf.label}</span>;
+  };
+
+  if (isUserLoading) {
+    return <div className={styles.loadingScreen}>Memuat Dashboard...</div>;
+  }
 
   return (
     <div>
       <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
 
       <main className={styles.container}>
-        {/* 1. Bagian Portfolio */}
-        <section className={styles.card}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionTitle}>
-              <FiUser />
-              <h3>Portfolio</h3>
+        
+        {/* 1. HERO SECTION: Profile & Wallet */}
+        <section className={styles.heroCard}>
+          <div className={styles.heroProfile}>
+            {/* 👉 FIX: Pakai tag img HTML standar dan fallback kuat ke default-avatar.png */}
+            <img 
+              src={user?.avatarUrl || "/images/default-avatar.png"} 
+              alt="Avatar" 
+              className={styles.avatar} 
+              referrerPolicy="no-referrer"
+              onError={(e) => { 
+                e.target.onerror = null; 
+                e.target.src = "/images/default-avatar.png"; 
+              }}
+            />
+            
+            <div className={styles.userInfo}>
+              <h2 className={styles.greeting}>Welcome back, {user?.name || 'Issuer'}!</h2>
+              <p className={styles.userEmail}>{user?.email || 'issuer@verdeon.com'}</p>
+              <span className={styles.roleTag}>Verified Issuer</span>
             </div>
           </div>
 
-          {/* 3. Tambahkan cek isLoading || !user */}
-          {isLoading || !user ? (
-            // Tampilkan placeholder selagi loading
-            <div className={styles.portfolioContent}>
-              <div className={`${styles.portfolioInfo} ${styles.portfolioInfoWithAvatar}`}>
-                <div className={styles.portfolioAvatar} style={{ background: '#eee' }} />
-                <div>
-                  <p className={styles.portfolioLabel}>Nama</p>
-                  <h4 className={styles.portfolioValue}>Loading...</h4>
-                </div>
-              </div>
-              <div className={styles.portfolioInfo}>
-                <p className={styles.portfolioLabel}>Token Supply</p>
-                <h4 className={styles.portfolioValue}>******</h4>
-              </div>
-              <div className={styles.portfolioInfo}>
-                <p className={styles.portfolioLabel}>Wallet ID</p>
-                <h4 className={styles.portfolioValue}>...</h4>
-              </div>
+          <div className={styles.heroWallet}>
+            <div className={styles.walletHeader}>
+              <FaWallet className={styles.walletIcon} />
+              <span>Web3 Identity</span>
             </div>
-          ) : (
-            // 4. Jika data user ada, tampilkan data asli
-            <div className={styles.portfolioContent}>
-              <div className={`${styles.portfolioInfo} ${styles.portfolioInfoWithAvatar}`}>
-                <Image
-                  // 5. Ganti 'src' jadi dinamis
-                  src={user.avatarUrl ? user.avatarUrl : "/images/default-avatar.png"}
-                  alt="Avatar"
-                  width={40}
-                  height={40}
-                  className={styles.portfolioAvatar}
-                  // 6. Tambahkan ini untuk fix gambar Google
-                  referrerPolicy="no-referrer"
-                  onError={(e) => { e.target.src = "/images/default-avatar.png"; }}
-                />
-                <div>
-                  <p className={styles.portfolioLabel}>Nama</p>
-                  {/* 7. Ganti 'name' jadi dinamis */}
-                  <h4 className={styles.portfolioValue}>{user.name}</h4>
+            
+            {walletAddress ? (
+              <div className={styles.walletConnected}>
+                <div className={styles.walletAddressBox}>
+                  <code>{walletAddress.substring(0, 8)}...{walletAddress.substring(walletAddress.length - 6)}</code>
+                  <button onClick={handleCopyWallet} className={styles.btnCopy} title="Copy Address">
+                    <FaCopy />
+                  </button>
+                </div>
+                <div className={styles.walletNetwork}>
+                  <div className={styles.networkDot}></div> Polygon Amoy
                 </div>
               </div>
-              
-              {/* Data ini masih dummy, tapi Anda bisa mengisinya nanti */}
-              <div className={styles.portfolioInfo}>
-                <p className={styles.portfolioLabel}>Token Supply</p>
-                <h4 className={styles.portfolioValue}>{portfolioData.tokenSupply}</h4>
+            ) : (
+              <div className={styles.walletDisconnected}>
+                <p>Dompet digital belum terhubung.</p>
+                <button onClick={handleConnectWallet} className={styles.btnConnect}>
+                  Connect MetaMask
+                </button>
               </div>
-              <div className={styles.portfolioInfo}>
-                <p className={styles.portfolioLabel}>Wallet ID</p>
-                <div className={styles.walletIdContainer}>
-                    <h4 className={styles.portfolioValue}>{portfolioData.walletID}</h4>
-                    <FiCopy className={styles.copyIcon} />
-                </div>
-              </div>
+            )}
+          </div>
+        </section>
+
+        {/* 2. KPI STATS */}
+        <section className={styles.statsGrid}>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIconBox} ${styles.iconBlue}`}>
+              <FaProjectDiagram />
             </div>
-          )}
-        </section>
+            <div className={styles.statData}>
+              <p className={styles.statLabel}>Total Proyek</p>
+              <h3 className={styles.statValue}>{stats.total}</h3>
+            </div>
+          </div>
 
-        {/* 2. Bagian Trending (Tidak berubah) */}
-        <section className={styles.card}>
-          <div className={styles.sectionHeader}>
-              <div className={styles.sectionTitle}>
-                  <FiTrendingUp />
-                  <h3>Trending</h3>
-              </div>
-              <button className={styles.exploreButton}>Explore Market</button>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIconBox} ${styles.iconGreen}`}>
+              <FaCheckCircle />
+            </div>
+            <div className={styles.statData}>
+              <p className={styles.statLabel}>Proyek Listed</p>
+              <h3 className={styles.statValue}>{stats.listed}</h3>
+            </div>
           </div>
-          <div className={styles.projectList}>
-              {trendingProjects.map((project) => (
-                  <div key={project.id} className={styles.projectItem}>
-                      <Image src={project.logo} alt={project.name} width={40} height={40} className={styles.projectLogo} />
-                      <p className={styles.projectName}>{project.name}</p>
-                      <div className={styles.tokenInfo}>
-                          <p className={styles.tokenValue}>{project.availableTokens}</p>
-                          <p className={styles.tokenLabel}>Tr offset</p>
-                      </div>
-                  </div>
-              ))}
-          </div>
-        </section>
 
-        {/* 3. Bagian All Project (Tidak berubah) */}
-        <section className={styles.card}>
-          <div className={styles.sectionHeader}>
-              <div className={styles.sectionTitle}>
-                  <FiList />
-                  <h3>All Project</h3>
-              </div>
-              <button className={styles.exploreButton}>See All</button>
-          </div>
-          <div className={styles.filterContainer}>
-              <button className={`${styles.filterButton} ${styles.active}`}>Diterbitkan</button>
-              <button className={styles.filterButton}>Diajukan</button>
-              <button className={styles.filterButton}>Di audit</button>
-              <button className={styles.filterButton}>Semua</button>
-          </div>
-          <div className={styles.projectList}>
-              {allProjects.map((project, index) => (
-                  <div key={project.id} className={styles.projectItem}>
-                      <span className={styles.projectIndex}>{index + 1}</span>
-                      <Image src={project.logo} alt={project.name} width={40} height={40} className={styles.projectLogo} />
-                      <p className={styles.projectName}>{project.name}</p>
-                      <div className={styles.tokenInfo}>
-                          <p className={styles.tokenValue}>{project.availableTokens}</p>
-                          <p className={styles.tokenLabel}>Token available</p>
-                      </div>
-                  </div>
-              ))}
-          </div>
-          <div className={styles.pagination}>
-              <button className={styles.paginationButton}><FiArrowLeft /></button>
-              <span>1/6</span>
-              <button className={styles.paginationButton}><FiArrowRight /></button>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIconBox} ${styles.iconTeal}`}>
+              <FaLeaf />
+            </div>
+            <div className={styles.statData}>
+              <p className={styles.statLabel}>Total VCT Minted</p>
+              <h3 className={styles.statValue}>{stats.totalTokens.toLocaleString('id-ID', { maximumFractionDigits: 2 })}</h3>
+            </div>
           </div>
         </section>
 
-        {/* 4. Bagian News (Tidak berubah) */}
-        <section className={styles.card}>
-          <div className={styles.sectionHeader}>
-              <div className={styles.sectionTitle}>
-                  <FiRss />
-                  <h3>News</h3>
-              </div>
-              <button className={styles.exploreButton}>Explore News</button>
-          </div>
-          <div className={styles.newsGrid}>
-              {newsArticles.map((article) => (
-                  <div key={article.id} className={styles.newsCard}>
-                      <Image src={article.image} alt={article.title} width={300} height={150} className={styles.newsImage} />
-                      <div className={styles.newsContent}>
-                          <p className={styles.newsTitle}>{article.title}</p>
-                          <button className={styles.newsButton}>Selengkapnya</button>
-                      </div>
+        {/* 3. RECENT ACTIVITY & QUICK ACTIONS */}
+        <div className={styles.bottomGrid}>
+          
+          <section className={styles.recentProjectsCard}>
+            <div className={styles.cardHeader}>
+              <h3>Aktivitas Proyek Terakhir</h3>
+              <Link href="/my-project" className={styles.linkViewAll}>
+                Lihat Semua <FaArrowRight />
+              </Link>
+            </div>
+            
+            <div className={styles.recentList}>
+              {isProjectsLoading ? (
+                <div className={styles.loadingText}>Memuat proyek...</div>
+              ) : myProjects.length > 0 ? (
+                // Ambil 4 proyek terbaru
+                myProjects.slice(0, 4).map((proj) => (
+                  <div key={proj.id} className={styles.recentItem}>
+                    <div className={styles.recentIcon}>
+                      <FaLeaf />
+                    </div>
+                    <div className={styles.recentInfo}>
+                      <h4>{proj.active_version?.name || 'Unnamed Project'}</h4>
+                      <p><FaClock /> {new Date(proj.updated_at).toLocaleDateString('id-ID')} • Kapasitas: {proj.active_version?.total_system_capacity_kwp || 0} kWp</p>
+                    </div>
+                    <div className={styles.recentStatus}>
+                      {renderStatus(proj.active_version?.status)}
+                    </div>
                   </div>
-              ))}
-          </div>
-           <div className={styles.pagination}>
-              <button className={styles.paginationButton}><FiArrowLeft /></button>
-              <span>1/6</span>
-              <button className={styles.paginationButton}><FiArrowRight /></button>
-          </div>
-        </section>
+                ))
+              ) : (
+                <div className={styles.emptyState}>
+                  <img src="https://placehold.co/100x100/f1f5f9/94a3b8?text=Empty" alt="Empty" />
+                  <p>Anda belum memiliki proyek pengajuan karbon.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className={styles.actionCard}>
+            <h3>Aksi Cepat</h3>
+            <p>Mulai registrasi fasilitas energi hijau Anda untuk divalidasi dan diubah menjadi aset token karbon.</p>
+            <Link href="/my-project" className={styles.btnPrimaryLg}>
+              <FaPlus /> Buat Proyek Baru
+            </Link>
+            
+            <div className={styles.infoBox}>
+              <h4>Butuh Bantuan?</h4>
+              <p>Pastikan Anda telah menyiapkan dokumen PDD (Project Design Document) dan foto bukti lapangan sebelum membuat pengajuan.</p>
+            </div>
+          </section>
+
+        </div>
       </main>
     </div>
   );

@@ -24,6 +24,26 @@ export const connectWallet = async () => {
     }
 };
 
+export const forceConnectWallet = async () => {
+    if (typeof window !== 'undefined' && typeof window.ethereum !== 'undefined') {
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            
+            // Perintah sakti untuk memaksa pop-up pemilihan akun muncul lagi
+            await provider.send("wallet_requestPermissions", [{ eth_accounts: {} }]);
+            
+            const signer = await provider.getSigner(); 
+            return { provider, signer };
+        } catch (error) {
+            console.error("Koneksi MetaMask dibatalkan:", error);
+            throw error;
+        }
+    } else {
+        alert("MetaMask belum terinstal!");
+        throw new Error("MetaMask tidak ditemukan.");
+    }
+};
+
 // 2. Fungsi inisiasi Kontrak NFT (Buku Log)
 export const getProjectContract = (signerOrProvider) => {
     return new ethers.Contract(PROJECT_ADDRESS, ProjectABI, signerOrProvider);

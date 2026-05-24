@@ -1,283 +1,433 @@
-/* app/(dashboard)/home/Home.module.css */
-
+/* Tata Letak Utama */
 .container {
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  /* --- PERBAIKAN --- */
-  background-color: var(--bg-main);
-  transition: background-color 0.2s ease;
+  background-color: var(--bg-main, #f8fafc);
+  min-height: calc(100vh - 70px);
 }
 
-.card {
-  /* --- PERBAIKAN --- */
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); (Shadow diganti border agar konsisten) */
-  /* ----------------- */
-  border-radius: 12px;
-  padding: 24px;
+.loadingScreen {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
-.sectionHeader {
+/* --- 1. HERO SECTION --- */
+.heroCard {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 24px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  flex-wrap: wrap;
+  gap: 24px;
 }
 
-.sectionTitle {
+.heroProfile {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 1.25rem;
-  font-weight: 600;
-  /* --- PERBAIKAN --- */
-  color: var(--text-primary);
-}
-
-.sectionTitle svg {
-  /* --- PERBAIKAN --- */
-  color: var(--brand-color); /* Menggunakan brand color global */
-}
-
-.exploreButton {
-  /* --- PERBAIKAN --- */
-  background-color: var(--nav-link-active-bg);
-  color: var(--nav-link-active-text);
-  /* ----------------- */
-  border: none;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.exploreButton:hover {
-  /* --- PERBAIKAN --- */
-  background-color: var(--nav-link-hover-bg);
-}
-
-/* --- Styles untuk Portfolio --- */
-.portfolioContent {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
 }
 
-.portfolioInfoWithAvatar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.portfolioAvatar {
+.avatar, .avatarPlaceholder {
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
   object-fit: cover;
+  border: 3px solid #f1f5f9;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
-.portfolioInfo .portfolioLabel {
-  font-size: 0.875rem;
-  /* --- PERBAIKAN --- */
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-}
-
-.portfolioValue {
-  font-size: 1rem;
-  font-weight: 500;
-  /* --- PERBAIKAN --- */
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-.walletIdContainer {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.copyIcon {
-  /* --- PERBAIKAN --- */
-  color: var(--brand-color);
-  cursor: pointer;
-}
-
-/* --- Styles untuk Project List (Trending & All) --- */
-.projectList {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.projectItem {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 0;
-  /* --- PERBAIKAN --- */
-    border-bottom: 1px solid var(--border-color);
-}
-.projectItem:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.projectIndex {
-  /* --- PERBAIKAN --- */
-  color: var(--text-secondary);
-  font-weight: 500;
-  width: 20px;
-}
-
-.projectLogo {
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.projectName {
-  flex-grow: 1;
-  font-weight: 500;
-  /* --- PERBAIKAN --- */
-  color: var(--text-primary);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tokenInfo {
-  text-align: right;
-  flex-shrink: 0;
-  min-width: 100px;
-}
-
-.tokenValue {
-  font-weight: 700;
-  /* --- PERBAIKAN --- */
-  color: var(--brand-color);
-  font-size: 1.1rem;
-}
-
-.tokenLabel {
-  font-size: 0.8rem;
-  /* --- PERBAIKAN --- */
-  color: var(--text-secondary);
-}
-
-/* --- Styles untuk Filter --- */
-.filterContainer {
-  display: flex;
-  gap: 10px;
-  /* --- PERBAIKAN --- */
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 16px;
-}
-
-.filterButton {
-  background: none;
-  border: none;
-  padding: 8px 12px;
-  /* --- PERBAIKAN --- */
-  color: var(--text-secondary);
-  font-weight: 500;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
-}
-
-.filterButton.active,
-.filterButton:hover {
-  /* --- PERBAIKAN --- */
-  color: var(--brand-color);
-  border-bottom-color: var(--brand-color);
-}
-
-/* --- Styles untuk News --- */
-.newsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-}
-
-.newsCard {
-  /* --- PERBAIKAN --- */
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: border-color 0.2s ease;
-}
-
-.newsImage {
-  width: 100%;
-  height: 140px;
-  object-fit: cover;
-}
-
-.newsContent {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-
-.newsTitle {
-  font-weight: 600;
-  margin-bottom: 16px;
-  flex-grow: 1; 
-  /* Teks title akan otomatis dapat warna dari var(--text-primary) body */
-}
-
-.newsButton {
-  /* --- PERBAIKAN --- */
-  background-color: var(--brand-color);
-  color: white; /* Putih di atas brand-color sudah OK */
-  border: none;
-  padding: 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: center;
-  width: 100%;
-  transition: background-color 0.2s;
-}
-.newsButton:hover {
-  /* Static darken tidak masalah */
-  background-color: #0b5ed7; 
-}
-
-/* --- Styles untuk Pagination --- */
-.pagination {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.paginationButton {
-  /* --- PERBAIKAN --- */
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  /* ----------------- */
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
+.avatarPlaceholder {
+  background-color: #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  font-size: 2.5rem;
+  color: #94a3b8;
 }
-.paginationButton:hover {
-  /* --- PERBAIKAN --- */
-  background-color: var(--nav-link-hover-bg);
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.greeting {
+  margin: 0 0 4px 0;
+  font-size: 1.5rem;
+  color: #1e293b;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.userEmail {
+  margin: 0 0 8px 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.roleTag {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: max-content;
+}
+
+.heroWallet {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 280px;
+}
+
+.walletHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.walletIcon {
+  color: #0ea5e9;
+}
+
+.walletConnected {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.walletAddressBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.walletAddressBox code {
+  font-family: monospace;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.btnCopy {
+  background: none;
+  border: none;
+  color: #0ea5e9;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btnCopy:hover {
+  transform: scale(1.15);
+  color: #0284c7;
+}
+
+.walletNetwork {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.networkDot {
+  width: 8px;
+  height: 8px;
+  background-color: #8b5cf6;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #ddd6fe;
+}
+
+.walletDisconnected p {
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.btnConnect {
+  background-color: #f59e0b;
+  color: #ffffff;
+  border: none;
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btnConnect:hover {
+  background-color: #ca8a04;
+}
+
+/* --- 2. KPI STATS --- */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.statCard {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+}
+
+.statIconBox {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.iconBlue { background-color: #e0f2fe; color: #0284c7; }
+.iconGreen { background-color: #dcfce7; color: #16a34a; }
+.iconTeal { background-color: #ccfbf1; color: #0d9488; }
+
+.statData {
+  display: flex;
+  flex-direction: column;
+}
+
+.statLabel {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.statValue {
+  margin: 4px 0 0 0;
+  color: #0f172a;
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+/* --- 3. BOTTOM GRID --- */
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 968px) {
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recentProjectsCard, .actionCard {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.cardHeader h3, .actionCard h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.linkViewAll {
+  color: #0ea5e9;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.2s ease;
+}
+
+.linkViewAll:hover {
+  opacity: 0.7;
+}
+
+/* Recent Projects List */
+.recentList {
+  display: flex;
+  flex-direction: column;
+}
+
+.recentItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.recentItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.recentIcon {
+  width: 44px;
+  height: 44px;
+  background-color: #f1f5f9;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 1.2rem;
+}
+
+.recentInfo {
+  flex-grow: 1;
+}
+
+.recentInfo h4 {
+  margin: 0 0 4px 0;
+  color: #334155;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.recentInfo p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recentStatus {
+  flex-shrink: 0;
+}
+
+/* Badges */
+.badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badgeSuccess { background-color: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.badgeWarning { background-color: #fef9c3; color: #ca8a04; border: 1px solid #fef08a; }
+.badgeDanger { background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.badgeNeutral { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 0;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.emptyState img {
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.loadingText {
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+/* Action Card */
+.actionCard p {
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 12px 0 24px 0;
+}
+
+.btnPrimaryLg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #0ea5e9;
+  color: #ffffff;
+  text-decoration: none;
+  padding: 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.btnPrimaryLg:hover {
+  background-color: #0284c7;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+}
+
+.infoBox {
+  margin-top: 24px;
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  padding: 16px;
+  border-radius: 10px;
+}
+
+.infoBox h4 {
+  margin: 0 0 8px 0;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.infoBox p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
 }
