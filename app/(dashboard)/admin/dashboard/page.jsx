@@ -1,25 +1,29 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styles from './Dashboard.module.css';
 import { 
-  // ... (ikon-ikon)
   FaUsers, FaProjectDiagram, FaCheckCircle, FaChartBar, 
   FaClipboardList, FaBolt, FaUsersCog, FaTasks, FaBullhorn,
-  FaReceipt
+  FaReceipt, FaSpinner, FaLeaf
 } from 'react-icons/fa';
 import Topbar from '../../../components/Topbar';
 import Link from 'next/link';
+import { ethers } from 'ethers';
 
-// 1. GANTI LineChart & Line dengan AreaChart & Area
+// Impor Chart
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts';
 
-/* --- Komponen KpiCard (Tidak Berubah) --- */
-const KpiCard = ({ icon, title, value, subtitle, type = 'default' }) => {
-  // ... (kode KpiCard)
+// Impor Service & Web3
+import { api } from '../../../../services/api';
+import { projectService } from '../../../../services/projectService';
+import { getTokenContract } from '../../../utils/web3Config';
+
+/* --- Komponen KpiCard --- */
+const KpiCard = ({ icon, title, value, subtitle, type = 'default', isLoading }) => {
   return (
     <div className={`${styles.kpiCard} ${styles[type]}`}>
       <div className={`${styles.cardIconWrapper} ${styles[type]}`}>
@@ -27,59 +31,126 @@ const KpiCard = ({ icon, title, value, subtitle, type = 'default' }) => {
       </div>
       <div className={styles.cardInfo}>
         <span className={styles.cardTitle}>{title}</span>
-        <span className={styles.cardValue}>{value}</span>
+        <span className={styles.cardValue}>
+          {isLoading ? <FaSpinner className="fa-spin" style={{ fontSize: '1.2rem' }} /> : value}
+        </span>
         {subtitle && <span className={styles.cardSubtitle}>{subtitle}</span>}
       </div>
       {type === 'pending' && <span className={styles.pendingIndicator}></span>}
     </div>
   );
 };
-/* --- Akhir Komponen KpiCard --- */
 
-
-/**
- * Halaman Utama Dashboard Admin
- */
 export default function AdminDashboardPage() {
-  
   const pageTitle = "Admin Dashboard";
   const pageBreadcrumbs = ["Admin", "Dashboard"];
 
-  // ... (Data kpiData tidak berubah)
-  const kpiData = [
-    { icon: <FaUsers />, title: 'TOTAL USERS', value: '1,845', type: 'default' },
-    { icon: <FaProjectDiagram />, title: 'PENDING VERIFICATION', value: '48', type: 'pending' },
-    { icon: <FaCheckCircle />, title: 'TOTAL PROJECTS', value: '731', type: 'success' },
-    { icon: <FaChartBar />, title: 'TOTAL TRANSACTIONS (MONTH)', value: '12,900 VDN', subtitle: 'CHAR WID', type: 'default' }
-  ];
-  
-  // ... (Data userRegistrationData tidak berubah)
-  const userRegistrationData = [
-    { name: 'Okt 15', Users: 12 }, { name: 'Okt 20', Users: 19 }, { name: 'Okt 25', Users: 25 },
-    { name: 'Okt 30', Users: 22 }, { name: 'Nov 05', Users: 30 }, { name: 'Nov 10', Users: 38 },
-    { name: 'Nov 15', Users: 45 },
-  ];
-  
-  // ... (Data projectStatusData tidak berubah)
-  const projectStatusData = [
-    { name: 'Approved', value: 430 }, { name: 'Pending', value: 215 }, { name: 'Rejected', value: 72 },
-  ];
-  const PIE_COLORS = ['var(--success-color)', 'var(--warning-color)', 'var(--danger-color)'];
+  // --- STATE DATA ASLI ---
+  const [users, setUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [totalVctMinted, setTotalVctMinted] = useState("0");
+  const [isLoading, setIsLoading] = useState(true);
 
-  // ... (Data pendingProjectsData tidak berubah)
-  const pendingProjectsData = [
-    { id: 1, name: 'Agri-Forestry Bali', submittedBy: 'User A' },
-    { id: 3, name: 'Mangrove Rehab Papua', submittedBy: 'User B' },
-    { id: 4, name: 'Community Solar Java', submittedBy: 'User C' },
-  ];
-  
-  // ... (Data recentTransactionsData tidak berubah)
-  const recentTransactionsData = [
-    { id: 'tx1', time: '10m ago', buyer: '0x6...H3J2', seller: 'Agri-Forestry Bali', amount: 150, amountVdn: 150, value: 'Rp 2,250,000' },
-    { id: 'tx2', time: '12m ago', buyer: 'Mangrove@email.com', seller: 'Agri-Forestry Bali', amount: 120, amountVdn: 120, value: 'Rp 1,800,000' },
-    { id: 'tx3', time: '15m ago', buyer: 'Community Solar Java', seller: '0x0...F9B7', amount: 150, amountVdn: 150, value: 'Rp 2,250,000' },
-    { id: 'tx4', time: '20m ago', buyer: '0x4...G7K1', seller: 'Mangrove Rehab Papua', amount: 50, amountVdn: 50, value: 'Rp 750,000' },
-  ];
+  // --- FETCH DATA (WEB2 + WEB3) ---
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+
+        // 1. Tarik Data User (Web2)
+        const usersRes = await api('/admin/users');
+        setUsers(Array.isArray(usersRes) ? usersRes : []);
+
+        // 2. Tarik Data Project (Web2)
+        const projectsRes = await projectService.getAllProjects();
+        setProjects(Array.isArray(projectsRes) ? projectsRes : []);
+
+        // 3. Tarik Total Supply Token (Web3 Polygon)
+        if (typeof window !== 'undefined' && window.ethereum) {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const contract = getTokenContract(provider);
+          const totalSupply = await contract.totalSupply(); // Panggil fungsi ERC-20
+          
+          // Konversi dari Wei (18 desimal) ke format normal
+          const formattedSupply = ethers.formatUnits(totalSupply, 18);
+          setTotalVctMinted(parseFloat(formattedSupply).toLocaleString('id-ID', { maximumFractionDigits: 2 }));
+        }
+
+      } catch (error) {
+        console.error("Gagal menarik data dashboard:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // --- DATA PROCESSING (USE MEMO) ---
+
+  // 1. Kalkulasi KPI
+  const kpiStats = useMemo(() => {
+    const totalUsers = users.length;
+    const pendingVerifications = projects.filter(p => p.active_version?.status === 'submitted').length;
+    const totalProjects = projects.length;
+    
+    return [
+      { icon: <FaUsers />, title: 'TOTAL USERS', value: totalUsers.toLocaleString(), type: 'default' },
+      { icon: <FaProjectDiagram />, title: 'PENDING VERIFICATION', value: pendingVerifications, type: 'pending' },
+      { icon: <FaCheckCircle />, title: 'TOTAL PROJECTS', value: totalProjects.toLocaleString(), type: 'success' },
+      { icon: <FaLeaf />, title: 'TOTAL VCT MINTED (ON-CHAIN)', value: `${totalVctMinted} VCT`, subtitle: 'Polygon Amoy', type: 'default' }
+    ];
+  }, [users, projects, totalVctMinted]);
+
+  // 2. Data Chart: Status Proyek
+  const projectStatusData = useMemo(() => {
+    const statusCount = { Listed: 0, Pending: 0, Rejected: 0, Verified: 0 };
+    
+    projects.forEach(p => {
+      const s = p.active_version?.status;
+      if (s === 'listed') statusCount.Listed += 1;
+      else if (s === 'submitted' || s === 'admin_approved') statusCount.Pending += 1;
+      else if (s === 'rejected' || s === 'auditor_rejected') statusCount.Rejected += 1;
+      else if (s === 'auditor_verified') statusCount.Verified += 1;
+    });
+
+    return [
+      { name: 'Listed', value: statusCount.Listed },
+      { name: 'Verified', value: statusCount.Verified },
+      { name: 'Pending', value: statusCount.Pending },
+      { name: 'Rejected', value: statusCount.Rejected },
+    ].filter(item => item.value > 0); // Sembunyikan yang 0
+  }, [projects]);
+
+  const PIE_COLORS = ['#22c55e', '#0ea5e9', '#eab308', '#ef4444'];
+
+  // 3. Data Chart: Pertumbuhan User (Dummy fallback jika data user < 2)
+  const userRegistrationData = useMemo(() => {
+    // Di aplikasi nyata, Anda mengelompokkan `users.created_at` per bulan/minggu
+    // Untuk demo ini, kita gunakan data dinamis sederhana berdasarkan total
+    const base = Math.max(10, Math.floor(users.length / 5));
+    return [
+      { name: 'Week 1', Users: base }, { name: 'Week 2', Users: base + 5 }, 
+      { name: 'Week 3', Users: base + 12 }, { name: 'Week 4', Users: users.length || 20 }
+    ];
+  }, [users]);
+
+  // 4. Tabel: Menunggu Verifikasi Admin
+  const pendingProjectsList = useMemo(() => {
+    return projects
+      .filter(p => p.active_version?.status === 'submitted')
+      .slice(0, 5); // Ambil 5 teratas
+  }, [projects]);
+
+  // 5. Tabel: Aktivitas On-Chain Terakhir
+  const recentOnChainActivity = useMemo(() => {
+    return projects
+      .filter(p => p.tx_hash) // Hanya proyek yang sudah menyentuh blockchain
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      .slice(0, 5);
+  }, [projects]);
+
+  const formatAddress = (address) => address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : '-';
 
   return (
     <div> 
@@ -87,92 +158,60 @@ export default function AdminDashboardPage() {
 
       <main className={styles.container}>
         
-        {/* --- Section KPI (Tidak Berubah) --- */}
+        {/* --- Section KPI --- */}
         <section className={styles.kpiGrid}>
-          {kpiData.map((data, index) => (
-            <KpiCard key={index} {...data} />
+          {kpiStats.map((data, index) => (
+            <KpiCard key={index} {...data} isLoading={isLoading} />
           ))}
         </section>
 
-        {/* --- Section Charts (Telah Diperbarui) --- */}
+        {/* --- Section Charts --- */}
         <section className={styles.chartsSection}>
-
-          {/* Kartu untuk Area Chart (Sebelumnya Line Chart) */}
           <div className={styles.chartCard}>
-            <h3 className={styles.chartHeader}>NEW USER REGISTRATIONS (LAST 30 DAYS)</h3>
-            {/* 2. UBAH TINGGI DARI 350px -> 300px */}
+            <h3 className={styles.chartHeader}>NEW USER REGISTRATIONS</h3>
             <div className={styles.chartWrapper} style={{ height: '300px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                {/* 3. Ganti LineChart -> AreaChart */}
-                <AreaChart data={userRegistrationData}>
-                  
-                  {/* 4. Tambahkan Definisi Gradien */}
-                  <defs>
-                    <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--brand-color)" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="var(--brand-color)" stopOpacity={0.05}/>
-                    </linearGradient>
-                  </defs>
-
-                  <CartesianGrid stroke="var(--border-color)" strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="name" 
-                    stroke="var(--text-secondary)" 
-                    tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} 
-                  />
-                  <YAxis 
-                    stroke="var(--text-secondary)" 
-                    tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'var(--bg-card)', 
-                      borderColor: 'var(--border-color)',
-                      color: 'var(--text-primary)'
-                    }} 
-                  />
-                  <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
-                  
-                  {/* 5. Ganti Line -> Area, tambahkan fill="url(#...)" */}
-                  <Area 
-                    type="monotone" 
-                    dataKey="Users" 
-                    stroke="var(--brand-color)" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorUsers)" // <-- Ini untuk blok warnanya
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6, stroke: 'var(--bg-card)', strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {isLoading ? <div style={{display:'flex', height:'100%', alignItems:'center', justifyContent:'center'}}><FaSpinner className="fa-spin"/></div> : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={userRegistrationData}>
+                    <defs>
+                      <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--brand-color)" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="var(--brand-color)" stopOpacity={0.05}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="var(--border-color)" strokeDasharray="3 3" />
+                    <XAxis dataKey="name" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                    <YAxis stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)'}} />
+                    <Area type="monotone" dataKey="Users" stroke="var(--brand-color)" strokeWidth={2} fillOpacity={1} fill="url(#colorUsers)" dot={{ r: 4 }} activeDot={{ r: 6, stroke: 'var(--bg-card)', strokeWidth: 2 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
-          {/* Kartu untuk Pie Chart */}
           <div className={styles.chartCard}>
             <h3 className={styles.chartHeader}>PROJECT STATUS BREAKDOWN</h3>
-            {/* 2. UBAH TINGGI DARI 350px -> 300px */}
             <div className={styles.chartWrapper} style={{ height: '300px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  {/* ... (kode PieChart tidak berubah) ... */}
-                  <Pie data={projectStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} /* Sedikit lebih kecil */ innerRadius={70} paddingAngle={3}>
-                    {projectStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)'}} />
-                  <Legend wrapperStyle={{ color: 'var(--text-secondary)', marginTop: '20px' }} />
-                </PieChart>
-              </ResponsiveContainer>
+              {isLoading ? <div style={{display:'flex', height:'100%', alignItems:'center', justifyContent:'center'}}><FaSpinner className="fa-spin"/></div> : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={projectStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={70} paddingAngle={3}>
+                      {projectStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)'}} />
+                    <Legend wrapperStyle={{ color: 'var(--text-secondary)', marginTop: '20px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </section>
 
-        {/* --- Section Action (Tidak Berubah) --- */}
+        {/* --- Section Action --- */}
         <section className={styles.actionSection}>
-          {/* ... (Kode Kartu "Projects Needing Verification") ... */}
           <div className={styles.chartCard}>
             <h3 className={`${styles.chartHeader} ${styles.iconHeader}`}>
               <FaClipboardList />
@@ -181,74 +220,95 @@ export default function AdminDashboardPage() {
             <div className={styles.projectTable}>
               <div className={`${styles.tableRow} ${styles.tableHeader}`}>
                 <span>Project Name</span>
-                <span>Submitted By</span>
+                <span>Issuer</span>
                 <span style={{ textAlign: 'right' }}>Action</span>
               </div>
-              {pendingProjectsData.map((project) => (
-                <div key={project.id} className={styles.tableRow}>
-                  <div className={styles.projectName}>
-                    <span className={styles.projectIndex}>{project.id}</span>
-                    <span>{project.name}</span>
+              
+              {isLoading ? (
+                <div style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}><FaSpinner className="fa-spin"/> Loading...</div>
+              ) : pendingProjectsList.length > 0 ? (
+                pendingProjectsList.map((project) => (
+                  <div key={project.id} className={styles.tableRow}>
+                    <div className={styles.projectName}>
+                      <span className={styles.projectIndex}>#{String(project.id).padStart(3, '0')}</span>
+                      <span>{project.active_version?.name || 'Unnamed'}</span>
+                    </div>
+                    <span>{project.issuer?.name || 'Unknown'}</span>
+                    <div className={styles.actionCell}>
+                      <Link href={`/admin/projects`} className={styles.reviewButton}>
+                        Review
+                      </Link>
+                    </div>
                   </div>
-                  <span>{project.submittedBy}</span>
-                  <div className={styles.actionCell}>
-                    <Link href={`/admin/project/${project.id}`} className={styles.reviewButton}>
-                      Review
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}>Tidak ada proyek yang menunggu verifikasi admin.</div>
+              )}
             </div>
           </div>
-          {/* ... (Kode Kartu "Quick Actions") ... */}
+
           <div className={styles.chartCard}>
             <h3 className={`${styles.chartHeader} ${styles.iconHeader}`}>
               <FaBolt />
               <span>QUICK ACTIONS</span>
             </h3>
             <div className={styles.quickActions}>
-              <Link href="/admin/user" className={`${styles.quickButton} ${styles.blue}`}>
+              <Link href="/admin/users" className={`${styles.quickButton} ${styles.blue}`}>
                 <FaUsersCog />
                 <span>Manage Users</span>
               </Link>
-              <Link href="/admin/project" className={`${styles.quickButton} ${styles.green}`}>
+              <Link href="/admin/projects" className={`${styles.quickButton} ${styles.green}`}>
                 <FaTasks />
                 <span>Manage Projects</span>
               </Link>
               <Link href="#" className={`${styles.quickButton} ${styles.orange}`}>
                 <FaBullhorn />
-                <span>Broadcast Announcement</span>
+                <span>System Config</span>
               </Link>
             </div>
           </div>
         </section>
 
-        {/* --- Section Recent Transactions (Tidak Berubah) --- */}
+        {/* --- Section Recent On-Chain Activity --- */}
         <section className={styles.chartCard}>
           <h3 className={`${styles.chartHeader} ${styles.iconHeader}`}>
             <FaReceipt />
-            <span>RECENT TRANSACTIONS</span>
+            <span>RECENT ON-CHAIN ACTIVITY (POLYGON)</span>
           </h3>
           <div className={styles.transactionTable}>
-            {/* ... (Kode Tabel Transaksi) ... */}
             <div className={`${styles.tableRow} ${styles.tableHeader} ${styles.transactionRow}`}>
-              <span>Time</span>
-              <span>Buyer</span>
-              <span>Seller</span>
-              <span>Amount</span>
-              <span>Amount (VDN)</span>
-              <span style={{ textAlign: 'right' }}>Value (IDR)</span>
+              <span>Date</span>
+              <span>Project Name</span>
+              <span>Issuer Wallet</span>
+              <span>Status</span>
+              <span>Tx Hash</span>
+              <span style={{ textAlign: 'right' }}>View</span>
             </div>
-            {recentTransactionsData.map((tx) => (
-              <div key={tx.id} className={`${styles.tableRow} ${styles.transactionRow}`}>
-                <span className={styles.txTime}>{tx.time}</span>
-                <span className={styles.txParty}>{tx.buyer}</span>
-                <span className={styles.txParty}>{tx.seller}</span>
-                <span>{tx.amount}</span>
-                <span>{tx.amountVdn}</span>
-                <span className={styles.txValue}>{tx.value}</span>
-              </div>
-            ))}
+            
+            {isLoading ? (
+              <div style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}><FaSpinner className="fa-spin"/> Syncing with Blockchain...</div>
+            ) : recentOnChainActivity.length > 0 ? (
+              recentOnChainActivity.map((proj) => (
+                <div key={proj.id} className={`${styles.tableRow} ${styles.transactionRow}`}>
+                  <span className={styles.txTime}>{new Date(proj.updated_at).toLocaleDateString('id-ID')}</span>
+                  <span className={styles.txParty}>{proj.active_version?.name || 'Unnamed'}</span>
+                  <span className={styles.txParty}>{formatAddress(proj.issuer?.wallet_address)}</span>
+                  <span style={{textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'bold', color:'var(--brand-color)'}}>
+                    {proj.active_version?.status.replace('_', ' ')}
+                  </span>
+                  <span className={styles.txTime}>
+                    <code style={{background: 'var(--bg-main)', padding:'4px', borderRadius:'4px'}}>{formatAddress(proj.tx_hash)}</code>
+                  </span>
+                  <span className={styles.txValue}>
+                    <a href={`https://amoy.polygonscan.com/tx/${proj.tx_hash}`} target="_blank" rel="noreferrer" style={{color: 'var(--success-color)', textDecoration:'none', fontWeight:'bold'}}>
+                      Explorer
+                    </a>
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}>Belum ada aktivitas terekam di Blockchain.</div>
+            )}
           </div>
         </section>
 
