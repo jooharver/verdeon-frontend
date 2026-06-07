@@ -8,8 +8,8 @@ import styles from './AuditorReview.module.css';
 import Topbar from '../../../components/Topbar'; 
 import { 
   FaSearch, FaEye, FaClipboardCheck, FaCheckCircle, FaClock, FaBan, FaUserTie, FaSort, 
-  FaSortUp, FaSortDown,
-  FaChevronLeft, FaChevronRight, FaImage, FaPlayCircle, FaChevronDown, FaHistory
+  FaSortUp, FaSortDown, FaChevronLeft, FaChevronRight, FaImage, FaPlayCircle, FaChevronDown, FaHistory,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
@@ -17,8 +17,8 @@ import Swal from 'sweetalert2';
 import { projectService } from '../../../../services/projectService';
 import { api } from '../../../../services/api'; 
 
-// 👉 IMPORT WEB3 AKTIF
 import { connectWallet, addTrackingToBlockchain } from '../../../utils/web3Config';
+import { useAuth } from '../../../../context/AuthContext';
 
 // Modals
 import ModalProjectView from '../../my-project/CRUD/ModalProjectView'; 
@@ -29,6 +29,9 @@ const COLORS = ['#3b82f6', '#eab308', '#22c55e', '#ef4444'];
 export default function AuditorReviewPage() {
   const pageTitle = "Audit Tasks";
   const pageBreadcrumbs = ["Dashboard", "Auditor", "Review"];
+
+  const { user } = useAuth();
+  const auditorWallet = user?.wallet_address;
 
   // --- STATE ---
   const [projects, setProjects] = useState([]);
@@ -46,7 +49,6 @@ export default function AuditorReviewPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
-  // --- FETCH DATA ---
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
@@ -83,7 +85,7 @@ export default function AuditorReviewPage() {
 
   const stats = useMemo(() => {
     const total = projects.length;
-    const pending = projects.filter(p => p.active_version?.status === 'admin_approved').length;
+    const pending = projects.filter(p => ['admin_approved', 'returned_to_auditor'].includes(p.active_version?.status)).length;
     const completed = projects.filter(p => ['auditor_verified', 'rejected', 'listed'].includes(p.active_version?.status)).length;
     const inProgress = total - pending - completed; 
     
@@ -133,91 +135,119 @@ export default function AuditorReviewPage() {
     setIsAuditModalOpen(true);
   };
 
-// ==============================================================
-  // 🔥 FUNGSI UTAMA: INTEGRASI WEB3 (POST-TRANSACTION UPDATE)
+  // ==============================================================
+  // 🔥 FUNGSI UTAMA: INTEGRASI SAGA PATTERN + ANTI SPLIT-BRAIN
   // ==============================================================
   const handleSaveAudit = async (projectId, payload) => {
     try {
-      // 👉 FIX: Mengunci SWAL agar user tidak bisa membatalkan transaksi lewat pop-up
+      if (!auditorWallet) throw new Error("Anda belum mengatur/menghubungkan dompet Web3 di profil Anda!");
+
       Swal.fire({
-        title: 'Memproses...',
-        html: 'Menghubungkan ke Blockchain...',
+        title: 'Menyiapkan Data...',
+        html: 'Menyimpan laporan audit ke server Verideon...',
         allowOutsideClick: false,
-        allowEscapeKey: false,       // Cegah tutup pakai tombol ESC
-        showConfirmButton: false,    // Sembunyikan tombol OK
+        allowEscapeKey: false,       
+        showConfirmButton: false,    
         didOpen: () => { Swal.showLoading(); }
       });
 
+      // 1. IDENTIFIKASI STATUS SEBELUMNYA UNTUK FAIL-SAFE (ROLLBACK)
+      const previousStatus = projectToAudit.active_version.status;
+      
       const isFormData = payload instanceof FormData;
       const action = isFormData ? payload.get('action') : payload.action;
-      
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-      const versionId = projectToAudit.active_version.id;
-      const versionNumber = projectToAudit.active_version.version_number;
       const actionStatus = action === 'verify' ? 'auditor_verified' : 'auditor_rejected';
+      const versionNumber = projectToAudit.active_version.version_number;
 
-      // 1. Ambil data asli (Admin Approved Snapshot) sebagai basis awal
-      const adminUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/admin_approved`;
-      const adminRes = await fetch(adminUri);
-      let initialDataHash = "";
-      if (adminRes.ok) {
-        const adminJson = await adminRes.json();
-        initialDataHash = adminJson.hash_info.expected_blockchain_hash;
+      // 2. [SAGA STEP 1]: BACKEND FIRST (Simpan Data & Bikin Snapshot JSON)
+      let backendResponse;
+      if (action === 'verify') {
+        backendResponse = await projectService.auditorVerify(projectId, payload, ""); 
       } else {
-        throw new Error("Gagal mengambil snapshot persetujuan admin dari server.");
+        backendResponse = await projectService.auditorReject(projectId, { note: payload.audit_notes }, "");
       }
 
-      // 2. KONEKSI METAMASK & TRANSAKSI BLOCKCHAIN (DILAKUKAN LEBIH DULU)
-      await connectWallet(); 
-      
-      Swal.update({ 
-        title: 'Mencatat Hasil Audit', 
-        html: 'Mohon konfirmasi transaksi pencatatan (*Add Tracking*) di MetaMask Anda.' 
-      });
+      // 👉 KUNCI: AMBIL HASH, URI, DAN ID SNAPSHOT LANGSUNG DARI LARAVEL
+      const exactDataHash = backendResponse.dataHash;
+      const exactUri = backendResponse.snapshotUri;
+      const exactSnapshotId = backendResponse.snapshotId;
 
-      const eventNameAuditor = action === 'verify' 
-          ? "Auditor Technical Verification Approved" 
-          : "Auditor Technical Verification Rejected";
+      let finalTxHash = null;
+      let hasTxSuccess = false; // 👉 BENDERA ANTI SPLIT-BRAIN
 
-      const receiptTrack = await addTrackingToBlockchain(
-          projectId,            // Token ID
-          projectId,            // Project ID
-          versionNumber,        // Nomor Versi Proyek
-          eventNameAuditor,     // Event Name
-          actionStatus,         // "auditor_verified" atau "auditor_rejected"
-          initialDataHash,      // Gunakan hash sebelumnya
-          adminUri              // URI sementara menggunakan URI admin
-      );
-      
-      const finalTxHash = receiptTrack.hash || receiptTrack.transactionHash;
+      // 3. [SAGA STEP 2]: BLOCKCHAIN EXECUTION DENGAN FAIL-SAFE
+      try {
+        Swal.update({ 
+          title: 'Tanda Tangan Web3', 
+          html: 'Mohon konfirmasi transaksi pencatatan (*Add Tracking*) di MetaMask Anda.' 
+        });
 
-      // 3. JIKA METAMASK SUKSES, BARU SIMPAN KE DATABASE LARAVEL
-      Swal.update({ 
-        title: 'Finalisasi...', 
-        html: 'Menghitung reduksi emisi & menyimpan dokumen audit ke server Verideon...' 
-      });
+        await connectWallet(auditorWallet); 
+        
+        const eventNameAuditor = action === 'verify' 
+            ? "Auditor Technical Verification Approved" 
+            : "Auditor Technical Verification Rejected";
 
-      if (action === 'verify') {
-        // Jika formdata, kirim bersamaan dengan tx_hash
-        await projectService.auditorVerify(projectId, payload, finalTxHash);
-      } else {
-        await projectService.auditorReject(projectId, { note: payload.audit_notes }, finalTxHash);
+        const receiptTrack = await addTrackingToBlockchain(
+            auditorWallet,        
+            projectId,            
+            projectId,            
+            versionNumber,        
+            eventNameAuditor,     
+            actionStatus,         
+            exactDataHash,        
+            exactUri              
+        );
+        
+        hasTxSuccess = true; // ✅ TX AUDIT BERHASIL! (Haram Rollback)
+        finalTxHash = receiptTrack.hash || receiptTrack.transactionHash;
+
+      } catch (web3Error) {
+        // 4. [SAGA STEP 3]: FAIL-SAFE AUTO ROLLBACK ATAU PENYELAMATAN
+        console.error("Web3 Error (MetaMask ditolak):", web3Error);
+        
+        // 👉 LOGIKA PENYELAMAT NYAWA:
+        if (!hasTxSuccess) {
+            Swal.update({ 
+              title: 'Membatalkan...', 
+              html: 'Transaksi dibatalkan. Mengembalikan status sistem (Rollback) demi keamanan...' 
+            });
+
+            await projectService.revertStatus(projectId, previousStatus);
+
+            if (web3Error.message && web3Error.message.includes('MISMATCH_WALLET')) {
+                const cleanMsg = web3Error.message.split('|')[1];
+                Swal.fire('Dompet Tidak Sesuai', cleanMsg, 'error');
+            } else {
+                Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data sistem telah otomatis dikembalikan (Rollback).', 'warning');
+            }
+        } else {
+            // JIKA BLOCKCHAIN SUDAH JALAN, JANGAN ROLLBACK!
+            Swal.fire('Info Jaringan', 'Transaksi berhasil di Blockchain, namun sinkronisasi UI agak terlambat karena jaringan sibuk. Data Anda aman!', 'success');
+        }
+
+        setIsAuditModalOpen(false);
+        fetchProjects();
+        return; // 👉 BERHENTI DI SINI AGAR TIDAK KE TAHAP SELANJUTNYA
+      }
+
+      // 5. [SAGA STEP 4]: SINKRONISASI TX HASH PRESISI KE ID SNAPSHOT
+      if (finalTxHash) {
+        try {
+          Swal.update({ title: 'Finalisasi...', html: 'Menyinkronkan transaksi ke database...' });
+          await projectService.saveTxHash(projectId, finalTxHash, exactSnapshotId);
+        } catch (dbError) {
+          console.warn("TxHash gagal disinkronkan ke DB:", dbError);
+        }
       }
       
       Swal.fire('Success', 'Hasil Audit MRV berhasil dikomputasi dan dicatat permanen ke Blockchain.', 'success');
       setIsAuditModalOpen(false);
       fetchProjects(); 
-      
+
     } catch (error) {
-      console.error("Audit Submit Error:", error);
-      
-      if (error.code === 'ACTION_REJECTED' || (error.message && error.message.includes('MetaMask'))) {
-         Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Karena Blockchain batal, dokumen audit tidak tersimpan.', 'warning');
-      } else {
-         const msg = error.response?.data?.message || error.message || 'Gagal memproses transaksi blockchain.';
-         Swal.fire('Error', msg, 'error');
-      }
-      
+      console.error("Backend Error:", error);
+      Swal.fire('Error', error.response?.data?.message || error.message || 'Gagal menyimpan data ke server.', 'error');
       setIsAuditModalOpen(false);
       fetchProjects();
     }
@@ -244,6 +274,7 @@ export default function AuditorReviewPage() {
       listed: { class: styles.badgeVerified, icon: <FaCheckCircle />, label: 'Listed' },
       auditor_verified: { class: styles.badgeVerified, icon: <FaCheckCircle />, label: 'Verified' },
       admin_approved: { class: styles.badgePending, icon: <FaClock />, label: 'Ready to Audit' }, 
+      returned_to_auditor: { class: styles.badgeRejected, icon: <FaExclamationTriangle />, label: 'Revision Needed' },
       rejected: { class: styles.badgeRejected, icon: <FaBan />, label: 'Rejected' },
     };
     const conf = badges[s] || { class: styles.badgeDraft, icon: <FaClock />, label: s };
@@ -373,8 +404,8 @@ export default function AuditorReviewPage() {
                           <FaEye />
                         </button>
                         
-                        {project.active_version?.status === 'admin_approved' && (
-                          <button className={`${styles.actionBtn} ${styles.btnAudit}`} onClick={() => handleStartAudit(project)} title="Start Verification">
+                        {['admin_approved', 'returned_to_auditor'].includes(project.active_version?.status) && (
+                          <button className={`${styles.actionBtn} ${styles.btnAudit}`} onClick={() => handleStartAudit(project)} title={project.active_version?.status === 'returned_to_auditor' ? "Perbaiki Audit" : "Start Verification"}>
                             <FaClipboardCheck />
                           </button>
                         )}

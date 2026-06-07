@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import styles from './ModalAuditProject.module.css';
 import { 
-  FaTimes, FaClipboardCheck, FaFileUpload, FaSolarPanel, FaLeaf, FaCalendarAlt, FaPen, FaImage, FaInfoCircle, FaCheckSquare
+  FaTimes, FaClipboardCheck, FaFileUpload, FaSolarPanel, FaLeaf, FaCalendarAlt, FaPen, FaImage, FaInfoCircle, FaCheckSquare,
+  FaExclamationTriangle // 👉 NEW IMPORT
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
@@ -19,7 +20,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
     onsite_measurement_date: '',
   });
 
-  // Checklist Verifikasi mengikat data asli dari Issuer
   const [checklistItems, setChecklistItems] = useState({
     location: { checked: false, label: `Kesesuaian Lokasi: ${activeVersion?.address || ''}, ${activeVersion?.kota?.nama || ''}` },
     capacity: { checked: false, label: `Kesesuaian Kapasitas Sistem: ${activeVersion?.total_system_capacity_kwp || 0} kWp` },
@@ -27,7 +27,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
     period: { checked: false, label: `Validitas Periode Klaim Tidak Overlap` }
   });
 
-  // State File & Loading
   const [auditDocs, setAuditDocs] = useState([]);
   const [auditImages, setAuditImages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -83,13 +82,11 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
       return;
     }
 
-    // VALIDASI UNTUK VERIFY
     if (auditDocs.length === 0) {
       Swal.fire('Warning', 'Dokumen Laporan Audit (PDF) wajib diunggah.', 'warning');
       return;
     }
 
-    // Semua checklist fisik wajib tercentang
     const unverifiedItems = Object.keys(checklistItems).filter(k => !checklistItems[k].checked);
     if (unverifiedItems.length > 0) {
       Swal.fire('Warning', 'Semua poin Checklist Verifikasi data fisik wajib dicentang untuk menyetujui proyek.', 'warning');
@@ -100,7 +97,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
     payload.append('action', 'verify');
     payload.append('calculation_method', formData.calculation_method);
     
-    // Kirim kapasitas asli milik issuer langsung ke backend
     payload.append('verified_installed_capacity_kwp', activeVersion?.total_system_capacity_kwp || 0);
     payload.append('baseline_emission_factor', formData.baseline_emission_factor);
     payload.append('audit_notes', formData.audit_notes);
@@ -113,7 +109,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
       payload.append('verified_generation_kwh', formData.verified_generation_kwh);
     }
 
-    // Bungkus checklist ke array untuk backend
     Object.keys(checklistItems).forEach((key, index) => {
       payload.append(`verification_checklist[${index}]`, `[✓] Verified: ${checklistItems[key].label}`);
     });
@@ -134,7 +129,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
   if (!project) return null;
 
   return (
-    // 👉 FIX: onClick dihilangkan agar tidak menutup modal saat area luar terklik
     <div className={styles.overlay}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         
@@ -152,7 +146,20 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
 
         {/* BODY */}
         <div className={styles.body}>
-          
+
+          {/* 👉 FIX: Sesuaikan pengecekan string status dari database */}
+          {activeVersion?.status === 'returned_to_auditor' && (
+            <div style={{ backgroundColor: '#fef2f2', padding: '12px 16px', borderRadius: '8px', color: '#991b1b', fontSize: '0.9rem', display: 'flex', alignItems: 'flex-start', gap: '10px', border: '1px solid #fecaca', marginBottom: '20px' }}>
+              <FaExclamationTriangle style={{fontSize: '1.2rem', flexShrink: 0, marginTop: '2px'}} />
+              <div>
+                <strong>Laporan Audit Dikembalikan oleh Admin!</strong>
+                <p style={{ marginTop: '4px', marginBottom: 0 }}>
+                  Catatan Admin: <i>"{activeVersion?.admin_notes || 'Silakan periksa kembali laporan komputasi Anda.'}"</i>
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className={styles.projectCard}>
             <h4 className={styles.projectName}>{activeVersion?.name || 'Unnamed Project'}</h4>
             <div className={styles.projectMetaGrid}>

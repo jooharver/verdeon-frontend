@@ -2,24 +2,45 @@ import { ethers } from 'ethers';
 import ProjectABI from './ProjectABI.json';
 import TokenABI from './TokenABI.json';
 
-// Contract Address di Polygon Amoy Testnet (👉 PASTIKAN UPDATE DENGAN ADDRESS BARU)
-export const PROJECT_ADDRESS = "0xDb6b2035295D0F4a18A88c6ae7f5882551f6b23E";
-export const TOKEN_ADDRESS = "0x6FA3de9037C22dE5490e3eA575c00C903cA4a170";
+// Contract Address di Polygon Amoy Testnet (Sudah pakai address terbarumu)
+export const PROJECT_ADDRESS = "0xa47948F8731Febdf0e9E5309D1fbda7841F4E00D";
+export const TOKEN_ADDRESS = "0x7364502992B4DbB729A2d5dcf960BdBd71BBEA99";
 
-// 1. Fungsi untuk konek ke MetaMask
-export const connectWallet = async () => {
+// Tambahkan parameter expectedAddress (dompet dari database)
+export const connectWallet = async (expectedAddress = null) => {
     if (typeof window !== 'undefined' && typeof window.ethereum !== 'undefined') {
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
+            
+            // 1. Minta akses akun standar
             await provider.send("eth_requestAccounts", []);
-            const signer = await provider.getSigner(); 
-            return { provider, signer };
+            let signer = await provider.getSigner(); 
+            let activeAddress = await signer.getAddress();
+
+            // 2. FIX UX: Jika dompet MetaMask yang aktif BEDA dengan database, paksa buka pilihan akun
+            if (expectedAddress && activeAddress.toLowerCase() !== expectedAddress.toLowerCase()) {
+                console.log("Dompet tidak sesuai terdeteksi! Memaksa MetaMask membuka pop-up pemilihan akun...");
+                
+                // Paksa MetaMask memunculkan kembali jendela pemilihan akun wallet
+                await provider.send("wallet_requestPermissions", [{ eth_accounts: {} }]);
+                
+                // Tarik ulang signer dan address terbaru setelah user memilih akun
+                signer = await provider.getSigner();
+                activeAddress = await signer.getAddress();
+                
+                // Validasi akhir jika setelah dipaksa user tetap memilih dompet yang salah
+                if (activeAddress.toLowerCase() !== expectedAddress.toLowerCase()) {
+                    throw new Error(`MISMATCH_WALLET|Dompet MetaMask Anda saat ini (${activeAddress.substring(0,6)}...) tidak sesuai dengan akun profil Anda (${expectedAddress.substring(0,6)}...). Proses transaksi diblokir.`);
+                }
+            }
+
+            return { provider, signer, activeAddress };
         } catch (error) {
-            console.error("Koneksi MetaMask dibatalkan atau gagal:", error);
+            console.error("Koneksi MetaMask gagal:", error);
             throw error;
         }
     } else {
-        alert("MetaMask belum terinstal! Silakan install ekstensi MetaMask di browser Anda.");
+        alert("MetaMask belum terinstal!");
         throw new Error("MetaMask tidak ditemukan.");
     }
 };
@@ -29,7 +50,7 @@ export const forceConnectWallet = async () => {
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
             
-            // Perintah sakti untuk memaksa pop-up pemilihan akun muncul lagi
+            // Perintah untuk memaksa pop-up pemilihan akun muncul lagi
             await provider.send("wallet_requestPermissions", [{ eth_accounts: {} }]);
             
             const signer = await provider.getSigner(); 
@@ -60,11 +81,45 @@ export const getTokenContract = (signerOrProvider) => {
 // MetaMask sering salah hitung gas di Polygon. Kita set manual ke 30+ Gwei.
 const getAmoyGasConfig = () => {
     return {
-        // Minimal Amoy adalah 25 Gwei, kita set 30 Gwei agar cepat diproses
+        // Minimal Amoy adalah 25 Gwei, kita set 25 Gwei untuk Priority
         maxPriorityFeePerGas: ethers.parseUnits("25", "gwei"),
         // Max fee kita set 35 Gwei (Base + Priority)
         maxFeePerGas: ethers.parseUnits("35", "gwei")
     };
+};
+
+// ==============================================================
+// 🛠️ NEW: VIEW HELPERS (UNTUK VALIDASI RESUME FRONTEND)
+// ==============================================================
+
+/**
+ * Mengecek apakah Proyek (NFT) sudah dicetak di Blockchain (Fungsi View - Gratis Gas)
+ */
+export const checkProjectIsMinted = async (projectId) => {
+    if (typeof window === 'undefined' || !window.ethereum) return false;
+    try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const contract = getProjectContract(provider);
+        return await contract.isProjectMinted(projectId);
+    } catch (error) {
+        console.error("Gagal mengecek status minting di blockchain:", error);
+        return false;
+    }
+};
+
+/**
+ * Mengambil status tracking terakhir proyek dari Blockchain (Fungsi View - Gratis Gas)
+ */
+export const checkLatestProjectStatus = async (projectId) => {
+    if (typeof window === 'undefined' || !window.ethereum) return "";
+    try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const contract = getProjectContract(provider);
+        return await contract.getLatestStatus(projectId);
+    } catch (error) {
+        console.error("Gagal mengecek status terakhir di blockchain:", error);
+        return "";
+    }
 };
 
 // ==============================================================
@@ -75,6 +130,7 @@ const getAmoyGasConfig = () => {
  * Mendaftarkan Proyek Baru ke Blockchain (Cetak NFT)
  */
 export const submitProjectToBlockchain = async (
+    executorWallet, // Dompet yang mengeksekusi (Admin)
     issuerWallet, 
     projectId, 
     versionNumber, 
@@ -82,7 +138,7 @@ export const submitProjectToBlockchain = async (
     initialDataHash, 
     initialUri
 ) => {
-    const { signer } = await connectWallet();
+    const { signer } = await connectWallet(executorWallet);
     const contract = getProjectContract(signer);
     
     // Sesuai dengan urutan parameter di fungsi mintProject Solidity baru
@@ -104,6 +160,7 @@ export const submitProjectToBlockchain = async (
  * Menambahkan Riwayat Audit / Perubahan Status
  */
 export const addTrackingToBlockchain = async (
+    executorWallet, // Dompet yang mengeksekusi (Admin / Auditor)
     tokenId, 
     projectId, 
     versionNumber, 
@@ -112,7 +169,7 @@ export const addTrackingToBlockchain = async (
     dataHash, 
     metadataUri
 ) => {
-    const { signer } = await connectWallet();
+    const { signer } = await connectWallet(executorWallet);
     const contract = getProjectContract(signer);
     
     // Sesuai dengan urutan parameter di fungsi addTrackingEvent Solidity baru
@@ -134,9 +191,14 @@ export const addTrackingToBlockchain = async (
 /**
  * Mencetak Token Karbon berdasarkan hasil Audit
  */
-// 👉 FIX: Menambahkan parameter projectName agar sinkron dengan VerdeonToken.sol
-export const mintCarbonTokens = async (issuerWallet, projectId, projectName, amountInWei) => {
-    const { signer } = await connectWallet();
+export const mintCarbonTokens = async (
+    executorWallet, // Dompet yang mengeksekusi (Admin)
+    issuerWallet, 
+    projectId, 
+    projectName, 
+    amountInWei
+) => {
+    const { signer } = await connectWallet(executorWallet);
     const contract = getTokenContract(signer);
     
     // Sesuai dengan urutan parameter di fungsi mintCarbonTokens VerdeonToken.sol terbaru

@@ -3,49 +3,42 @@ import { api } from "./api";
 
 export const projectService = {
 
-  // Mengambil proyek khusus milik issuer yang sedang login
   getMyProjects: async () => {
     return api("/issuer/projects");
   },
 
-  // Detail proyek berdasarkan ID
-  getProjectDetail: async (id: number) => {
+  getProjectDetail: async (id) => {
     return api(`/projects/${id}`);
   },
 
-  createProject: async (payload: FormData) => { 
+  createProject: async (payload) => { 
     return api("/projects", {
       method: "POST",
-      body: payload, // Langsung kirim, jangan di JSON.stringify
+      body: payload, 
     });
   },
 
-  updateProject: async (id: number, payload: FormData) => { 
-    // TRIK LARAVEL: File upload harus pakai POST, lalu kita spoofing methodnya
+  updateProject: async (id, payload) => { 
     payload.append('_method', 'PATCH'); 
-
     return api(`/projects/${id}`, {
-      method: "POST", // Harus POST agar multipart/form-data terbaca PHP
+      method: "POST", 
       body: payload,
     });
   },
 
-  // Submit proyek ke admin
-  submitProject: async (id: number) => {
+  submitProject: async (id) => {
     return api(`/projects/${id}/submit`, {
       method: "POST",
     });
   },
 
-  //Revise proyek
-  reviseProject: async (id: number) => {
+  reviseProject: async (id) => {
     return api(`/projects/${id}/revise`, {
       method: "POST",
     });
   },
 
-  // Hapus proyek
-  deleteProject: async (id: number) => {
+  deleteProject: async (id) => {
     return api(`/projects/${id}`, {
       method: "DELETE",
     });
@@ -55,46 +48,48 @@ export const projectService = {
   // ADMIN ENDPOINTS
   // ==========================================
   
-  // Mengambil semua project untuk dashboard Admin
   getAllProjects: async () => {
     return api("/admin/projects");
   },
 
-  // 👉 BARU DITAMBAHKAN: Mengambil antrean proyek yang sudah lolos audit (siap minting)
   getAdminListingQueue: async () => {
     return api("/admin/projects/listing-queue");
   },
 
-  // Admin menyetujui proyek (Menerima txHash)
-  adminApprove: async (id: number, txHash: string) => {
+  // 👉 UPDATE: txHash dibuat opsional/default string kosong
+  adminApprove: async (id, txHash = "") => {
+    const payload = txHash ? { tx_hash: txHash } : {};
     return api(`/admin/projects/${id}/approve`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ tx_hash: txHash }), 
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload), 
     });
   },
 
-  // Admin menolak proyek
-  adminReject: async (id: number, data: any) => {
+  adminReject: async (id, data, txHash = "") => {
+    const payload = { ...data, ...(txHash && { tx_hash: txHash }) };
     return api(`/admin/projects/${id}/reject`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
   },
 
-  // Admin me-listing proyek yang sudah lolos audit
-  adminListProject: async (id: number, txHash: string) => {
+  adminListProject: async (id, txHash = "") => {
+    const payload = txHash ? { tx_hash: txHash } : {};
     return api(`/admin/projects/${id}/list`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ tx_hash: txHash }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  adminRejectAuditor: async (id, data, txHash = "") => {
+    const payload = { ...data, ...(txHash && { tx_hash: txHash }) };
+    return api(`/admin/projects/${id}/reject-auditor`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
   },
 
@@ -106,45 +101,57 @@ export const projectService = {
     return api("/auditor/projects");
   },
 
-  // Menerima formData dan txHash
-  auditorVerify: async (id: number, formData: FormData, txHash: string) => {
+  // 👉 UPDATE: txHash dibuat opsional
+  auditorVerify: async (id, formData, txHash = "") => {
     if (txHash) {
       formData.append('tx_hash', txHash);
     }
-    
     return api(`/auditor/projects/${id}/verify`, {
       method: "POST",
       body: formData, 
     });
   },
 
-  // Menerima data note dan txHash
-  auditorReject: async (id: number, data: any, txHash: string) => {
-    const payload = {
-      ...data,
-      tx_hash: txHash
-    };
-
+  auditorReject: async (id, data, txHash = "") => {
+    const payload = { ...data, ...(txHash && { tx_hash: txHash }) };
     return api(`/auditor/projects/${id}/reject`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload), 
     });
   },
 
   // ==========================================
-  // PUBLIC / GENERAL ENDPOINTS
+  // PUBLIC / GENERAL / FAIL-SAFE ENDPOINTS
   // ==========================================
 
-  // 👉 BARU DITAMBAHKAN: Memanggil snapshot spesifik untuk pembuktian saat sidang
-  getProjectSnapshot: async (projectId: number, versionId: number, status: string) => {
+  getProjectSnapshot: async (projectId, versionId, status) => {
     return api(`/projects/${projectId}/versions/${versionId}/snapshot/${status}`);
   },
 
-  // 👉 BARU: Mengambil data khusus untuk Carbon Market
   getMarketProjects: async () => {
     return api("/market/projects"); 
+  },
+
+// FUNGSI UNTUK SINKRONISASI HASH SUSULAN
+  saveTxHash: async (id, txHash, snapshotId = null) => {
+    const payload = { tx_hash: txHash };
+    if (snapshotId) payload.snapshot_id = snapshotId;
+    
+    // UBAH BARIS INI 👇
+    return api(`/projects/${id}/save-tx`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // FAIL-SAFE ROLLBACK
+  revertStatus: async (id, previousStatus) => {
+    return api(`/projects/${id}/revert-status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ previous_status: previousStatus }),
+    });
   },
 };

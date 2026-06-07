@@ -7,7 +7,7 @@ import {
   FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
   FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaShieldAlt,
-  FaCopy, FaLink, FaSpinner, FaSearch
+  FaCopy, FaSpinner, FaSearch
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { ethers } from 'ethers';
@@ -26,16 +26,20 @@ export default function ModalProjectView({ project, onClose }) {
   const activeVersion = project?.active_version || {};
   const projectVersions = project?.versions || [activeVersion];
 
+  // 👉 FIX: Cek apakah project punya riwayat on-chain (Bukan Draft)
+  const hasOnChainData = activeVersion.status && activeVersion.status !== 'draft';
+
   useEffect(() => {
     setActiveImgIndex(0);
     setActiveTab('overview');
     
-    if (project && project.tx_hash && !project.tx_hash.includes('Mock')) {
+    // 👉 FIX: Tarik data dari blockchain selama statusnya bukan draft
+    if (project && hasOnChainData) {
       fetchBlockchainHistory(project.id);
     }
-  }, [project]);
+  }, [project, hasOnChainData]);
 
-  // 🔥 FUNGSI HYBRID WEB2.5: Menggabungkan Data Polygon dengan Database Laravel
+  // FUNGSI HYBRID WEB2.5: Menggabungkan Data Polygon dengan Database Laravel
   const fetchBlockchainHistory = async (projectId) => {
     if (typeof window === 'undefined' || !window.ethereum) return;
     setIsLoadingHistory(true);
@@ -46,16 +50,17 @@ export default function ModalProjectView({ project, onClose }) {
       // 1. Tarik jejak abadi dari Polygon
       const history = await contract.getProjectHistory(projectId);
       
-      // 2. Cocokkan dengan data tx_hash dari tabel versi Laravel-mu
-      const enrichedHistory = history.map((log, index) => {
-        const isLatest = index === history.length - 1;
+      // 2. Cocokkan dengan data tx_hash dari tabel ProjectSnapshots Laravel
+      const enrichedHistory = history.map((log) => {
         
-        // Cari versi di Laravel yang statusnya sesuai dengan event blockchain
-        const matchedVersion = projectVersions.find(v => v.status === log.status);
+        // Cari snapshot yang statusnya sama dengan log blockchain
+        // (Kita reverse() agar jika ada revisi berulang, dia mencocokkan dari yang paling baru)
+        const matchedSnapshot = [...(project.snapshots || [])].reverse().find(
+            snap => snap.status_at_snapshot === log.status && snap.data_hash === log.dataHash
+        );
         
-        // Jika backend sudah menyimpan tx_hash per versi, pakai itu. 
-        // Jika tidak, kita fallback pakai tx_hash utama untuk langkah terakhir.
-        const exactTxHash = matchedVersion?.tx_hash || (isLatest ? project.tx_hash : null);
+        // Jika ketemu di snapshot, pakai tx_hash-nya. Jika tidak, pakai null (fallback)
+        const exactTxHash = matchedSnapshot?.tx_hash || null;
 
         return {
           eventName: log.eventName,
@@ -64,7 +69,7 @@ export default function ModalProjectView({ project, onClose }) {
           dataHash: log.dataHash,
           metadataUri: log.metadataUri,
           status: log.status,
-          txHash: exactTxHash // 👉 Inject TxHash ke dalam history
+          txHash: exactTxHash // 👉 Sekarang 100% akurat per langkah!
         };
       });
 
@@ -190,7 +195,7 @@ export default function ModalProjectView({ project, onClose }) {
                 </div>
                 <div className={styles.headerActions}>
                   <span className={`${styles.badge} ${styles[activeVersion.status?.toLowerCase() || 'draft']}`}>
-                    {activeVersion.status?.replace('_', ' ').toUpperCase() || 'DRAFT'}
+                    {activeVersion.status?.replace(/_/g, ' ').toUpperCase() || 'DRAFT'}
                   </span>
                   <button className={styles.closeBtnHeader} onClick={onClose}>
                     <FaTimes />
@@ -281,8 +286,8 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
                   </div>
 
-                  {/* 🔥 UI/UX UPGRADE: TIMELINE DENGAN TOMBOL TRANSAKSI */}
-                  {project.tx_hash && (
+                  {/* 🔥 FIX: Render berdasakan hasOnChainData, BUKAN tx_hash */}
+                  {hasOnChainData && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}>
                         <FaShieldAlt style={{ color: '#0d9488' }} /> ON-CHAIN AUDIT TRAIL
@@ -355,7 +360,6 @@ export default function ModalProjectView({ project, onClose }) {
                                         </a>
                                       )}
                                       
-                                      {/* 👉 UPDATE: Belokkan ke halaman /snapshot */}
                                       <a 
                                         href={`/snapshot?url=${encodeURIComponent(log.metadataUri)}`} 
                                         target="_blank" 
@@ -375,15 +379,9 @@ export default function ModalProjectView({ project, onClose }) {
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '600' }}>Latest Transaction (Polygon)</span>
-                              <a href={`https://amoy.polygonscan.com/tx/${project.tx_hash}`} target="_blank" rel="noreferrer"
-                                style={{ color: '#0284c7', fontSize: '0.85rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
-                                View on Explorer <FaExternalLinkAlt size={12} />
-                              </a>
+                              <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '600' }}>No On-Chain Logs Found</span>
                             </div>
-                            <code style={{ fontSize: '0.75rem', backgroundColor: '#e2e8f0', padding: '8px 10px', borderRadius: '6px', color: '#334155', wordBreak: 'break-all' }}>
-                              {project.tx_hash}
-                            </code>
+                            <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Proyek ini sudah dikirim namun log blockchain belum tersinkronisasi.</p>
                           </div>
                         )}
 

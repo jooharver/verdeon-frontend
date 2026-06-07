@@ -6,25 +6,44 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract VerdeonProject is ERC721URIStorage, Ownable {
 
-    // --- STRUKTUR DATA BUKU LOG ---
     struct TrackingEvent {
-        uint256 projectId;     // ID Proyek dari Database Laravel
-        uint256 versionNumber; // Nomor urut revisi (1, 2, 3, dst)
-        string eventName;      // Deskripsi kejadian (contoh: "Issuer Initial Submission")
-        string status;         // Status proyek ("submitted", "admin_approved", dll)
-        string dataHash;       // Hash SHA256 dari snapshot data
-        string metadataUri;    // URL link menuju snapshot data
-        address actor;         // Dompet eksekutor transaksi
-        uint256 timestamp;     // Waktu otomatis dari blockchain
+        uint256 projectId;     
+        uint256 versionNumber; 
+        string eventName;      
+        string status;         
+        string dataHash;       
+        string metadataUri;    
+        address actor;         
+        uint256 timestamp;     
     }
 
-    // Mapping untuk menyimpan array riwayat per Token ID
     mapping(uint256 => TrackingEvent[]) public projectHistory;
+    mapping(address => bool) public authorizedTrackers;
+    
+    // Gembok Status Terakhir untuk mencegah pencatatan ganda
+    mapping(uint256 => string) public latestStatus; 
 
-    // Nama Platform menggunakan "Verdeon"
+    modifier onlyAuthorized() {
+        require(msg.sender == owner() || authorizedTrackers[msg.sender], "Error: Dompet Anda tidak memiliki akses!");
+        _;
+    }
+
     constructor() ERC721("Verdeon Carbon Project", "VCP") Ownable(msg.sender) {}
 
-    // 1. FUNGSI MINTING
+    function setAuthorizedTracker(address _tracker, bool _status) public onlyOwner {
+        authorizedTrackers[_tracker] = _status;
+    }
+
+    // Fungsi Helper untuk dibaca oleh Frontend
+    function isProjectMinted(uint256 projectId) public view returns (bool) {
+        return _ownerOf(projectId) != address(0);
+    }
+
+    function getLatestStatus(uint256 projectId) public view returns (string memory) {
+        return latestStatus[projectId];
+    }
+
+    // 1. FUNGSI MINTING (Tx 1 Initial)
     function mintProject(
         address issuerWallet, 
         uint256 projectId,
@@ -33,21 +52,23 @@ contract VerdeonProject is ERC721URIStorage, Ownable {
         string memory initialDataHash,
         string memory initialUri
     ) public onlyOwner returns (uint256) {
-        // Paksa Token ID sama persis dengan Project ID dari Laravel
         uint256 tokenId = projectId;
         
-        // Pastikan ID ini belum pernah dicetak sebelumnya
-        require(_ownerOf(tokenId) == address(0), "Error: Project ID ini sudah dicetak di Blockchain!");
+        // Safeguard Bawaan
+        require(!isProjectMinted(tokenId), "Error: Project ID ini sudah dicetak di Blockchain!");
         
         _mint(issuerWallet, tokenId);
         _setTokenURI(tokenId, initialUri);
 
         _addTracking(tokenId, projectId, versionNumber, eventName, "submitted", initialDataHash, initialUri, msg.sender);
+        
+        // Kunci status terakhir
+        latestStatus[projectId] = "submitted"; 
 
         return tokenId;
     }
 
-    // 2. FUNGSI AUDIT TRAIL
+    // 2. FUNGSI AUDIT TRAIL (Tx 2 Initial & Tx 1 Listing)
     function addTrackingEvent(
         uint256 tokenId,
         uint256 projectId,
@@ -56,36 +77,32 @@ contract VerdeonProject is ERC721URIStorage, Ownable {
         string memory newStatus, 
         string memory dataHash,
         string memory metadataUri
-    ) public onlyOwner {
-        require(_ownerOf(tokenId) != address(0), "Error: Project NFT belum diterbitkan");
+    ) public onlyAuthorized {
+        require(isProjectMinted(tokenId), "Error: Project NFT belum diterbitkan");
+        
+        // SAFEGUARD ANTI-DOUBLE TRACKING
+        require(
+            keccak256(abi.encodePacked(latestStatus[projectId])) != keccak256(abi.encodePacked(newStatus)),
+            string(abi.encodePacked("Error: Proyek ini sudah berstatus ", newStatus))
+        );
         
         _addTracking(tokenId, projectId, versionNumber, eventName, newStatus, dataHash, metadataUri, msg.sender);
+        
+        // Kunci status terakhir
+        latestStatus[projectId] = newStatus;
     }
 
-    // Fungsi Internal
     function _addTracking(
-        uint256 tokenId,
-        uint256 projectId,
-        uint256 versionNumber,
-        string memory eventName,
-        string memory status, 
-        string memory dataHash, 
-        string memory metadataUri, 
-        address actor
+        uint256 tokenId, uint256 projectId, uint256 versionNumber, string memory eventName,
+        string memory status, string memory dataHash, string memory metadataUri, address actor
     ) internal {
         projectHistory[tokenId].push(TrackingEvent({
-            projectId: projectId,
-            versionNumber: versionNumber,
-            eventName: eventName,
-            status: status,
-            dataHash: dataHash,
-            metadataUri: metadataUri,
-            actor: actor,
-            timestamp: block.timestamp
+            projectId: projectId, versionNumber: versionNumber, eventName: eventName,
+            status: status, dataHash: dataHash, metadataUri: metadataUri,
+            actor: actor, timestamp: block.timestamp
         }));
     }
 
-    // FUNGSI Project Histroy
     function getProjectHistory(uint256 tokenId) public view returns (TrackingEvent[] memory) {
         return projectHistory[tokenId];
     }

@@ -1,76 +1,78 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import Link from 'next/link'; // <-- 1. TAMBAHKAN IMPORT INI
+import React, { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import styles from './CarbonMarket.module.css';
 import Topbar from '../../components/Topbar';
 import { 
   FaSearch, FaChevronLeft, FaChevronRight, 
-  FaFilter, FaTimes, FaMapMarkerAlt, FaSyncAlt
+  FaFilter, FaTimes, FaMapMarkerAlt, FaSyncAlt, FaSpinner
 } from 'react-icons/fa';
 
-// --- Data Dummy (Tidak Berubah) ---
-const dummyTokens = [
-  { id: 1, name: "Solar Panel Green Renewable Energy PT.GNE", location: "Malang", price: 3.50, available: 15720, type: "Solar", verifier: "Verra", imageUrl: "/images/pv-1.jpg" },
-  { id: 2, name: "Mentari Jaya Abadi Solar Panel Indonesia", location: "Banyuwangi", price: 2.50, available: 15720, type: "Solar", verifier: "Gold Standard", imageUrl: "/images/pv-2.jpg" },
-  { id: 3, name: "Goldi Solar Panel Jaya Hijau Asri", location: "Kalimantan Tengah", price: 2.70, available: 15720, type: "Solar", verifier: "Verra", imageUrl: "/images/pv-3.jpg" },
-  { id: 4, name: "Surya Pama Jagat Sentosa Raya PV", location: "Bekasi", price: 3.10, available: 15720, type: "Solar", verifier: "Gold Standard", imageUrl: "/images/pv-4.jpg" },
-  { id: 5, name: "Takamura Proyek Solar Panel", location: "Ponorogo", price: 3.60, available: 15720, type: "Solar", verifier: "Verra", imageUrl: "/images/pv-5.jpg" },
-  { id: 6, name: "Relion Daya Abadi Nusantara", location: "Sulawesi Tenggara", price: 3.80, available: 15720, type: "Solar", verifier: "Gold Standard", imageUrl: "/images/pv-6.jpg" },
-  { id: 7, name: "PT Makmur Hijau Sentosa Solar Panel", location: "Kabupaten Riau", price: 3.00, available: 15720, type: "Solar", verifier: "Verra", imageUrl: "/images/pv-7.jpg" },
-  { id: 8, name: "PV Indonesia Bebas Karbon", location: "Lampung Utara", price: 2.35, available: 15720, type: "Solar", verifier: "Gold Standard", imageUrl: "/images/pv-8.jpg" },
-  { id: 9, name: "Kalimantan Peatland Restoration", location: "Kalimantan", price: 18.50, available: 1200, type: "Reforestation", verifier: "Verra", imageUrl: "/images/pv-1.jpg" },
-  { id: 10, name: "Java Geothermal Plant", location: "Jawa Barat", price: 22.00, available: 5000, type: "Geothermal", verifier: "Gold Standard", imageUrl: "/images/pv-2.jpg" },
-  { id: 11, name: "Bali Wind Turbine Array", location: "Bali", price: 19.75, available: 3500, type: "Wind", verifier: "Verra", imageUrl: "/images/pv-5.jpg" },
-];
-
-// Opsi filter (Tidak Berubah)
-const LOCATIONS = ["Malang", "Banyuwangi", "Kalimantan Tengah", "Bekasi", "Ponorogo", "Sulawesi Tenggara", "Kabupaten Riau", "Lampung Utara", "Kalimantan", "Jawa Barat", "Bali"];
-const TYPES = ["Solar", "Reforestation", "Geothermal", "Wind"];
-const VERIFIERS = ["Verra", "Gold Standard"];
+// 👉 IMPORT SERVICE API
+import { projectService } from '../../../services/projectService'; 
+import { api } from '../../../services/api';
 
 const ITEMS_PER_PAGE = 8;
+const DEFAULT_PRICE = 15.00; // Harga statis dummy per token (karena tidak ada fitur pricing engine)
+
+// 👉 FIX: Daftar Provinsi Statis agar filter tidak pernah hilang walau data kosong
+const STATIC_LOCATIONS = [
+  "DKI Jakarta", "Jawa Barat", "Jawa Tengah", "Jawa Timur", 
+  "Bali", "Banten", "Sumatera Utara", "Kalimantan Timur", "Sulawesi Selatan"
+];
+const TYPES = ["Solar", "Wind", "Geothermal", "Biomass"]; 
 
 export default function CarbonMarketPage() {
-  // Data untuk Topbar (Tidak Berubah)
   const pageTitle = "Carbon Market";
   const pageBreadcrumbs = ["Dashboard", "Carbon Market"];
 
-  // --- States (Tidak Berubah) ---
+  const [projects, setProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // States Filter & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
-  const initialFilters = {
-    location: [],
-    type: [],
-    verifier: [],
-    priceMin: '',
-    priceMax: '',
-    tokenMin: '',
-    tokenMax: '',
-  };
+  const initialFilters = { location: [], type: [] };
   const [filters, setFilters] = useState(initialFilters);
 
-  // --- Handlers (Tidak Berubah) ---
+  // 👉 FETCH REAL DATA DARI DATABASE
+  useEffect(() => {
+      const fetchMarketProjects = async () => {
+        try {
+          // 👉 Gunakan service khusus market yang baru
+          const data = await projectService.getMarketProjects(); 
+          
+          // Data sudah difilter di backend (hanya listed), 
+          // jadi kita bisa langsung set ke state.
+          setProjects(Array.isArray(data) ? data : []);
+        } catch (error) {
+          console.error("Gagal memuat pasar karbon:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchMarketProjects();
+  }, []);
+
+  // Gabungkan Provinsi dari Database + Provinsi Statis
+  const LOCATIONS = useMemo(() => {
+    const dynamicLocs = projects.map(p => p.active_version?.provinsi?.nama).filter(Boolean);
+    return [...new Set([...STATIC_LOCATIONS, ...dynamicLocs])].sort();
+  }, [projects]);
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
     if (type === 'checkbox') {
       setFilters(prev => {
         const list = prev[name] ? [...prev[name]] : [];
-        if (checked) {
-          list.push(value);
-        } else {
-          const index = list.indexOf(value);
-          if (index > -1) list.splice(index, 1);
-        }
+        if (checked) list.push(value);
+        else list.splice(list.indexOf(value), 1);
         return { ...prev, [name]: list };
       });
-    } else {
-      setFilters(prev => ({ ...prev, [name]: value }));
     }
     setCurrentPage(1);
   };
@@ -80,17 +82,6 @@ export default function CarbonMarketPage() {
     setCurrentPage(1);
   };
 
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
   const resetFilters = () => {
     setFilters(initialFilters);
     setSearchTerm('');
@@ -98,79 +89,71 @@ export default function CarbonMarketPage() {
     setCurrentPage(1);
   };
 
-  // --- Logika Filtering, Sorting, Pagination (Tidak Berubah) ---
+  // LOGIKA PENCARIAN & FILTERING
+  const processedProjects = useMemo(() => {
+    let result = [...projects];
 
-  const processedTokens = useMemo(() => {
-    let filteredTokens = [...dummyTokens];
+    result = result.filter(p => {
+      const v = p.active_version;
+      const name = v?.name || '';
+      const location = v?.provinsi?.nama || 'Unknown';
+      const type = v?.project_type || 'Solar';
 
-    // 1. Filtering
-    filteredTokens = filteredTokens.filter(token => {
-      const matchesSearch = token.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesLocation = filters.location.length === 0 || filters.location.includes(token.location);
-      const matchesType = filters.type.length === 0 || filters.type.includes(token.type);
-      const matchesVerifier = filters.verifier.length === 0 || filters.verifier.includes(token.verifier);
+      const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesLocation = filters.location.length === 0 || filters.location.includes(location);
+      const matchesType = filters.type.length === 0 || filters.type.includes(type);
 
-      const priceMin = parseFloat(filters.priceMin);
-      const priceMax = parseFloat(filters.priceMax);
-      const matchesPriceMin = !priceMin || token.price >= priceMin;
-      const matchesPriceMax = !priceMax || token.price <= priceMax;
-
-      const tokenMin = parseFloat(filters.tokenMin);
-      const tokenMax = parseFloat(filters.tokenMax);
-      const matchesTokenMin = !tokenMin || token.available >= tokenMin;
-      const matchesTokenMax = !tokenMax || token.available <= tokenMax;
-
-      return matchesSearch && matchesLocation && matchesType && matchesVerifier && 
-             matchesPriceMin && matchesPriceMax && matchesTokenMin && matchesTokenMax;
+      return matchesSearch && matchesLocation && matchesType;
     });
 
-    // 2. Sorting
-    filteredTokens.sort((a, b) => {
+    result.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      const nameA = a.active_version?.name || '';
+      const nameB = b.active_version?.name || '';
+
       switch (sortOrder) {
-        case 'price-asc': return a.price - b.price;
-        case 'price-desc': return b.price - a.price;
-        case 'name-asc': return a.name.localeCompare(b.name);
-        case 'name-desc': return b.name.localeCompare(a.name);
-        case 'newest':
-        default:
-          return b.id - a.id;
+        case 'name-asc': return nameA.localeCompare(nameB);
+        case 'name-desc': return nameB.localeCompare(nameA);
+        case 'newest': default: return dateB - dateA;
       }
     });
 
-    return filteredTokens;
-  }, [searchTerm, filters, sortOrder]);
+    return result;
+  }, [projects, searchTerm, filters, sortOrder]);
 
-  // 3. Pagination
-  const totalItems = processedTokens.length;
+  const totalItems = processedProjects.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-  const paginatedTokens = useMemo(() => {
+  const paginatedProjects = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE;
-    return processedTokens.slice(start, end);
-  }, [processedTokens, currentPage]);
+    return processedProjects.slice(start, start + ITEMS_PER_PAGE);
+  }, [processedProjects, currentPage]);
 
-  // --- Komponen Internal (Tidak Berubah) ---
+  const getFullUrl = (filePath) => {
+    if (!filePath) return '';
+    let cleanPath = filePath.replace(/\\/g, '/');
+    if (cleanPath.startsWith('public/')) cleanPath = cleanPath.replace('public/', '');
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    return `${apiBaseUrl.replace(/\/api\/?$/, '')}/storage/${cleanPath}`;
+  };
+
   const FilterSidebar = () => (
     <aside className={`${styles.filterSidebar} ${isFilterOpen ? styles.filterSidebarOpen : ''}`}>
       <div className={styles.filterHeader}>
         <h4><FaFilter /> Filter</h4>
         <button className={styles.filterCloseButton} onClick={() => setIsFilterOpen(false)}><FaTimes /></button>
       </div>
-
       <div className={styles.filterBody}>
-        {/* Filter Group: Lokasi */}
         <div className={styles.filterGroup}>
-          <h5 className={styles.filterTitle}>Lokasi</h5>
-          {LOCATIONS.slice(0, 5).map(loc => (
+          <h5 className={styles.filterTitle}>Provinsi</h5>
+          {LOCATIONS.map(loc => (
             <div className={styles.filterOption} key={loc}>
               <input type="checkbox" id={`loc-${loc}`} name="location" value={loc} onChange={handleFilterChange} checked={filters.location.includes(loc)} />
               <label htmlFor={`loc-${loc}`}>{loc}</label>
             </div>
           ))}
         </div>
-
-        {/* Filter Group: Tipe Proyek */}
         <div className={styles.filterGroup}>
           <h5 className={styles.filterTitle}>Tipe Proyek</h5>
           {TYPES.map(type => (
@@ -180,42 +163,9 @@ export default function CarbonMarketPage() {
             </div>
           ))}
         </div>
-
-        {/* Filter Group: Verifier */}
-        <div className={styles.filterGroup}>
-          <h5 className={styles.filterTitle}>Verifier</h5>
-          {VERIFIERS.map(v => (
-            <div className={styles.filterOption} key={v}>
-              <input type="checkbox" id={`v-${v}`} name="verifier" value={v} onChange={handleFilterChange} checked={filters.verifier.includes(v)} />
-              <label htmlFor={`v-${v}`}>{v}</label>
-            </div>
-          ))}
-        </div>
-
-        {/* Filter Group: Rentang Harga */}
-        <div className={styles.filterGroup}>
-          <h5 className={styles.filterTitle}>Rentang Harga (USD)</h5>
-          <div className={styles.rangeInputs}>
-            <input type="number" name="priceMin" placeholder="Minimum" value={filters.priceMin} onChange={handleFilterChange} className={styles.rangeInput} />
-            <input type="number" name="priceMax" placeholder="Maksimum" value={filters.priceMax} onChange={handleFilterChange} className={styles.rangeInput} />
-          </div>
-        </div>
-
-        {/* Filter Group: Rentang Token */}
-        <div className={styles.filterGroup}>
-          <h5 className={styles.filterTitle}>Rentang Token Tersedia</h5>
-          <div className={styles.rangeInputs}>
-            <input type="number" name="tokenMin" placeholder="Minimum" value={filters.tokenMin} onChange={handleFilterChange} className={styles.rangeInput} />
-            <input type="number" name="tokenMax" placeholder="Maksimum" value={filters.tokenMax} onChange={handleFilterChange} className={styles.rangeInput} />
-          </div>
-        </div>
       </div>
-
-      {/* Reset Button */}
       <div className={styles.filterFooter}>
-        <button className={styles.resetButton} onClick={resetFilters}>
-          <FaSyncAlt /> Hapus Filter
-        </button>
+        <button className={styles.resetButton} onClick={resetFilters}><FaSyncAlt /> Hapus Filter</button>
       </div>
     </aside>
   );
@@ -224,125 +174,87 @@ export default function CarbonMarketPage() {
     <div>
       <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
       <div className={styles.pageContainer}>
-        
         {isFilterOpen && <div className={styles.filterOverlay} onClick={() => setIsFilterOpen(false)}></div>}
-
         <FilterSidebar />
 
         <main className={styles.mainContent}>
-
-          {/* Toolbar: Search, Sort */}
           <section className={styles.toolbar}>
             <div className={styles.searchContainer}>
               <FaSearch className={styles.searchIcon} />
-              <input 
-                type="text" 
-                placeholder="Search for carbon token" 
-                className={styles.searchInput}
-                value={searchTerm}
-                onChange={handleSearchChange}
-              />
+              <input type="text" placeholder="Search for carbon token" className={styles.searchInput} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-
             <div className={styles.controlsContainer}>
-              {/* Tombol filter untuk mobile */}
-              <button className={styles.filterToggleButton} onClick={() => setIsFilterOpen(true)}>
-                <FaFilter /> Filter
-              </button>
-              
-              <select 
-                className={styles.sortSelect} 
-                value={sortOrder} 
-                onChange={handleSortChange}
-              >
+              <button className={styles.filterToggleButton} onClick={() => setIsFilterOpen(true)}><FaFilter /> Filter</button>
+              <select className={styles.sortSelect} value={sortOrder} onChange={handleSortChange}>
                 <option value="newest">Urutkan: Terbaru</option>
-                <option value="price-asc">Urutkan: Harga (Rendah ke Tinggi)</option>
-                <option value="price-desc">Urutkan: Harga (Tinggi ke Rendah)</option>
                 <option value="name-asc">Urutkan: Nama (A-Z)</option>
                 <option value="name-desc">Urutkan: Nama (Z-A)</option>
               </select>
             </div>
           </section>
 
-          {/* Result Bar */}
-          <section className={styles.resultBar}>
-            <div className={styles.resultInfo}>
-              <span>Menampilkan {paginatedTokens.length} dari {totalItems} hasil</span>
-            </div>
-
-            {totalPages > 1 && (
-              <div className={styles.pagination}>
-                <button 
-                  className={styles.paginationButton} 
-                  onClick={() => handlePageChange(currentPage - 1)} 
-                  disabled={currentPage === 1}
-                >
-                  <FaChevronLeft />
-                </button>
-                
-                <span className={styles.pageInfo}>
-                  {currentPage} / {totalPages}
-                </span>
-
-                <button 
-                  className={styles.paginationButton} 
-                  onClick={() => handlePageChange(currentPage + 1)} 
-                  disabled={currentPage === totalPages}
-                >
-                  <FaChevronRight />
-                </button>
-              </div>
-            )}
-          </section>
-
-
-          {/* Grid Produk */}
-          <section className={styles.productGrid}>
-            {paginatedTokens.length > 0 ? (
-              paginatedTokens.map(token => (
-                
-                // --- 👇 2. INI PERUBAHANNYA ---
-                <Link 
-                  href={`/carbon-market/1`} // 👉 FIX: Semua diarahkan ke ID 1 untuk demo
-                  key={token.id} 
-                  className={styles.productLink} 
-                >
-                  <div className={styles.productCard}> {/* <- Key dihapus dari sini */}
-                    <img 
-                      src={token.imageUrl} 
-                      alt={token.name} 
-                      className={styles.productImage} 
-                      onError={(e) => e.target.src = 'https://placehold.co/600x400/cccccc/white?text=Image+Error'}
-                    />
-                    <div className={styles.productContent}>
-                      <h4 className={styles.productTitle}>{token.name}</h4>
-                      
-                      <span className={styles.productPrice}>
-                        USD ${token.price.toFixed(2)}
-                      </span>
-                      
-                      <span className={styles.productTag}>
-                        {token.available.toLocaleString()} token available
-                      </span>
-                      
-                      <div className={styles.productLocation}>
-                        <FaMapMarkerAlt />
-                        <span>{token.location}</span>
-                      </div>
-                    </div>
+          {isLoading ? (
+             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40vh', color: '#0ea5e9' }}>
+               <FaSpinner className="fa-spin" size={40} />
+             </div>
+          ) : (
+            <>
+              <section className={styles.resultBar}>
+                <div className={styles.resultInfo}>
+                  <span>Menampilkan {paginatedProjects.length} dari {totalItems} hasil</span>
+                </div>
+                {totalPages > 1 && (
+                  <div className={styles.pagination}>
+                    <button className={styles.paginationButton} onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 1}><FaChevronLeft /></button>
+                    <span className={styles.pageInfo}>{currentPage} / {totalPages}</span>
+                    <button className={styles.paginationButton} onClick={() => setCurrentPage(prev => prev + 1)} disabled={currentPage === totalPages}><FaChevronRight /></button>
                   </div>
-                </Link>
-                // --- 👆 AKHIR PERUBAHAN ---
+                )}
+              </section>
 
-              ))
-            ) : (
-              <div className={styles.emptyState}>
-                <h5>Hasil Tidak Ditemukan</h5>
-                <p>Coba sesuaikan pencarian atau filter Anda.</p>
-              </div>
-            )}
-          </section>
-          
+              <section className={styles.productGrid}>
+                {paginatedProjects.length > 0 ? (
+                  paginatedProjects.map(project => {
+                    const version = project.active_version;
+                    
+                    // Ambil gambar utama dari database
+                    const mainImgDoc = version?.documents?.find(d => d.type === 'image');
+                    const imgUrl = mainImgDoc ? getFullUrl(mainImgDoc.file_path) : 'https://placehold.co/600x400/cccccc/white?text=No+Image';
+                    
+                    // Ambil jumlah token yang di-generate oleh Auditor
+                    const tokenAvailable = version?.audit_report?.carbon_reduction_amount_ton || 0;
+
+                    return (
+                      // 👉 FIX: Link kembali menggunakan ID asli dari database
+                      <Link href={`/carbon-market/${project.id}`} key={project.id} className={styles.productLink}>
+                        <div className={styles.productCard}>
+                          <img src={imgUrl} alt={version.name} className={styles.productImage} onError={(e) => e.target.src = 'https://placehold.co/600x400/cccccc/white?text=Image+Error'} />
+                          <div className={styles.productContent}>
+                            <h4 className={styles.productTitle}>{version.name}</h4>
+                            <span className={styles.productPrice}>USD ${DEFAULT_PRICE.toFixed(2)}</span>
+                            
+                            <span className={styles.productTag}>
+                              {Number(tokenAvailable).toLocaleString('id-ID')} VCT Available
+                            </span>
+                            
+                            <div className={styles.productLocation}>
+                              <FaMapMarkerAlt /> 
+                              <span>{version.kota?.nama || 'Unknown'}, {version.provinsi?.nama || ''}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })
+                ) : (
+                  <div className={styles.emptyState}>
+                    <h5>Belum ada proyek yang dilisting</h5>
+                    <p>Silakan selesaikan proses audit dan listing proyek Anda di halaman Dashboard.</p>
+                  </div>
+                )}
+              </section>
+            </>
+          )}
         </main>
       </div>
     </div>

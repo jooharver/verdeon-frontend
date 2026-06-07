@@ -6,18 +6,25 @@ import {
   FaTimes, FaMapMarkerAlt, FaSolarPanel, FaBolt, 
   FaCalendarDay, FaFilePdf, FaExternalLinkAlt, 
   FaInfoCircle, FaImage, FaExpand, FaChevronLeft, FaChevronRight,
-  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaRocket
+  FaAlignLeft, FaBuilding, FaClipboardCheck, FaUserTie, FaLeaf, FaCheckDouble, FaClock, FaUserShield, FaRocket,
+  FaReply, FaExclamationTriangle
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
-export default function ModalListingProject({ project, onClose, onList }) {
+export default function ModalListingProject({ project, onClose, onList, onRejectAuditor }) {
   const [activeTab, setActiveTab] = useState('overview'); 
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   
+  // State untuk mode penolakan manual (Kembalikan ke Auditor)
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectNote, setRejectNote] = useState('');
+  
   useEffect(() => {
     setActiveImgIndex(0);
     setActiveTab('overview'); 
+    setIsRejecting(false);
+    setRejectNote('');
   }, [project]);
 
   if (!project) return null;
@@ -95,13 +102,9 @@ export default function ModalListingProject({ project, onClose, onList }) {
     setActiveImgIndex((prev) => (prev === 0 ? currentGallery.length - 1 : prev - 1));
   };
 
-  // ==============================================================
-  // 🔥 FUNGSI PEMICU (Melempar eksekusi ke AdminProject.js)
-  // ==============================================================
   const handleConfirmList = async () => {
     const issuerWallet = project.issuer?.wallet_address;
     
-    // Safety Guard: Pastikan dompet Issuer ada untuk menerima token
     if (!issuerWallet || issuerWallet === "") {
       Swal.fire('Error', 'Issuer belum mengatur Wallet Address di profil! Token VCT tidak dapat dicetak.', 'error');
       return;
@@ -115,7 +118,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
 
     const result = await Swal.fire({
       title: 'List to Market?',
-      text: `Proyek akan resmi di-list dan ${calculatedCarbon.toLocaleString()} VCT Token akan dicetak ke dompet Issuer (${issuerWallet.substring(0, 6)}...).`,
+      text: `Proyek akan resmi di-list dan ${calculatedCarbon.toLocaleString('id-ID')} VCT Token akan dicetak ke dompet Issuer (${issuerWallet.substring(0, 6)}...).`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#22c55e', 
@@ -125,12 +128,20 @@ export default function ModalListingProject({ project, onClose, onList }) {
     });
 
     if (result.isConfirmed) {
-      // Lempar seluruh payload yang dibutuhkan ke fungsi handleFinalList di AdminProject.js
       onList(project.id, { 
         calculatedCarbon, 
         issuerWallet, 
         project 
       });
+    }
+  };
+
+  const submitRejectNote = () => {
+    if (!rejectNote || rejectNote.trim() === '') return;
+    if (onRejectAuditor) {
+      onRejectAuditor(project.id, { note: rejectNote }, project);
+    } else {
+      console.error("Props onRejectAuditor tidak ditemukan!");
     }
   };
 
@@ -140,7 +151,7 @@ export default function ModalListingProject({ project, onClose, onList }) {
       <div className={styles.specContent}>
         <span className={styles.specLabel}>{label}</span>
         <strong className={styles.specValue}>
-          {value ? (typeof value === 'number' ? value.toLocaleString() : value) : '-'} {unit && value && value !== '-' ? <span className={styles.unit}>{unit}</span> : ''}
+          {value ? (typeof value === 'number' ? value.toLocaleString('id-ID') : value) : '-'} {unit && value && value !== '-' ? <span className={styles.unit}>{unit}</span> : ''}
         </strong>
       </div>
       {verified && <div className={styles.verifiedBadge}><FaCheckDouble /></div>}
@@ -395,26 +406,78 @@ export default function ModalListingProject({ project, onClose, onList }) {
             )}
           </div>
 
-          <div className={styles.footer} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
-             <div className={styles.footerNote}>Tinjau data auditor sebelum menerbitkan proyek ke market.</div>
-             <div style={{ display: 'flex', gap: '12px' }}>
-                 <button type="button" onClick={onClose} className={styles.closeBtnBottom}>
-                   Cancel
-                 </button>
-                 <button 
-                   type="button" 
-                   onClick={handleConfirmList} 
-                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
-                 >
-                   <FaRocket /> Publish & Mint Token
-                 </button>
-             </div>
+          <div className={styles.footer} style={{ display: 'flex', flexDirection: 'column' }}>
+             
+             {/* AREA INPUT REJECT MANUAL (Muncul dengan animasi jika isRejecting true) */}
+             {isRejecting && (
+               <div className={styles.rejectContainer}>
+                 <label className={styles.rejectLabel}>
+                   <FaExclamationTriangle /> Tulis Catatan Revisi untuk Auditor
+                 </label>
+                 <textarea 
+                   className={styles.rejectTextarea}
+                   placeholder="Jelaskan secara detail bagian mana yang perlu diperbaiki (misal: 'Angka kapasitas inverter tidak sesuai dengan dokumen PDF di lampiran')..."
+                   value={rejectNote}
+                   onChange={(e) => setRejectNote(e.target.value)}
+                   autoFocus
+                 />
+                 <div className={styles.rejectActions}>
+                   <button 
+                     type="button" 
+                     className={styles.btnCancelReject}
+                     onClick={() => setIsRejecting(false)}
+                   >
+                     Batal
+                   </button>
+                   <button 
+                     type="button" 
+                     className={styles.btnSubmitReject}
+                     onClick={submitRejectNote}
+                     disabled={rejectNote.trim() === ''}
+                   >
+                     Kirim Revisi ke Auditor
+                   </button>
+                 </div>
+               </div>
+             )}
+
+             {/* TOMBOL AKSI UTAMA (Menghilang perlahan/tergantikan saat mode reject aktif) */}
+             {!isRejecting && (
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                 <div className={styles.footerNote}>Tinjau data auditor sebelum menerbitkan proyek ke market.</div>
+                 <div style={{ display: 'flex', gap: '12px' }}>
+                     <button type="button" onClick={onClose} className={styles.closeBtnBottom}>
+                       Cancel
+                     </button>
+
+                     <button 
+                       type="button" 
+                       onClick={() => setIsRejecting(true)} 
+                       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#f59e0b', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
+                     >
+                       <FaReply /> Kembalikan ke Auditor
+                     </button>
+
+                     <button 
+                       type="button" 
+                       onClick={handleConfirmList} 
+                       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
+                     >
+                       <FaRocket /> Publish & Mint Token
+                     </button>
+                 </div>
+               </div>
+             )}
+
           </div>
         </div>
       </div>
 
       {isLightboxOpen && (
         <div className={styles.lightboxOverlay} onClick={() => setIsLightboxOpen(false)}>
+          <button className={styles.lightboxCloseBtn} onClick={() => setIsLightboxOpen(false)}>
+            <FaTimes />
+          </button>
           <div className={styles.lightboxContent} onClick={e => e.stopPropagation()}>
             <img src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} className={styles.lightboxImg} alt="Lightbox" />
           </div>

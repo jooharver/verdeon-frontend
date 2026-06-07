@@ -553,3 +553,31 @@
   background-color: var(--bg-main);
   border: 1px solid var(--border-color);
 }
+
+/* --- TOMBOL POLYGONSCAN --- */
+.polygonscanBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--brand-color, #0ea5e9);
+  color: #ffffff !important;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+  width: max-content; /* Biar tombolnya gak melar */
+}
+
+.polygonscanBtn:hover {
+  opacity: 0.85;
+}
+
+/* Helper untuk menata posisi tombol di sebelah kanan nama */
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
