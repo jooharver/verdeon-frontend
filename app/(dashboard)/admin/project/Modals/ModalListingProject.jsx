@@ -406,68 +406,69 @@ export default function ModalListingProject({ project, onClose, onList, onReject
             )}
           </div>
 
-          <div className={styles.footer} style={{ display: 'flex', flexDirection: 'column' }}>
-             
-             {/* AREA INPUT REJECT MANUAL (Muncul dengan animasi jika isRejecting true) */}
-             {isRejecting && (
-               <div className={styles.rejectContainer}>
-                 <label className={styles.rejectLabel}>
-                   <FaExclamationTriangle /> Tulis Catatan Revisi untuk Auditor
-                 </label>
-                 <textarea 
-                   className={styles.rejectTextarea}
-                   placeholder="Jelaskan secara detail bagian mana yang perlu diperbaiki (misal: 'Angka kapasitas inverter tidak sesuai dengan dokumen PDF di lampiran')..."
-                   value={rejectNote}
-                   onChange={(e) => setRejectNote(e.target.value)}
-                   autoFocus
-                 />
-                 <div className={styles.rejectActions}>
-                   <button 
-                     type="button" 
-                     className={styles.btnCancelReject}
-                     onClick={() => setIsRejecting(false)}
-                   >
-                     Batal
-                   </button>
-                   <button 
-                     type="button" 
-                     className={styles.btnSubmitReject}
-                     onClick={submitRejectNote}
-                     disabled={rejectNote.trim() === ''}
-                   >
-                     Kirim Revisi ke Auditor
-                   </button>
-                 </div>
-               </div>
-             )}
+          {/* 🔥 FIX: FOOTER DIJADIKAN STRETCH AGAR REJECT BOX FULL WIDTH */}
+          <div className={styles.footer} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', width: '100%' }}>
+            
+            {/* AREA INPUT REJECT MANUAL (Muncul dengan animasi jika isRejecting true) */}
+            {isRejecting && (
+              <div className={styles.rejectContainer} style={{ width: '100%' }}>
+                <label className={styles.rejectLabel}>
+                  <FaExclamationTriangle /> Tulis Catatan Revisi untuk Auditor
+                </label>
+                <textarea 
+                  className={styles.rejectTextarea}
+                  placeholder="Jelaskan secara detail bagian mana yang perlu diperbaiki (misal: 'Angka kapasitas inverter tidak sesuai dengan dokumen PDF di lampiran')..."
+                  value={rejectNote}
+                  onChange={(e) => setRejectNote(e.target.value)}
+                  autoFocus
+                />
+                <div className={styles.rejectActions}>
+                  <button 
+                    type="button" 
+                    className={styles.btnCancelReject}
+                    onClick={() => setIsRejecting(false)}
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    type="button" 
+                    className={styles.btnSubmitReject}
+                    onClick={submitRejectNote}
+                    disabled={rejectNote.trim() === ''}
+                  >
+                    Kirim Revisi ke Auditor
+                  </button>
+                </div>
+              </div>
+            )}
 
-             {/* TOMBOL AKSI UTAMA (Menghilang perlahan/tergantikan saat mode reject aktif) */}
-             {!isRejecting && (
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                 <div className={styles.footerNote}>Tinjau data auditor sebelum menerbitkan proyek ke market.</div>
-                 <div style={{ display: 'flex', gap: '12px' }}>
-                     <button type="button" onClick={onClose} className={styles.closeBtnBottom}>
-                       Cancel
-                     </button>
+            {/* TOMBOL AKSI UTAMA (Menghilang perlahan/tergantikan saat mode reject aktif) */}
+            {!isRejecting && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div className={styles.footerNote}>Tinjau data auditor sebelum menerbitkan proyek ke market.</div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <button type="button" onClick={onClose} className={styles.closeBtnBottom}>
+                      Cancel
+                    </button>
 
-                     <button 
-                       type="button" 
-                       onClick={() => setIsRejecting(true)} 
-                       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#f59e0b', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
-                     >
-                       <FaReply /> Kembalikan ke Auditor
-                     </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsRejecting(true)} 
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#f59e0b', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
+                    >
+                      <FaReply /> Kembalikan ke Auditor
+                    </button>
 
-                     <button 
-                       type="button" 
-                       onClick={handleConfirmList} 
-                       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
-                     >
-                       <FaRocket /> Publish & Mint Token
-                     </button>
-                 </div>
-               </div>
-             )}
+                    <button 
+                      type="button" 
+                      onClick={handleConfirmList} 
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '6px', border: 'none', backgroundColor: '#22c55e', color: 'white', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s ease' }}
+                    >
+                      <FaRocket /> Publish & Mint Token
+                    </button>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>
