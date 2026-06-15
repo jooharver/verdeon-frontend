@@ -50,15 +50,9 @@ export default function ModalProjectView({ project, onClose }) {
       
       const enrichedHistory = history.map((log) => {
           
+        // Mencocokkan berdasarkan 'status' untuk menarik tx_hash dari local database snapshot
         const matchedSnapshot = [...(project.snapshots || [])].reverse().find(
-          snap => {
-              // 👉 FIX FINAL: NORMALISASI BRUTAL
-              // Kita buang awalan 0x (kalau ada) dan jadikan huruf kecil semua
-              const cleanDbHash = snap.data_hash.replace(/^0x/i, '').toLowerCase();
-              const cleanChainHash = log.dataHash.replace(/^0x/i, '').toLowerCase();
-              
-              return snap.status_at_snapshot === log.status && cleanDbHash === cleanChainHash;
-          }
+          snap => snap.status_at_snapshot === log.status
         );
           
         const exactTxHash = matchedSnapshot?.tx_hash || null;
@@ -70,7 +64,7 @@ export default function ModalProjectView({ project, onClose }) {
           dataHash: log.dataHash,
           metadataUri: log.metadataUri,
           status: log.status,
-          txHash: exactTxHash // 👉 Pasti ketemu sekarang!
+          txHash: exactTxHash
         };
       });
 
@@ -287,7 +281,7 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
                   </div>
 
-                  {/* 🔥 RENDER AUDIT TRAIL */}
+                  {/* AUDIT TRAIL TIMELINE */}
                   {hasOnChainData && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}>
@@ -300,7 +294,7 @@ export default function ModalProjectView({ project, onClose }) {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#6b7280', fontSize: '0.9rem', justifyContent: 'center' }}>
                             <FaSpinner className="fa-spin" /> Fetching immutable ledger from Polygon...
                           </div>
-                        ) : blockchainHistory.length > 0 ? (
+                        ) : [blockchainHistory].length > 0 ? (
                           
                           <div style={{ position: 'relative', paddingLeft: '16px', borderLeft: '2px solid #cbd5e1', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             {blockchainHistory.map((log, index) => {
@@ -338,38 +332,60 @@ export default function ModalProjectView({ project, onClose }) {
                                       </button>
                                     </div>
 
-                                    {/* 👉 TOMBOL ACTION DINAMIS (HARUSNYA VIEW TRANSACTION SEKARANG MUNCUL!) */}
-                                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                      {log.txHash ? (
-                                        <a 
-                                          href={`https://amoy.polygonscan.com/tx/${log.txHash}`} 
-                                          target="_blank" 
-                                          rel="noreferrer" 
-                                          style={{ fontSize: '0.75rem', color: '#0369a1', backgroundColor: '#e0f2fe', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
-                                        >
-                                          <FaExternalLinkAlt /> View Transaction
-                                        </a>
-                                      ) : (
-                                        <a 
-                                          href={`https://amoy.polygonscan.com/address/${log.actor}`} 
-                                          target="_blank" 
-                                          rel="noreferrer" 
-                                          title="TxHash belum tersimpan di DB, lihat log aktor"
-                                          style={{ fontSize: '0.75rem', color: '#4f46e5', backgroundColor: '#e0e7ff', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
-                                        >
-                                          <FaSearch /> View Actor Logs
-                                        </a>
-                                      )}
+                                    {/* ============================================================== */}
+                                    {/* 👉 FIX LAYOUT: STRUKTUR TOMBOL ACTION 2 BARIS (2 ROWS) */}
+                                    {/* ============================================================== */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
                                       
-                                      <a 
-                                        href={`/snapshot?url=${encodeURIComponent(log.metadataUri)}`} 
-                                        target="_blank" 
-                                        rel="noreferrer" 
-                                        style={{ fontSize: '0.75rem', color: '#0d9488', backgroundColor: '#ccfbf1', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
-                                      >
-                                        <FaFilePdf /> Data Snapshot
-                                      </a>
+                                      {/* 🌟 BARIS 1: TRANSAKSI BLOCKCHAIN */}
+                                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        {log.txHash ? (
+                                          <a 
+                                            href={`https://amoy.polygonscan.com/tx/${log.txHash}`} 
+                                            target="_blank" 
+                                            rel="noreferrer" 
+                                            style={{ fontSize: '0.75rem', color: '#0369a1', backgroundColor: '#e0f2fe', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
+                                          >
+                                            <FaExternalLinkAlt /> View Transaction
+                                          </a>
+                                        ) : (
+                                          <a 
+                                            href={`https://amoy.polygonscan.com/address/${log.actor}`} 
+                                            target="_blank" 
+                                            rel="noreferrer" 
+                                            title="TxHash belum tersimpan di DB, lihat log aktor"
+                                            style={{ fontSize: '0.75rem', color: '#4f46e5', backgroundColor: '#e0e7ff', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
+                                          >
+                                            <FaSearch /> View Actor Logs
+                                          </a>
+                                        )}
+
+                                        {log.status === 'listed' && project.blockchain_tx && (
+                                          <a 
+                                            href={`https://amoy.polygonscan.com/tx/${project.blockchain_tx}`} 
+                                            target="_blank" 
+                                            rel="noreferrer" 
+                                            style={{ fontSize: '0.75rem', color: '#b45309', backgroundColor: '#fef3c7', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
+                                          >
+                                            <FaBolt color="#f59e0b" /> View Mint Token
+                                          </a>
+                                        )}
+                                      </div>
+
+                                      {/* 🌟 BARIS 2: SNAPSHOT DATA DOCUMENT */}
+                                      <div style={{ display: 'flex' }}>
+                                        <a 
+                                          href={`/snapshot?url=${encodeURIComponent(log.metadataUri)}`} 
+                                          target="_blank" 
+                                          rel="noreferrer" 
+                                          style={{ fontSize: '0.75rem', color: '#0d9488', backgroundColor: '#ccfbf1', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
+                                        >
+                                          <FaFilePdf /> Data Snapshot
+                                        </a>
+                                      </div>
+
                                     </div>
+                                    {/* ============================================================== */}
 
                                   </div>
                                 </div>

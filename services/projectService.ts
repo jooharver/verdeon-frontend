@@ -133,12 +133,13 @@ export const projectService = {
     return api("/market/projects"); 
   },
 
-// FUNGSI UNTUK SINKRONISASI HASH SUSULAN
-  saveTxHash: async (id, txHash, snapshotId = null) => {
-    const payload = { tx_hash: txHash };
+  // FUNGSI UNTUK SINKRONISASI HASH SUSULAN
+  saveTxHash: async (id, txHash, snapshotId = null, blockchainTx = null) => {
+    const payload = {};
+    if (txHash) payload.tx_hash = txHash;
     if (snapshotId) payload.snapshot_id = snapshotId;
+    if (blockchainTx) payload.blockchain_tx = blockchainTx; // 👉 Dikirim ke laravel sebagai blockchain_tx
     
-    // UBAH BARIS INI 👇
     return api(`/projects/${id}/save-tx`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

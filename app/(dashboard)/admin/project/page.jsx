@@ -13,9 +13,11 @@ import {
 import Swal from 'sweetalert2';
 import { ethers } from 'ethers'; 
 
+// Import Services
 import { projectService } from '../../../../services/projectService';
 import { api } from '../../../../services/api';
 
+// IMPORT LENGKAP: Masukkan fungsi checker web3
 import { 
   connectWallet, 
   submitProjectToBlockchain, 
@@ -27,6 +29,7 @@ import {
 
 import { useAuth } from '../../../../context/AuthContext'; 
 
+// Modals
 import ModalProjectView from '../../my-project/CRUD/ModalProjectView'; 
 import ModalVerifiedProject from './Modals/ModalVerifiedProject'; 
 import ModalListingProject from './Modals/ModalListingProject';
@@ -146,7 +149,10 @@ export default function AdminProject() {
     setIsVerifyModalOpen(true);
   };
 
-const handleSaveVerification = async (projectId, payload) => {
+  // ==============================================================
+  // 🔥 FUNGSI 1: ADMIN REVIEW VERIFICATION (ANTI SPLIT-BRAIN)
+  // ==============================================================
+  const handleSaveVerification = async (projectId, payload) => {
     try {
       if (!adminWallet) throw new Error("Anda belum menghubungkan dompet Web3!");
 
@@ -159,6 +165,8 @@ const handleSaveVerification = async (projectId, payload) => {
       const actionStatus = payload.action === 'approve' ? 'admin_approved' : 'admin_rejected';
       const issuerWallet = projectToVerify.issuer?.wallet_address;
       
+      if (!issuerWallet) throw new Error("Issuer belum mengatur dompet MetaMask! Proses tidak bisa dilanjutkan.");
+
       let backendResponse;
       if (payload.action === 'approve') {
         backendResponse = await projectService.adminApprove(projectId, "");
@@ -178,40 +186,55 @@ const handleSaveVerification = async (projectId, payload) => {
       const exactSubmittedUri = submittedJson?.snapshotUri || submittedJson?.data?.snapshotUri; 
       const exactSubmittedId = submittedJson?.snapshotId || submittedJson?.data?.snapshotId; 
 
-      let finalTxHash = null;
+      let trackingTxHash = null;
       let hasTxSuccess = false; 
 
       try {
         await connectWallet(adminWallet);
+
         const isMinted = await checkProjectIsMinted(projectId);
+        let currentOnChainStatus = "";
+        try { currentOnChainStatus = await checkLatestProjectStatus(projectId); } catch(e) { console.warn("RPC Lag", e) }
 
         if (!isMinted) {
-          Swal.update({ title: 'Transaksi (Mint NFT)', html: 'Mohon konfirmasi di MetaMask Anda.' });
+          Swal.update({ title: 'Transaksi 1 (Mint NFT)', html: 'Mohon konfirmasi pencetakan aset di MetaMask Anda.' });
           const receiptTx1 = await submitProjectToBlockchain(
               adminWallet, issuerWallet, projectId, versionNumber, "Issuer Project Initial Submission", initialDataHash, exactSubmittedUri
           );
           
           hasTxSuccess = true; 
-          
-          // X-RAY LOG 1: Lihat bentuk asli receipt dari Ethers.js!
-          console.log("RECEIPT MINTING DARI METAMASK:", receiptTx1);
-          
           const tx1Hash = receiptTx1?.hash || receiptTx1?.transactionHash || receiptTx1?.id;
           if (tx1Hash) {
-             try { 
-               await projectService.saveTxHash(projectId, tx1Hash, exactSubmittedId); 
-             } catch(e) {
-               console.error("GAGAL SAVE MINTING HASH:", e);
-             }
+             try { await projectService.saveTxHash(projectId, tx1Hash, exactSubmittedId); } catch(e) {}
           }
-          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
+          await new Promise(resolve => setTimeout(resolve, 4000));
+        } 
+        
+        else if (isMinted && ['admin_rejected', 'auditor_rejected', 'returned_to_auditor'].includes(currentOnChainStatus)) {
+          Swal.update({ title: `Mencatat Revisi (v${versionNumber})`, html: 'Mohon konfirmasi log Revisi Issuer di MetaMask Anda.' });
+          const eventNameResubmit = `Issuer Project Resubmission (v${versionNumber})`;
+          
+          const receiptResubmit = await addTrackingToBlockchain(
+              adminWallet, projectId, projectId, versionNumber, eventNameResubmit, 'submitted', initialDataHash, exactSubmittedUri
+          );
+          
+          hasTxSuccess = true; 
+          const txResubmitHash = receiptResubmit?.hash || receiptResubmit?.transactionHash || receiptResubmit?.id;
+          if (txResubmitHash) {
+            try { await projectService.saveTxHash(projectId, txResubmitHash, exactSubmittedId); } catch(e) {}
+          }
+
+          Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
+          await new Promise(resolve => setTimeout(resolve, 4000));
         }
 
         let updatedOnChainStatus = "";
         try { updatedOnChainStatus = await checkLatestProjectStatus(projectId); } catch(e) {}
 
         if (updatedOnChainStatus !== actionStatus) {
-          Swal.update({ title: 'Catat Keputusan', html: 'Mohon konfirmasi di MetaMask Anda.' });
+          Swal.update({ title: 'Catat Keputusan Admin', html: 'Mohon konfirmasi pencatatan keputusan di MetaMask Anda.' });
           const eventNameAdmin = payload.action === 'approve' ? "Admin Document Verification Approved" : "Admin Document Verification Rejected";
           
           const receiptTrack = await addTrackingToBlockchain(
@@ -219,43 +242,32 @@ const handleSaveVerification = async (projectId, payload) => {
           );
           
           hasTxSuccess = true; 
-          
-          // X-RAY LOG 2: Lihat bentuk asli tracking receipt
-          console.log("RECEIPT TRACKING DARI METAMASK:", receiptTrack);
-          
-          finalTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
-          console.log("HASH YANG BERHASIL DITANGKAP FRONTEND:", finalTxHash);
+          trackingTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
         }
 
       } catch (web3Error) {
+        console.error("Web3 Error:", web3Error);
         if (!hasTxSuccess) {
+            Swal.update({ title: 'Membatalkan...', html: 'Transaksi dibatalkan. Mengembalikan status sistem (Rollback)...' });
             await projectService.revertStatus(projectId, previousStatus);
-            Swal.fire('Dibatalkan', 'Transaksi ditolak melalui MetaMask.', 'warning');
+            if (web3Error.message && web3Error.message.includes('MISMATCH_WALLET')) {
+                Swal.fire('Dompet Tidak Sesuai', web3Error.message.split('|')[1], 'error');
+            } else {
+                Swal.fire('Dibatalkan', 'Transaksi ditolak melalui MetaMask. Status dikembalikan demi keamanan data.', 'warning');
+            }
         } else {
-            Swal.fire('Berhasil', 'Transaksi Blockchain selesai.', 'success');
+            Swal.fire('Info Jaringan', 'Transaksi berhasil di Blockchain, namun sinkronisasi UI agak terlambat.', 'success');
         }
-        setIsVerifyModalOpen(false); fetchProjects(); return; 
+        setIsVerifyModalOpen(false);
+        fetchProjects();
+        return; 
       }
 
-      // X-RAY 3: PROSES PENYIMPANAN KE DATABASE
-      console.log("MENCOBA SAVE KE DB. HASH:", finalTxHash, " | SNAPSHOT ID:", exactSnapshotId);
-      
-      if (finalTxHash) {
+      if (trackingTxHash) {
         try {
           Swal.update({ title: 'Finalisasi...', html: 'Menyinkronkan transaksi ke database...' });
-          
-          // Panggil API Backend
-          const dbResult = await projectService.saveTxHash(projectId, finalTxHash, exactSnapshotId);
-          console.log("RESPON DATABASE:", dbResult);
-          
-        } catch (dbError) {
-          // 👉 FIX FATAL: Jangan disembunyikan lagi! Tampilkan pesan error aslinya!
-          console.error("❌ BACKEND MENOLAK TX HASH:", dbError);
-          Swal.fire('Peringatan Database', 'Transaksi sukses di Polygon, TAPI gagal tersimpan di database: ' + (dbError.message || 'Unknown Error'), 'warning');
-        }
-      } else {
-         console.error("❌ finalTxHash KOSONG (UNDEFINED)! Pantesan gak kesimpen ke database.");
-         Swal.fire('Peringatan Frontend', 'Transaksi sukses, tapi Ethers.js gagal menangkap kode Hash.', 'warning');
+          await projectService.saveTxHash(projectId, trackingTxHash, exactSnapshotId);
+        } catch (dbError) {}
       }
 
       Swal.fire('Berhasil!', 'Proyek telah diulas dan jejak terekam permanen di Blockchain.', 'success');
@@ -269,6 +281,9 @@ const handleSaveVerification = async (projectId, payload) => {
     }
   };
 
+  // ==============================================================
+  // 🔥 FUNGSI 2: FINAL LISTING & MINT TOKENS (SINKRONISASI GANDA)
+  // ==============================================================
   const handleFinalList = async (projectId, payload) => {
     try {
       if (!adminWallet) throw new Error("Anda belum menghubungkan dompet Web3!");
@@ -288,7 +303,6 @@ const handleSaveVerification = async (projectId, payload) => {
       Swal.update({ html: 'Menyimpan status listing ke server Verideon...' });
       const backendResponse = await projectService.adminListProject(projectId, "");
       
-      // 👉 FIX: Fallback parser
       const exactDataHash = backendResponse?.dataHash || backendResponse?.data?.dataHash;
       const exactUri = backendResponse?.snapshotUri || backendResponse?.data?.snapshotUri; 
       const exactSnapshotId = backendResponse?.snapshotId || backendResponse?.data?.snapshotId;
@@ -299,7 +313,8 @@ const handleSaveVerification = async (projectId, payload) => {
       const initialDataHash = auditorJson?.hash_info?.expected_blockchain_hash || auditorJson?.data?.hash_info?.expected_blockchain_hash;
       const exactAuditorUri = auditorJson?.snapshotUri || auditorJson?.data?.snapshotUri;
 
-      let finalTxHash = null;
+      let trackingTxHash = null;
+      let blockchainTx = null; // 👉 MENGGUNAKAN blockchainTx SESUAI TABEL DB
       let hasTxSuccess = false;
 
       try {
@@ -308,30 +323,29 @@ const handleSaveVerification = async (projectId, payload) => {
         let currentStatus = "";
         try { currentStatus = await checkLatestProjectStatus(projectId); } catch(e) {}
 
+        // TRANSAKSI 1: ADD TRACKING (LISTED)
         if (currentStatus !== 'listed') {
           Swal.update({ title: 'Mencatat Listing (1/2)', html: 'Mohon konfirmasi transaksi Add Tracking di MetaMask.' });
           
           const receiptTrack = await addTrackingToBlockchain(
-            adminWallet, projectId, projectId, versionNumber, "Project Officially Listed to Market", 'listed', initialDataHash, exactAuditorUri
+            adminWallet, projectId, projectId, versionNumber, "Project Officially Listed to Market", 'listed', exactDataHash, exactAuditorUri
           );
           hasTxSuccess = true; 
           
-          finalTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
+          trackingTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
 
           Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
           await new Promise(resolve => setTimeout(resolve, 3500));
         }
 
+        // TRANSAKSI 2: MINT CARBON TOKENS
         Swal.update({ title: `Mencetak ${calculatedCarbon} VCT (2/2)`, html: 'Mohon konfirmasi penerbitan aset beserta Signature di MetaMask.' });
         const projectName = project.active_version?.name || `Verdeon Project #${projectId}`;
 
         const receiptMint = await mintCarbonTokens(adminWallet, issuerWallet, projectId, projectName, exactAmountInWei, serverSignature);
         
         hasTxSuccess = true; 
-        
-        if (!finalTxHash) {
-             finalTxHash = receiptMint?.hash || receiptMint?.transactionHash || receiptMint?.id;
-        }
+        blockchainTx = receiptMint?.hash || receiptMint?.transactionHash || receiptMint?.id; // 👉 SIMPAN KE VARIABEL BARU
 
       } catch (web3Error) {
         if (!hasTxSuccess) {
@@ -350,11 +364,14 @@ const handleSaveVerification = async (projectId, payload) => {
         return; 
       }
 
-      if (finalTxHash) {
+      // 👉 KIRIM KEDUA HASH SECARA UTUH DAN PRESISI
+      if (trackingTxHash || blockchainTx) {
         try {
           Swal.update({ title: 'Finalisasi...', html: 'Menyinkronkan transaksi ke database...' });
-          await projectService.saveTxHash(projectId, finalTxHash, exactSnapshotId);
-        } catch (dbError) {}
+          await projectService.saveTxHash(projectId, trackingTxHash, exactSnapshotId, blockchainTx);
+        } catch (dbError) {
+          console.error("Gagal simpan hash ke DB:", dbError);
+        }
       }
       
       Swal.fire('Berhasil!', 'Proyek resmi dilisting dan token VCT telah dicetak!', 'success');
@@ -368,6 +385,9 @@ const handleSaveVerification = async (projectId, payload) => {
     }
   };
 
+  // ==============================================================
+  // 🔥 FUNGSI 3: KEMBALIKAN KE AUDITOR (ANTI SPLIT-BRAIN)
+  // ==============================================================
   const handleRejectAuditor = async (projectId, payload, project) => {
     try {
       if (!adminWallet) throw new Error("Anda belum menghubungkan dompet Web3!");
@@ -380,7 +400,6 @@ const handleSaveVerification = async (projectId, payload) => {
 
       const backendResponse = await projectService.adminRejectAuditor(projectId, { note: payload.note }, "");
       
-      // 👉 FIX: Fallback parser
       const exactDataHash = backendResponse?.dataHash || backendResponse?.data?.dataHash;
       const exactUri = backendResponse?.snapshotUri || backendResponse?.data?.snapshotUri; 
       const exactSnapshotId = backendResponse?.snapshotId || backendResponse?.data?.snapshotId;
