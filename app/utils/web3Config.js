@@ -1,10 +1,12 @@
+//utils/web3config.js
+
 import { ethers } from 'ethers';
 import ProjectABI from './ProjectABI.json';
 import TokenABI from './TokenABI.json';
 
 // Contract Address di Polygon Amoy Testnet (Sudah pakai address terbarumu)
-export const PROJECT_ADDRESS = "0xa47948F8731Febdf0e9E5309D1fbda7841F4E00D";
-export const TOKEN_ADDRESS = "0x7364502992B4DbB729A2d5dcf960BdBd71BBEA99";
+export const PROJECT_ADDRESS = "0x9234e2A5F6Cc128E1D4fd7f81e8Df9a79cCc1c50";
+export const TOKEN_ADDRESS = "0x329CC4B58a3d12c393561d37a309286Cc1da2915";
 
 // Tambahkan parameter expectedAddress (dompet dari database)
 export const connectWallet = async (expectedAddress = null) => {
@@ -189,24 +191,26 @@ export const addTrackingToBlockchain = async (
 };
 
 /**
- * Mencetak Token Karbon berdasarkan hasil Audit
+ * Mencetak Token Karbon berdasarkan hasil Audit + ECDSA Signature
  */
 export const mintCarbonTokens = async (
     executorWallet, // Dompet yang mengeksekusi (Admin)
     issuerWallet, 
     projectId, 
     projectName, 
-    amountInWei
+    amountInWei,
+    signature       // 👉 NEW: Parameter tambahan untuk Signature
 ) => {
     const { signer } = await connectWallet(executorWallet);
     const contract = getTokenContract(signer);
     
-    // Sesuai dengan urutan parameter di fungsi mintCarbonTokens VerdeonToken.sol terbaru
+    // Sesuaikan parameter dengan urutan di fungsi mintCarbonTokens VerdeonToken.sol terbaru
     const tx = await contract.mintCarbonTokens(
         issuerWallet, 
         projectId, 
         projectName,
         amountInWei, 
+        signature,  // 👉 Lempar signature ke Smart Contract
         getAmoyGasConfig()
     );
     

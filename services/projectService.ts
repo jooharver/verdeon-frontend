@@ -154,4 +154,11 @@ export const projectService = {
       body: JSON.stringify({ previous_status: previousStatus }),
     });
   },
+
+  // 👉 NEW: Meminta Digital Signature dari Laravel sebelum Minting
+  requestMintSignature: async (id) => {
+    return api(`/admin/projects/${id}/request-mint-signature`, {
+      method: "GET",
+    });
+  },
 };

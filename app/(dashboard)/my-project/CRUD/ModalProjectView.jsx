@@ -26,14 +26,13 @@ export default function ModalProjectView({ project, onClose }) {
   const activeVersion = project?.active_version || {};
   const projectVersions = project?.versions || [activeVersion];
 
-  // 👉 FIX: Cek apakah project punya riwayat on-chain (Bukan Draft)
+  // Cek apakah project punya riwayat on-chain
   const hasOnChainData = activeVersion.status && activeVersion.status !== 'draft';
 
   useEffect(() => {
     setActiveImgIndex(0);
     setActiveTab('overview');
     
-    // 👉 FIX: Tarik data dari blockchain selama statusnya bukan draft
     if (project && hasOnChainData) {
       fetchBlockchainHistory(project.id);
     }
@@ -47,19 +46,21 @@ export default function ModalProjectView({ project, onClose }) {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = getProjectContract(provider);
       
-      // 1. Tarik jejak abadi dari Polygon
       const history = await contract.getProjectHistory(projectId);
       
-      // 2. Cocokkan dengan data tx_hash dari tabel ProjectSnapshots Laravel
       const enrichedHistory = history.map((log) => {
-        
-        // Cari snapshot yang statusnya sama dengan log blockchain
-        // (Kita reverse() agar jika ada revisi berulang, dia mencocokkan dari yang paling baru)
+          
         const matchedSnapshot = [...(project.snapshots || [])].reverse().find(
-            snap => snap.status_at_snapshot === log.status && snap.data_hash === log.dataHash
+          snap => {
+              // 👉 FIX FINAL: NORMALISASI BRUTAL
+              // Kita buang awalan 0x (kalau ada) dan jadikan huruf kecil semua
+              const cleanDbHash = snap.data_hash.replace(/^0x/i, '').toLowerCase();
+              const cleanChainHash = log.dataHash.replace(/^0x/i, '').toLowerCase();
+              
+              return snap.status_at_snapshot === log.status && cleanDbHash === cleanChainHash;
+          }
         );
-        
-        // Jika ketemu di snapshot, pakai tx_hash-nya. Jika tidak, pakai null (fallback)
+          
         const exactTxHash = matchedSnapshot?.tx_hash || null;
 
         return {
@@ -69,7 +70,7 @@ export default function ModalProjectView({ project, onClose }) {
           dataHash: log.dataHash,
           metadataUri: log.metadataUri,
           status: log.status,
-          txHash: exactTxHash // 👉 Sekarang 100% akurat per langkah!
+          txHash: exactTxHash // 👉 Pasti ketemu sekarang!
         };
       });
 
@@ -286,7 +287,7 @@ export default function ModalProjectView({ project, onClose }) {
                     </div>
                   </div>
 
-                  {/* 🔥 FIX: Render berdasakan hasOnChainData, BUKAN tx_hash */}
+                  {/* 🔥 RENDER AUDIT TRAIL */}
                   {hasOnChainData && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}>
@@ -337,7 +338,7 @@ export default function ModalProjectView({ project, onClose }) {
                                       </button>
                                     </div>
 
-                                    {/* 👉 TOMBOL ACTION DINAMIS */}
+                                    {/* 👉 TOMBOL ACTION DINAMIS (HARUSNYA VIEW TRANSACTION SEKARANG MUNCUL!) */}
                                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                                       {log.txHash ? (
                                         <a 

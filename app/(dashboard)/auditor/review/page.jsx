@@ -13,14 +13,12 @@ import {
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
-// Import Services
 import { projectService } from '../../../../services/projectService';
 import { api } from '../../../../services/api'; 
 
 import { connectWallet, addTrackingToBlockchain } from '../../../utils/web3Config';
 import { useAuth } from '../../../../context/AuthContext';
 
-// Modals
 import ModalProjectView from '../../my-project/CRUD/ModalProjectView'; 
 import ModalAuditProject from './Modals/ModalAuditProject'; 
 
@@ -33,7 +31,6 @@ export default function AuditorReviewPage() {
   const { user } = useAuth();
   const auditorWallet = user?.wallet_address;
 
-  // --- STATE ---
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,9 +132,6 @@ export default function AuditorReviewPage() {
     setIsAuditModalOpen(true);
   };
 
-  // ==============================================================
-  // 🔥 FUNGSI UTAMA: INTEGRASI SAGA PATTERN + ANTI SPLIT-BRAIN
-  // ==============================================================
   const handleSaveAudit = async (projectId, payload) => {
     try {
       if (!auditorWallet) throw new Error("Anda belum mengatur/menghubungkan dompet Web3 di profil Anda!");
@@ -151,15 +145,12 @@ export default function AuditorReviewPage() {
         didOpen: () => { Swal.showLoading(); }
       });
 
-      // 1. IDENTIFIKASI STATUS SEBELUMNYA UNTUK FAIL-SAFE (ROLLBACK)
       const previousStatus = projectToAudit.active_version.status;
-      
       const isFormData = payload instanceof FormData;
       const action = isFormData ? payload.get('action') : payload.action;
       const actionStatus = action === 'verify' ? 'auditor_verified' : 'auditor_rejected';
       const versionNumber = projectToAudit.active_version.version_number;
 
-      // 2. [SAGA STEP 1]: BACKEND FIRST (Simpan Data & Bikin Snapshot JSON)
       let backendResponse;
       if (action === 'verify') {
         backendResponse = await projectService.auditorVerify(projectId, payload, ""); 
@@ -167,15 +158,14 @@ export default function AuditorReviewPage() {
         backendResponse = await projectService.auditorReject(projectId, { note: payload.audit_notes }, "");
       }
 
-      // 👉 KUNCI: AMBIL HASH, URI, DAN ID SNAPSHOT LANGSUNG DARI LARAVEL
-      const exactDataHash = backendResponse.dataHash;
-      const exactUri = backendResponse.snapshotUri;
-      const exactSnapshotId = backendResponse.snapshotId;
+      // 👉 FIX: Ekstraksi fallback untuk JSON
+      const exactDataHash = backendResponse?.dataHash || backendResponse?.data?.dataHash;
+      const exactUri = backendResponse?.snapshotUri || backendResponse?.data?.snapshotUri;
+      const exactSnapshotId = backendResponse?.snapshotId || backendResponse?.data?.snapshotId;
 
       let finalTxHash = null;
-      let hasTxSuccess = false; // 👉 BENDERA ANTI SPLIT-BRAIN
+      let hasTxSuccess = false; 
 
-      // 3. [SAGA STEP 2]: BLOCKCHAIN EXECUTION DENGAN FAIL-SAFE
       try {
         Swal.update({ 
           title: 'Tanda Tangan Web3', 
@@ -199,14 +189,12 @@ export default function AuditorReviewPage() {
             exactUri              
         );
         
-        hasTxSuccess = true; // ✅ TX AUDIT BERHASIL! (Haram Rollback)
-        finalTxHash = receiptTrack.hash || receiptTrack.transactionHash;
+        hasTxSuccess = true; 
+        
+        // 👉 FIX: Ekstraksi hash yang konsisten (Ethers.js v6)
+        finalTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
 
       } catch (web3Error) {
-        // 4. [SAGA STEP 3]: FAIL-SAFE AUTO ROLLBACK ATAU PENYELAMATAN
-        console.error("Web3 Error (MetaMask ditolak):", web3Error);
-        
-        // 👉 LOGIKA PENYELAMAT NYAWA:
         if (!hasTxSuccess) {
             Swal.update({ 
               title: 'Membatalkan...', 
@@ -222,22 +210,21 @@ export default function AuditorReviewPage() {
                 Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data sistem telah otomatis dikembalikan (Rollback).', 'warning');
             }
         } else {
-            // JIKA BLOCKCHAIN SUDAH JALAN, JANGAN ROLLBACK!
-            Swal.fire('Info Jaringan', 'Transaksi berhasil di Blockchain, namun sinkronisasi UI agak terlambat karena jaringan sibuk. Data Anda aman!', 'success');
+            Swal.fire('Info Jaringan', 'Transaksi berhasil di Blockchain, namun sinkronisasi UI agak terlambat.', 'success');
         }
 
         setIsAuditModalOpen(false);
         fetchProjects();
-        return; // 👉 BERHENTI DI SINI AGAR TIDAK KE TAHAP SELANJUTNYA
+        return; 
       }
 
-      // 5. [SAGA STEP 4]: SINKRONISASI TX HASH PRESISI KE ID SNAPSHOT
       if (finalTxHash) {
         try {
           Swal.update({ title: 'Finalisasi...', html: 'Menyinkronkan transaksi ke database...' });
           await projectService.saveTxHash(projectId, finalTxHash, exactSnapshotId);
         } catch (dbError) {
-          console.warn("TxHash gagal disinkronkan ke DB:", dbError);
+          // 👉 FIX FATAL: Munculkan log error kalau gagal nyimpan ke DB biar nggak diam-diam!
+          console.error("❌ GAGAL SIMPAN TX HASH KE DATABASE:", dbError);
         }
       }
       
@@ -246,7 +233,6 @@ export default function AuditorReviewPage() {
       fetchProjects(); 
 
     } catch (error) {
-      console.error("Backend Error:", error);
       Swal.fire('Error', error.response?.data?.message || error.message || 'Gagal menyimpan data ke server.', 'error');
       setIsAuditModalOpen(false);
       fetchProjects();
@@ -286,7 +272,6 @@ export default function AuditorReviewPage() {
       <Topbar title={pageTitle} breadcrumbs={pageBreadcrumbs} />
       <main className={styles.container}>
         
-        {/* KPI SECTION */}
         <section className={styles.topGrid}>
           <div className={styles.statsGrid}>
             <StatCard icon={<FaClipboardCheck/>} className={styles.iconTotal} label="Total Tasks" value={stats.total} />
@@ -315,7 +300,6 @@ export default function AuditorReviewPage() {
           </div>
         </section>
 
-        {/* TABLE SECTION */}
         <section className={styles.tableCard}>
           <div className={styles.tableToolbar}>
             <h3 className={styles.cardTitle}>Assigned Projects</h3>
@@ -327,7 +311,6 @@ export default function AuditorReviewPage() {
 
           <div className={styles.tableContainer}>
             <div className={styles.table}>
-              {/* HEADER */}
               <div className={`${styles.tableRow} ${styles.tableHeader}`}>
                 <div className={styles.tableCell} style={{ width: '120px', flex: 'none', paddingLeft: '16px' }}>Project ID</div>
                 <div className={styles.tableCell} style={{ justifyContent: 'center', width: '80px', flex: 'none' }}>Img</div>
@@ -346,7 +329,6 @@ export default function AuditorReviewPage() {
                 <div className={styles.tableCell} style={{ justifyContent: 'center', flex: 1.5 }}>Actions</div>
               </div>
 
-              {/* BODY */}
               {isLoading ? (
                 <div className={styles.emptyState}>Loading tasks...</div>
               ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => {
@@ -360,13 +342,11 @@ export default function AuditorReviewPage() {
                   <React.Fragment key={project.id}>
                     <div className={`${styles.tableRow} ${styles.tableRowExpandable}`} onClick={() => toggleRowExpansion(project.id)}>
                       
-                      {/* ID */}
                       <div className={styles.tableCell} style={{ width: '120px', flex: 'none', display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '16px' }}>
                         <FaChevronDown className={`${styles.expandIcon} ${isExpanded ? styles.expandIconActive : ''}`} />
                         <span style={{ fontWeight: '700', color: '#6b7280', fontSize: '0.85rem' }}>#{projectIdString}</span>
                       </div>
 
-                      {/* Img */}
                       <div className={styles.tableCell} style={{justifyContent:'center', width: '80px', flex: 'none'}}>
                         {projectImgUrl ? (
                           <img src={projectImgUrl} alt="thumb" className={styles.thumbImg} onError={(e)=>{e.target.style.display='none'}}/>
@@ -375,7 +355,6 @@ export default function AuditorReviewPage() {
                         )}
                       </div>
 
-                      {/* Name */}
                       <div className={`${styles.tableCell} ${styles.cellName}`} style={{ flex: 1.5, paddingLeft: '16px' }}>
                         <div style={{display: 'flex', flexDirection: 'column'}}>
                           <span className={styles.projectName}>{project.active_version?.name || 'Unnamed'}</span>
@@ -383,22 +362,18 @@ export default function AuditorReviewPage() {
                         </div>
                       </div>
 
-                      {/* Issuer */}
                       <div className={styles.tableCell} style={{ flex: 1.5 }}>
                         <div className={styles.issuerInfo}>
                           <FaUserTie /> {project.issuer?.name || 'Unknown'}
                         </div>
                       </div>
 
-                      {/* Status */}
                       <div className={styles.tableCell} style={{ flex: 1.2 }}>{renderStatusBadge(project.active_version?.status)}</div>
 
-                      {/* Date */}
                       <div className={styles.tableCell} style={{ flex: 1 }}>
                         {new Date(project.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
 
-                      {/* Actions */}
                       <div className={`${styles.tableCell} ${styles.actionsCell}`} style={{ flex: 1.5 }} onClick={e => e.stopPropagation()}>
                         <button className={`${styles.actionBtn} ${styles.btnView}`} onClick={() => handleView(project)} title="View Detail">
                           <FaEye />
@@ -412,7 +387,6 @@ export default function AuditorReviewPage() {
                       </div>
                     </div>
 
-                    {/* HISTORY ROW */}
                     {isExpanded && (
                       <div className={styles.historyRow}>
                         <h4 className={styles.historyTitle}><FaHistory /> Version History</h4>
@@ -453,7 +427,6 @@ export default function AuditorReviewPage() {
             </div>
           </div>
 
-          {/* PAGINATION */}
           <div className={styles.cardFooter}>
             <span className={styles.footerInfo}>
               Showing {totalItems === 0 ? 0 : (currentPage-1)*itemsPerPage + 1} - {Math.min(currentPage*itemsPerPage, totalItems)} of {totalItems}
@@ -466,7 +439,6 @@ export default function AuditorReviewPage() {
         </section>
       </main>
 
-      {/* MODALS */}
       {isViewModalOpen && <ModalProjectView project={projectToView} onClose={() => setIsViewModalOpen(false)} />}
       
       {isAuditModalOpen && (
