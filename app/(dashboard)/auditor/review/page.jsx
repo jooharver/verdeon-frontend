@@ -42,15 +42,30 @@ export default function AuditorReviewPage() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [projectToAudit, setProjectToAudit] = useState(null);
 
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // Pagination & Sorting State (Diperbarui untuk Server-Side Pagination)
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
-  const fetchProjects = async () => {
+  // --- FETCH DATA ---
+  const fetchProjects = async (page = 1) => {
     setIsLoading(true);
     try {
-      const data = await projectService.getAuditorProjects();
-      setProjects(Array.isArray(data) ? data : []);
+      const response = await projectService.getAuditorProjects(page);
+      
+      if (response && response.data && Array.isArray(response.data)) {
+        setProjects(response.data);
+        setCurrentPage(response.current_page);
+        setTotalPages(response.last_page);
+        setTotalItems(response.total);
+      } else {
+        // Fallback jika backend belum diubah ke paginate()
+        const dataArr = Array.isArray(response) ? response : [];
+        setProjects(dataArr);
+        setTotalItems(dataArr.length);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error("Error fetching projects:", error);
       Swal.fire('Error', 'Gagal memuat daftar tugas audit.', 'error');
@@ -60,8 +75,8 @@ export default function AuditorReviewPage() {
   };
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    fetchProjects(currentPage);
+  }, [currentPage]);
 
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
@@ -81,10 +96,10 @@ export default function AuditorReviewPage() {
   };
 
   const stats = useMemo(() => {
-    const total = projects.length;
+    const total = totalItems; // Pakai total keseluruhan dari backend
     const pending = projects.filter(p => ['admin_approved', 'returned_to_auditor'].includes(p.active_version?.status)).length;
     const completed = projects.filter(p => ['auditor_verified', 'rejected', 'listed'].includes(p.active_version?.status)).length;
-    const inProgress = total - pending - completed; 
+    const inProgress = projects.length - pending - completed; 
     
     const chartData = [
       { name: 'Pending', value: pending },
@@ -93,7 +108,7 @@ export default function AuditorReviewPage() {
     ].filter(item => item.value > 0);
 
     return { total, pending, inProgress, completed, chartData };
-  }, [projects]);
+  }, [projects, totalItems]);
 
   const processedProjects = useMemo(() => {
     let result = projects.filter(project => {
@@ -116,10 +131,6 @@ export default function AuditorReviewPage() {
     }
     return result;
   }, [projects, searchTerm, sortConfig]);
-
-  const totalItems = processedProjects.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const paginatedProjects = processedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleView = (project, specificVersion = null) => {
     const projectDataToView = specificVersion ? { ...project, active_version: specificVersion } : project;
@@ -158,7 +169,6 @@ export default function AuditorReviewPage() {
         backendResponse = await projectService.auditorReject(projectId, { note: payload.audit_notes }, "");
       }
 
-      // 👉 FIX: Ekstraksi fallback untuk JSON
       const exactDataHash = backendResponse?.dataHash || backendResponse?.data?.dataHash;
       const exactUri = backendResponse?.snapshotUri || backendResponse?.data?.snapshotUri;
       const exactSnapshotId = backendResponse?.snapshotId || backendResponse?.data?.snapshotId;
@@ -190,8 +200,6 @@ export default function AuditorReviewPage() {
         );
         
         hasTxSuccess = true; 
-        
-        // 👉 FIX: Ekstraksi hash yang konsisten (Ethers.js v6)
         finalTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
 
       } catch (web3Error) {
@@ -214,7 +222,7 @@ export default function AuditorReviewPage() {
         }
 
         setIsAuditModalOpen(false);
-        fetchProjects();
+        fetchProjects(currentPage);
         return; 
       }
 
@@ -223,19 +231,18 @@ export default function AuditorReviewPage() {
           Swal.update({ title: 'Finalisasi...', html: 'Menyinkronkan transaksi ke database...' });
           await projectService.saveTxHash(projectId, finalTxHash, exactSnapshotId);
         } catch (dbError) {
-          // 👉 FIX FATAL: Munculkan log error kalau gagal nyimpan ke DB biar nggak diam-diam!
           console.error("❌ GAGAL SIMPAN TX HASH KE DATABASE:", dbError);
         }
       }
       
       Swal.fire('Success', 'Hasil Audit MRV berhasil dikomputasi dan dicatat permanen ke Blockchain.', 'success');
       setIsAuditModalOpen(false);
-      fetchProjects(); 
+      fetchProjects(currentPage); 
 
     } catch (error) {
       Swal.fire('Error', error.response?.data?.message || error.message || 'Gagal menyimpan data ke server.', 'error');
       setIsAuditModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
     }
   };
 
@@ -275,14 +282,14 @@ export default function AuditorReviewPage() {
         <section className={styles.topGrid}>
           <div className={styles.statsGrid}>
             <StatCard icon={<FaClipboardCheck/>} className={styles.iconTotal} label="Total Tasks" value={stats.total} />
-            <StatCard icon={<FaClock/>} className={styles.iconPending} label="Pending Audit" value={stats.pending} />
-            <StatCard icon={<FaPlayCircle/>} className={styles.iconProgress} label="In Progress" value={stats.inProgress} />
-            <StatCard icon={<FaCheckCircle/>} className={styles.iconVerified} label="Completed" value={stats.completed} />
+            <StatCard icon={<FaClock/>} className={styles.iconPending} label="Pending (Current Page)" value={stats.pending} />
+            <StatCard icon={<FaPlayCircle/>} className={styles.iconProgress} label="In Progress (Current Page)" value={stats.inProgress} />
+            <StatCard icon={<FaCheckCircle/>} className={styles.iconVerified} label="Completed (Current Page)" value={stats.completed} />
           </div>
           
           <div className={styles.chartCard}>
             <div className={styles.cardHeader}>
-              <h3 className={styles.cardTitle}>Workload Distribution</h3>
+              <h3 className={styles.cardTitle}>Workload Distribution (Current Page)</h3>
             </div>
             <div className={styles.chartContainer}>
               <ResponsiveContainer width="100%" height="100%">
@@ -331,7 +338,7 @@ export default function AuditorReviewPage() {
 
               {isLoading ? (
                 <div className={styles.emptyState}>Loading tasks...</div>
-              ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => {
+              ) : processedProjects.length > 0 ? processedProjects.map(project => {
                 const versionNumber = project.active_version?.version_number;
                 const isExpanded = expandedRows.includes(project.id);
                 const projectIdString = String(project.id).padStart(4, '0');
@@ -427,13 +434,26 @@ export default function AuditorReviewPage() {
             </div>
           </div>
 
+          {/* PAGINATION */}
           <div className={styles.cardFooter}>
             <span className={styles.footerInfo}>
-              Showing {totalItems === 0 ? 0 : (currentPage-1)*itemsPerPage + 1} - {Math.min(currentPage*itemsPerPage, totalItems)} of {totalItems}
+              Showing Page {currentPage} of {totalPages} (Total: {totalItems} tasks)
             </span>
             <div className={styles.paginationControls}>
-              <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p-1)}><FaChevronLeft /></button>
-              <button className={styles.pageBtn} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p+1)}><FaChevronRight /></button>
+              <button 
+                className={styles.pageBtn} 
+                disabled={currentPage <= 1} 
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <FaChevronLeft /> Prev
+              </button>
+              <button 
+                className={styles.pageBtn} 
+                disabled={currentPage >= totalPages || totalPages === 0} 
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                Next <FaChevronRight />
+              </button>
             </div>
           </div>
         </section>

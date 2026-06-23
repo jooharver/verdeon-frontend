@@ -56,17 +56,33 @@ export default function MyProjectPage() {
   const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
   const [projectToRevise, setProjectToRevise] = useState(null);
 
-  // Pagination & Sorting
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  // Pagination & Sorting State (Diperbarui untuk Server-Side Pagination)
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
   // --- FETCH DATA ---
-  const fetchProjects = async () => {
+  // Ditambahkan parameter page agar React bisa meminta halaman spesifik ke backend
+  const fetchProjects = async (page = 1) => {
     setIsLoading(true);
     try {
-      const data = await projectService.getMyProjects();
-      setProjects(Array.isArray(data) ? data : []);
+      // Pastikan service getMyProjects menerima argumen page
+      const response = await projectService.getMyProjects(page);
+      
+      // Mengecek apakah respons berupa objek paginasi Laravel
+      if (response && response.data && Array.isArray(response.data)) {
+        setProjects(response.data); // Ambil array datanya
+        setCurrentPage(response.current_page);
+        setTotalPages(response.last_page);
+        setTotalItems(response.total);
+      } else {
+        // Fallback jika backend masih mengembalikan array langsung (->get())
+        const dataArr = Array.isArray(response) ? response : [];
+        setProjects(dataArr);
+        setTotalItems(dataArr.length);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error("Error fetching:", error);
       Swal.fire('Error', 'Gagal memuat data project.', 'error');
@@ -75,9 +91,10 @@ export default function MyProjectPage() {
     }
   };
 
+  // Memicu fetch ulang setiap kali state currentPage berubah (tombol Next/Prev diklik)
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    fetchProjects(currentPage);
+  }, [currentPage]);
 
   // --- HELPER UNTUK MENGAMBIL GAMBAR DARI API ---
   const getFullUrl = (filePath) => {
@@ -98,13 +115,16 @@ export default function MyProjectPage() {
   };
 
   // --- DATA PROCESSING ---
+  // Catatan: Karena sekarang server-side pagination, stats ini hanya akan menghitung 
+  // dari 10 data yang sedang tampil di layar, bukan total keseluruhan di database.
+  // Untuk menghitung total keseluruhan secara akurat, butuh endpoint statistik khusus dari backend.
   const stats = useMemo(() => ({
-    total: projects.length,
+    total: totalItems, 
     listed: projects.filter(p => p.active_version?.status === 'listed').length,
     onProcess: projects.filter(p => 
       ['submitted', 'admin_approved', 'auditor_verified'].includes(p.active_version?.status)
     ).length,
-  }), [projects]);
+  }), [projects, totalItems]);
 
   const searchedProjects = useMemo(() => {
     return projects.filter(project => {
@@ -132,14 +152,6 @@ export default function MyProjectPage() {
     }
     return sortableProjects;
   }, [searchedProjects, sortConfig]);
-
-  const totalItems = sortedProjects.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const paginatedProjects = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    return sortedProjects.slice(start, end);
-  }, [sortedProjects, currentPage, itemsPerPage]);
 
   // --- RENDER BADGE ---
   const renderStatusBadge = (status) => {
@@ -171,7 +183,7 @@ export default function MyProjectPage() {
   // --- HANDLERS ---
   const handleSave = () => {
       setIsModalOpen(false); 
-      fetchProjects();       
+      fetchProjects(currentPage); // Refresh data di halaman saat ini      
   };
 
   const handleEdit = (project) => { 
@@ -200,7 +212,7 @@ export default function MyProjectPage() {
       await projectService.submitProject(projectId);
       Swal.fire('Submitted!', 'Your project is now under Admin review.', 'success');
       setIsSubmitModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
     } catch (error) {
       Swal.fire('Error', error.response?.data?.message || 'Failed to submit project.', 'error');
     }
@@ -216,7 +228,7 @@ export default function MyProjectPage() {
       await projectService.reviseProject(projectId);
       Swal.fire('Berhasil!', 'Versi Draft baru telah dibuat. Silakan klik tombol Edit untuk memperbaiki data.', 'success');
       setIsReviseModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
     } catch (error) {
       Swal.fire('Error', error.response?.data?.message || 'Gagal membuat revisi.', 'error');
     }
@@ -246,7 +258,7 @@ export default function MyProjectPage() {
       try {
         await projectService.deleteProject(project.id);
         Swal.fire('Terhapus!', 'Proyek berhasil dihapus.', 'success');
-        fetchProjects(); 
+        fetchProjects(1); // Kembali ke halaman 1 setelah menghapus data
       } catch (error) {
         Swal.fire('Error', error.response?.data?.message || 'Gagal menghapus proyek.', 'error');
       }
@@ -257,7 +269,6 @@ export default function MyProjectPage() {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
     setSortConfig({ key, direction });
-    setCurrentPage(1);
   };
 
   const toggleRowExpansion = (projectId) => {
@@ -291,7 +302,7 @@ export default function MyProjectPage() {
               <div className={styles.statItem}>
                 <div className={`${styles.statItemIcon} ${styles.iconPublished}`}><FaCheckCircle /></div>
                 <div className={styles.statItemInfo}>
-                  <span className={styles.statItemLabel}>Listed</span>
+                  <span className={styles.statItemLabel}>Listed (Current Page)</span>
                   <span className={styles.statItemValue}>{isLoading ? '...' : stats.listed}</span>
                 </div>
               </div>
@@ -338,7 +349,7 @@ export default function MyProjectPage() {
           <div className={styles.tableContainer}>
             <div className={styles.table}>
               
-              {/* TABLE HEADER (Murni Mengikuti CSS Grid) */}
+              {/* TABLE HEADER */}
               <div className={`${styles.tableRow} ${styles.tableHeader}`}>
                 <div className={styles.tableCell}>Project ID</div>
                 <div className={styles.tableCell} style={{ justifyContent: 'center' }}>Img</div>
@@ -357,7 +368,7 @@ export default function MyProjectPage() {
 
               {isLoading ? (
                 <div className={styles.emptyState}>Loading projects...</div>
-              ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => {
+              ) : sortedProjects.length > 0 ? sortedProjects.map(project => {
                 
                 const status = project.active_version?.status?.toLowerCase();
                 const versionNumber = project.active_version?.version_number;
@@ -370,7 +381,6 @@ export default function MyProjectPage() {
                 const isExpanded = expandedRows.includes(project.id);
                 const projectIdString = String(project.id).padStart(4, '0');
                 
-                // Mengurutkan versi dari v1 (terkecil) ke terbaru (terbesar)
                 const projectVersions = (project.versions || [project.active_version])
                   .slice()
                   .sort((a, b) => a.version_number - b.version_number);
@@ -483,7 +493,6 @@ export default function MyProjectPage() {
                                 </div>
                                 <div className={styles.timelineContent}>
                                   <div className={styles.timelineInfo}>
-                                    {/* FONT KECIL SESUAI PERMINTAAN */}
                                     <span className={styles.timelineName}>{ver.name}</span>
                                     <span className={styles.timelineDate}>
                                       <FaClock style={{ fontSize: '0.8rem' }}/> {new Date(ver.created_at).toLocaleString('id-ID')}
@@ -513,22 +522,34 @@ export default function MyProjectPage() {
             </div>
           </div>
           
-          {/* PAGINATION */}
+          {/* PAGINATION: Diperbarui agar menggunakan metadata dari Backend */}
           <div className={styles.cardFooter}>
             <span className={styles.footerInfo}>
-              Showing {totalItems === 0 ? 0 : (currentPage-1)*itemsPerPage + 1} - {Math.min(currentPage*itemsPerPage, totalItems)} of {totalItems}
+              Showing Page {currentPage} of {totalPages} (Total: {totalItems} cases)
             </span>
             <div className={styles.paginationControls}>
-              <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p-1)}><FaChevronLeft /></button>
-              <button className={styles.pageBtn} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p+1)}><FaChevronRight /></button>
+              <button 
+                className={styles.pageBtn} 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <FaChevronLeft /> Prev
+              </button>
+              <button 
+                className={styles.pageBtn} 
+                disabled={currentPage >= totalPages || totalPages === 0} 
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                Next <FaChevronRight />
+              </button>
             </div>
           </div>
 
         </section>
       </main>
 
+      {/* Modals */}
       {isModalOpen && <ModalProjectForm project={currentProject} onClose={() => setIsModalOpen(false)} onSave={handleSave} />}
-      
       {isViewModalOpen && <ModalProjectView project={projectToView} onClose={() => setIsViewModalOpen(false)} />}
       
       {isSubmitModalOpen && (

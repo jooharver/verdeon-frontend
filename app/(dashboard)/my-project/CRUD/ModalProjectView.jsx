@@ -26,7 +26,6 @@ export default function ModalProjectView({ project, onClose }) {
   const activeVersion = project?.active_version || {};
   const projectVersions = project?.versions || [activeVersion];
 
-  // Cek apakah project punya riwayat on-chain
   const hasOnChainData = activeVersion.status && activeVersion.status !== 'draft';
 
   useEffect(() => {
@@ -38,7 +37,6 @@ export default function ModalProjectView({ project, onClose }) {
     }
   }, [project, hasOnChainData]);
 
-  // FUNGSI HYBRID WEB2.5: Menggabungkan Data Polygon dengan Database Laravel
   const fetchBlockchainHistory = async (projectId) => {
     if (typeof window === 'undefined' || !window.ethereum) return;
     setIsLoadingHistory(true);
@@ -49,8 +47,6 @@ export default function ModalProjectView({ project, onClose }) {
       const history = await contract.getProjectHistory(projectId);
       
       const enrichedHistory = history.map((log) => {
-          
-        // Mencocokkan berdasarkan 'status' untuk menarik tx_hash dari local database snapshot
         const matchedSnapshot = [...(project.snapshots || [])].reverse().find(
           snap => snap.status_at_snapshot === log.status
         );
@@ -105,9 +101,14 @@ export default function ModalProjectView({ project, onClose }) {
       return `${backendRoot}/storage/${cleanPath}`;
     };
 
+  // ==============================================================
+  // 🔥 FIX: ALGORITMA EKSTRAKSI DOKUMEN YANG JAUH LEBIH CERDAS
+  // ==============================================================
   const allDocs = activeVersion.documents || [];
-  const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'issuer');
-  const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
+  
+  // 1. Dokumen Issuer (Semua yang BUKAN auditor)
+  const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role !== 'auditor');
+  const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role !== 'auditor');
   
   const issuerSpecs = {
     total_system_capacity_kwp: activeVersion.total_system_capacity_kwp,
@@ -119,10 +120,25 @@ export default function ModalProjectView({ project, onClose }) {
     period_end: activeVersion.period_end,
   };
 
-  const auditDocs = allDocs.filter(d => (d.type === 'audit_report' || d.type === 'document') && d.uploader_role === 'auditor');
-  const auditImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'auditor');
   const reportData = activeVersion.audit_report || activeVersion.auditReport;
   const auditorUser = reportData?.auditor || project.auditor || null;
+
+  // 2. Dokumen Auditor (Sapu bersih dari Version DAN dari Audit Report)
+  const reportDocs = reportData?.documents || []; // Dokumen yang terikat di model ProjectAuditReport
+  const versionAuditorDocs = allDocs.filter(d => d.uploader_role === 'auditor' || ['audit_report', 'audit_image', 'evidence'].includes(d.type));
+  
+  // Gabungkan semua temuan menjadi satu array
+  const allAuditorDocs = [...versionAuditorDocs, ...reportDocs];
+  
+  // Hapus duplikat berdasarkan ID (mencegah foto muncul dobel)
+  const uniqueAuditorDocs = allAuditorDocs.filter((obj, index, self) =>
+      index === self.findIndex((t) => (t.id === obj.id))
+  );
+
+  // Pisahkan menjadi Image (Bukti Foto) dan PDF (Laporan)
+  const auditImages = uniqueAuditorDocs.filter(d => ['image', 'audit_image', 'evidence'].includes(d.type));
+  const auditDocs = uniqueAuditorDocs.filter(d => ['document', 'audit_report', 'pdf'].includes(d.type));
+  // ==============================================================
 
   const auditDetail = (activeVersion.auditor_verification_status !== 'pending' && reportData) ? {
     audit_status: activeVersion.auditor_verification_status,
@@ -270,7 +286,7 @@ export default function ModalProjectView({ project, onClose }) {
                         <a key={doc.id} href={getFullUrl(doc.file_path)} target="_blank" rel="noreferrer" className={styles.docCard}>
                           <div className={styles.docIconBox}><FaFilePdf /></div>
                           <div className={styles.docInfo}>
-                            <span className={styles.docName}>{doc.original_filename}</span>
+                            <span className={styles.docName}>{doc.original_filename || 'Legal_Document.pdf'}</span>
                             <span className={styles.docDate}>{formatDate(doc.created_at)}</span>
                           </div>
                           <FaExternalLinkAlt className={styles.linkIcon} />
@@ -332,12 +348,8 @@ export default function ModalProjectView({ project, onClose }) {
                                       </button>
                                     </div>
 
-                                    {/* ============================================================== */}
-                                    {/* 👉 FIX LAYOUT: STRUKTUR TOMBOL ACTION 2 BARIS (2 ROWS) */}
-                                    {/* ============================================================== */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
                                       
-                                      {/* 🌟 BARIS 1: TRANSAKSI BLOCKCHAIN */}
                                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                         {log.txHash ? (
                                           <a 
@@ -372,7 +384,6 @@ export default function ModalProjectView({ project, onClose }) {
                                         )}
                                       </div>
 
-                                      {/* 🌟 BARIS 2: SNAPSHOT DATA DOCUMENT */}
                                       <div style={{ display: 'flex' }}>
                                         <a 
                                           href={`/snapshot?url=${encodeURIComponent(log.metadataUri)}`} 
@@ -385,7 +396,6 @@ export default function ModalProjectView({ project, onClose }) {
                                       </div>
 
                                     </div>
-                                    {/* ============================================================== */}
 
                                   </div>
                                 </div>
@@ -529,6 +539,7 @@ export default function ModalProjectView({ project, onClose }) {
                               <img 
                                 src={getFullUrl(currentGallery[activeImgIndex]?.file_path)} 
                                 alt="Audit Evidence" className={styles.mainImg}
+                                onError={(e) => { e.target.src = "https://via.placeholder.com/600x400?text=Image+Error"; }}
                               />
                               <div className={styles.mainImageOverlay}><FaExpand /> View</div>
                             </div>
@@ -568,8 +579,8 @@ export default function ModalProjectView({ project, onClose }) {
                             <a key={doc.id} href={getFullUrl(doc.file_path)} target="_blank" rel="noreferrer" className={styles.docCard}>
                               <div className={styles.docIconBox} style={{background: '#dbeafe', color: '#2563eb'}}><FaFilePdf /></div>
                               <div className={styles.docInfo}>
-                                <span className={styles.docName}>{doc.original_filename}</span>
-                                <span className={styles.docDate}>Report</span>
+                                <span className={styles.docName}>{doc.original_filename || 'Audit_Report.pdf'}</span>
+                                <span className={styles.docDate}>Report Document</span>
                               </div>
                               <FaExternalLinkAlt className={styles.linkIcon} />
                             </a>

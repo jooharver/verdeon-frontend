@@ -3,8 +3,9 @@ import { api } from "./api";
 
 export const projectService = {
 
-  getMyProjects: async () => {
-    return api("/issuer/projects");
+  // 👉 UPDATE: Ditambahkan parameter page untuk paginasi Issuer
+  getMyProjects: async (page = 1) => {
+    return api(`/issuer/projects?page=${page}`);
   },
 
   getProjectDetail: async (id) => {
@@ -48,8 +49,9 @@ export const projectService = {
   // ADMIN ENDPOINTS
   // ==========================================
   
-  getAllProjects: async () => {
-    return api("/admin/projects");
+  // 👉 UPDATE: Ditambahkan parameter page untuk paginasi Admin
+  getAllProjects: async (page = 1) => {
+    return api(`/admin/projects?page=${page}`);
   },
 
   getAdminListingQueue: async () => {
@@ -97,8 +99,9 @@ export const projectService = {
   // AUDITOR ENDPOINTS
   // ==========================================
   
-  getAuditorProjects: async () => {
-    return api("/auditor/projects");
+  // 👉 UPDATE: Ditambahkan parameter page untuk paginasi Auditor
+  getAuditorProjects: async (page = 1) => {
+    return api(`/auditor/projects?page=${page}`);
   },
 
   // 👉 UPDATE: txHash dibuat opsional

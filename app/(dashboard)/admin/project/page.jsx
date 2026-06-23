@@ -57,15 +57,30 @@ export default function AdminProject() {
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [projectToList, setProjectToList] = useState(null);
 
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // Pagination & Sorting State (Diperbarui untuk Server-Side Pagination)
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
-  const fetchProjects = async () => {
+  // --- FETCH DATA ---
+  const fetchProjects = async (page = 1) => {
     setIsLoading(true);
     try {
-      const data = await projectService.getAllProjects();
-      setProjects(Array.isArray(data) ? data : []);
+      const response = await projectService.getAllProjects(page);
+      
+      if (response && response.data && Array.isArray(response.data)) {
+        setProjects(response.data);
+        setCurrentPage(response.current_page);
+        setTotalPages(response.last_page);
+        setTotalItems(response.total);
+      } else {
+        // Fallback jika belum di-update ke paginate()
+        const dataArr = Array.isArray(response) ? response : [];
+        setProjects(dataArr);
+        setTotalItems(dataArr.length);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error("Error fetching projects:", error);
       Swal.fire('Error', 'Gagal memuat data project.', 'error');
@@ -75,8 +90,8 @@ export default function AdminProject() {
   };
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    fetchProjects(currentPage);
+  }, [currentPage]);
 
   const getFullUrl = (filePath) => {
     if (!filePath) return '';
@@ -96,7 +111,7 @@ export default function AdminProject() {
   };
 
   const stats = useMemo(() => {
-    const total = projects.length;
+    const total = totalItems; // Menggunakan total dari database backend
     const listed = projects.filter(p => p.active_version?.status === 'listed').length;
     const onReview = projects.filter(p => ['admin_approved', 'auditor_verified'].includes(p.active_version?.status)).length;
     const pending = projects.filter(p => p.active_version?.status === 'submitted').length;
@@ -110,7 +125,7 @@ export default function AdminProject() {
     ].filter(item => item.value > 0);
 
     return { total, listed, onReview, pending, rejected, chartData };
-  }, [projects]);
+  }, [projects, totalItems]);
 
   const processedProjects = useMemo(() => {
     let result = projects.filter(project => {
@@ -133,10 +148,6 @@ export default function AdminProject() {
     }
     return result;
   }, [projects, searchTerm, sortConfig]);
-
-  const totalItems = processedProjects.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const paginatedProjects = processedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleView = (project, specificVersion = null) => {
     const projectDataToView = specificVersion ? { ...project, active_version: specificVersion } : project;
@@ -259,7 +270,7 @@ export default function AdminProject() {
             Swal.fire('Info Jaringan', 'Transaksi berhasil di Blockchain, namun sinkronisasi UI agak terlambat.', 'success');
         }
         setIsVerifyModalOpen(false);
-        fetchProjects();
+        fetchProjects(currentPage);
         return; 
       }
 
@@ -272,12 +283,12 @@ export default function AdminProject() {
 
       Swal.fire('Berhasil!', 'Proyek telah diulas dan jejak terekam permanen di Blockchain.', 'success');
       setIsVerifyModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
 
     } catch (error) {
       Swal.fire('Gagal', error.message || 'Terjadi kesalahan sistem.', 'error');
       setIsVerifyModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
     }
   };
 
@@ -314,7 +325,7 @@ export default function AdminProject() {
       const exactAuditorUri = auditorJson?.snapshotUri || auditorJson?.data?.snapshotUri;
 
       let trackingTxHash = null;
-      let blockchainTx = null; // 👉 MENGGUNAKAN blockchainTx SESUAI TABEL DB
+      let blockchainTx = null;
       let hasTxSuccess = false;
 
       try {
@@ -345,7 +356,7 @@ export default function AdminProject() {
         const receiptMint = await mintCarbonTokens(adminWallet, issuerWallet, projectId, projectName, exactAmountInWei, serverSignature);
         
         hasTxSuccess = true; 
-        blockchainTx = receiptMint?.hash || receiptMint?.transactionHash || receiptMint?.id; // 👉 SIMPAN KE VARIABEL BARU
+        blockchainTx = receiptMint?.hash || receiptMint?.transactionHash || receiptMint?.id;
 
       } catch (web3Error) {
         if (!hasTxSuccess) {
@@ -360,11 +371,10 @@ export default function AdminProject() {
             Swal.fire('Info Jaringan', 'Pencetakan Token berhasil, namun respon UI sedikit terhambat.', 'success');
         }
         setIsListingModalOpen(false);
-        fetchProjects();
+        fetchProjects(currentPage);
         return; 
       }
 
-      // 👉 KIRIM KEDUA HASH SECARA UTUH DAN PRESISI
       if (trackingTxHash || blockchainTx) {
         try {
           Swal.update({ title: 'Finalisasi...', html: 'Menyinkronkan transaksi ke database...' });
@@ -376,12 +386,12 @@ export default function AdminProject() {
       
       Swal.fire('Berhasil!', 'Proyek resmi dilisting dan token VCT telah dicetak!', 'success');
       setIsListingModalOpen(false); 
-      fetchProjects(); 
+      fetchProjects(currentPage); 
 
     } catch (error) {
       Swal.fire('Gagal Listing', error.message || 'Terjadi kesalahan sistem.', 'error');
       setIsListingModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
     }
   };
 
@@ -438,7 +448,7 @@ export default function AdminProject() {
             Swal.fire('Info Jaringan', 'Catatan Revisi berhasil direkam di Blockchain!', 'success');
         }
         setIsListingModalOpen(false);
-        fetchProjects();
+        fetchProjects(currentPage);
         return; 
       }
 
@@ -451,12 +461,12 @@ export default function AdminProject() {
 
       Swal.fire('Berhasil!', 'Proyek telah dikembalikan ke antrean Auditor.', 'success');
       setIsListingModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
 
     } catch (error) {
       Swal.fire('Gagal', error.message || 'Terjadi kesalahan sistem.', 'error');
       setIsListingModalOpen(false);
-      fetchProjects();
+      fetchProjects(currentPage);
     }
   };
 
@@ -498,14 +508,14 @@ export default function AdminProject() {
         <section className={styles.topGrid}>
           <div className={styles.statsGrid}>
             <StatCard icon={<FaLayerGroup/>} className={styles.iconTotal} label="Total Projects" value={stats.total} />
-            <StatCard icon={<FaClock/>} className={styles.iconPending} label="Need Action" value={stats.pending} />
-            <StatCard icon={<FaSpinner/>} className={styles.iconPending} label="On Review" value={stats.onReview} />
-            <StatCard icon={<FaCheckCircle/>} className={styles.iconVerified} label="Listed" value={stats.listed} />
+            <StatCard icon={<FaClock/>} className={styles.iconPending} label="Need Action (Current Page)" value={stats.pending} />
+            <StatCard icon={<FaSpinner/>} className={styles.iconPending} label="On Review (Current Page)" value={stats.onReview} />
+            <StatCard icon={<FaCheckCircle/>} className={styles.iconVerified} label="Listed (Current Page)" value={stats.listed} />
           </div>
           
           <div className={styles.chartCard}>
             <div className={styles.cardHeader}>
-              <h3 className={styles.cardTitle}>Status Distribution</h3>
+              <h3 className={styles.cardTitle}>Status Distribution (Current Page)</h3>
             </div>
             <div className={styles.chartContainer}>
               <ResponsiveContainer width="100%" height="100%">
@@ -554,7 +564,7 @@ export default function AdminProject() {
 
               {isLoading ? (
                 <div className={styles.emptyState}>Loading data...</div>
-              ) : paginatedProjects.length > 0 ? paginatedProjects.map(project => {
+              ) : processedProjects.length > 0 ? processedProjects.map(project => {
                 const versionNumber = project.active_version?.version_number;
                 const isExpanded = expandedRows.includes(project.id);
                 const projectIdString = String(project.id).padStart(4, '0');
@@ -656,13 +666,26 @@ export default function AdminProject() {
             </div>
           </div>
 
+          {/* PAGINATION */}
           <div className={styles.cardFooter}>
             <span className={styles.footerInfo}>
-              Showing {totalItems === 0 ? 0 : (currentPage-1)*itemsPerPage + 1} - {Math.min(currentPage*itemsPerPage, totalItems)} of {totalItems}
+              Showing Page {currentPage} of {totalPages} (Total: {totalItems} cases)
             </span>
             <div className={styles.paginationControls}>
-              <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p-1)}><FaChevronLeft /></button>
-              <button className={styles.pageBtn} disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p+1)}><FaChevronRight /></button>
+              <button 
+                className={styles.pageBtn} 
+                disabled={currentPage <= 1} 
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <FaChevronLeft /> Prev
+              </button>
+              <button 
+                className={styles.pageBtn} 
+                disabled={currentPage >= totalPages || totalPages === 0} 
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                Next <FaChevronRight />
+              </button>
             </div>
           </div>
         </section>
