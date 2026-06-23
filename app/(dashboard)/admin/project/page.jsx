@@ -149,10 +149,40 @@ export default function AdminProject() {
     return result;
   }, [projects, searchTerm, sortConfig]);
 
-  const handleView = (project, specificVersion = null) => {
-    const projectDataToView = specificVersion ? { ...project, active_version: specificVersion } : project;
-    setProjectToView(projectDataToView);
-    setIsViewModalOpen(true);
+  // 🔥 UPDATE: LAZY LOADING UNTUK VERSI LAMPAU
+  const handleView = async (project, specificVersion = null) => {
+    if (!specificVersion) {
+      // Jika view row utama, langsung pakai data project yang sudah ada
+      setProjectToView(project);
+      setIsViewModalOpen(true);
+    } else {
+      // Jika view dari history timeline, fetch data lengkapnya dari backend
+      try {
+        Swal.fire({
+          title: 'Memuat Data...',
+          allowOutsideClick: false,
+          showConfirmButton: false,
+          didOpen: () => Swal.showLoading()
+        });
+        
+        // Panggil endpoint /projects/{projectId}/versions/{versionId}
+        const response = await projectService.getProjectVersionDetail(project.id, specificVersion.id);
+        
+        // Gabungkan data project asli dengan active_version yang baru diambil
+        const projectDataToView = { 
+          ...project, 
+          active_version: response.version || response.data?.version || specificVersion 
+        };
+        
+        Swal.close();
+        setProjectToView(projectDataToView);
+        setIsViewModalOpen(true);
+        
+      } catch (error) {
+        console.error("Gagal memuat detail versi:", error);
+        Swal.fire('Error', 'Gagal memuat detail data versi lampau.', 'error');
+      }
+    }
   };
 
   const handleProcess = (project) => {

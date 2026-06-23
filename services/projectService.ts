@@ -124,6 +124,10 @@ export const projectService = {
     });
   },
 
+  getProjectVersionDetail: async (projectId, versionId) => {
+    return api(`/projects/${projectId}/versions/${versionId}`);
+  },
+
   // ==========================================
   // PUBLIC / GENERAL / FAIL-SAFE ENDPOINTS
   // ==========================================
