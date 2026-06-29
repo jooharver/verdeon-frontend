@@ -43,26 +43,42 @@ export default function ModalProjectView({ project, onClose }) {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = getProjectContract(provider);
-      
       const history = await contract.getProjectHistory(projectId);
       
-      const enrichedHistory = history.map((log) => {
-        const matchedSnapshot = [...(project.snapshots || [])].reverse().find(
-          snap => snap.status_at_snapshot === log.status
-        );
-          
-        const exactTxHash = matchedSnapshot?.tx_hash || null;
+      const enrichedHistory = [];
 
-        return {
-          eventName: log.eventName,
-          timestamp: log.timestamp,
-          actor: log.actor,
-          dataHash: log.dataHash,
-          metadataUri: log.metadataUri,
-          status: log.status,
-          txHash: exactTxHash
-        };
-      });
+      // Dapatkan versi mana yang saat ini sedang aktif (tertinggi)
+      const maxVersionNumber = Math.max(...projectVersions.map(v => v.version_number));
+      const isViewingActiveVersion = activeVersion.version_number === maxVersionNumber;
+
+      for (const log of history) {
+        const matchedSnapshot = (project.snapshots || []).find(
+          snap => snap.data_hash === log.dataHash
+        );
+
+        // Jika kita sedang melihat versi aktif, tampilkan SEMUA log
+        // Jika kita sedang melihat versi lampau, filter berdasarkan version_number
+        const logVersion = Number(log.versionNumber); 
+        
+        // Logika Filter:
+        // 1. Jika melihat v2 (aktif), tampilkan semua log dimana logVersion <= 2
+        // 2. Jika melihat v1, tampilkan hanya log dimana logVersion <= 1
+        const shouldShow = isViewingActiveVersion 
+            ? logVersion <= activeVersion.version_number 
+            : logVersion === activeVersion.version_number;
+
+        if (shouldShow) {
+            enrichedHistory.push({
+              eventName: log.eventName,
+              timestamp: log.timestamp,
+              actor: log.actor,
+              dataHash: log.dataHash,
+              metadataUri: log.metadataUri,
+              status: log.status,
+              txHash: matchedSnapshot?.tx_hash || null 
+            });
+        }
+      }
 
       setBlockchainHistory(enrichedHistory);
     } catch (error) {
