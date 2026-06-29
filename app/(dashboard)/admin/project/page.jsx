@@ -8,7 +8,7 @@ import styles from './AdminProject.module.css';
 import Topbar from '../../../components/Topbar'; 
 import { 
   FaSearch, FaEye, FaLayerGroup, FaCheckCircle, FaClock, FaBan, FaUserTie, FaSort, FaSortUp, FaSortDown,
-  FaChevronLeft, FaChevronRight, FaImage, FaEdit, FaSpinner, FaRocket, FaChevronDown, FaHistory
+  FaChevronLeft, FaChevronRight, FaImage, FaEdit, FaSpinner, FaRocket, FaChevronDown, FaHistory, FaExclamationTriangle
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { ethers } from 'ethers'; 
@@ -57,7 +57,6 @@ export default function AdminProject() {
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [projectToList, setProjectToList] = useState(null);
 
-  // Pagination & Sorting State (Diperbarui untuk Server-Side Pagination)
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -75,7 +74,6 @@ export default function AdminProject() {
         setTotalPages(response.last_page);
         setTotalItems(response.total);
       } else {
-        // Fallback jika belum di-update ke paginate()
         const dataArr = Array.isArray(response) ? response : [];
         setProjects(dataArr);
         setTotalItems(dataArr.length);
@@ -111,7 +109,7 @@ export default function AdminProject() {
   };
 
   const stats = useMemo(() => {
-    const total = totalItems; // Menggunakan total dari database backend
+    const total = totalItems;
     const listed = projects.filter(p => p.active_version?.status === 'listed').length;
     const onReview = projects.filter(p => ['admin_approved', 'auditor_verified'].includes(p.active_version?.status)).length;
     const pending = projects.filter(p => p.active_version?.status === 'submitted').length;
@@ -149,39 +147,40 @@ export default function AdminProject() {
     return result;
   }, [projects, searchTerm, sortConfig]);
 
-  // 🔥 UPDATE: LAZY LOADING UNTUK VERSI LAMPAU
   const handleView = async (project, specificVersion = null) => {
-    if (!specificVersion) {
-      // Jika view row utama, langsung pakai data project yang sudah ada
+    if (!specificVersion || specificVersion.id === project.active_version?.id) {
       setProjectToView(project);
       setIsViewModalOpen(true);
-    } else {
-      // Jika view dari history timeline, fetch data lengkapnya dari backend
-      try {
-        Swal.fire({
-          title: 'Memuat Data...',
-          allowOutsideClick: false,
-          showConfirmButton: false,
-          didOpen: () => Swal.showLoading()
-        });
-        
-        // Panggil endpoint /projects/{projectId}/versions/{versionId}
-        const response = await projectService.getProjectVersionDetail(project.id, specificVersion.id);
-        
-        // Gabungkan data project asli dengan active_version yang baru diambil
-        const projectDataToView = { 
-          ...project, 
-          active_version: response.version || response.data?.version || specificVersion 
-        };
-        
-        Swal.close();
-        setProjectToView(projectDataToView);
-        setIsViewModalOpen(true);
-        
-      } catch (error) {
-        console.error("Gagal memuat detail versi:", error);
-        Swal.fire('Error', 'Gagal memuat detail data versi lampau.', 'error');
+      return; 
+    }
+
+    try {
+      Swal.fire({
+        title: 'Memuat History...',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const response = await projectService.getProjectVersionDetail(project.id, specificVersion.id);
+      const fetchedVersion = response?.data?.version || response?.version;
+
+      if (!fetchedVersion) {
+          throw new Error("Data version gagal ditarik dari server.");
       }
+
+      const projectDataToView = {
+        ...project,
+        active_version: fetchedVersion
+      };
+
+      Swal.close();
+      setProjectToView(projectDataToView);
+      setIsViewModalOpen(true);
+
+    } catch (error) {
+      console.error("Gagal memuat detail versi:", error);
+      Swal.fire('Error', 'Gagal memuat detail data versi lampau.', 'error');
     }
   };
 
@@ -190,7 +189,7 @@ export default function AdminProject() {
     setIsVerifyModalOpen(true);
   };
 
-  // ==============================================================
+// ==============================================================
   // 🔥 FUNGSI 1: ADMIN REVIEW VERIFICATION (ANTI SPLIT-BRAIN)
   // ==============================================================
   const handleSaveVerification = async (projectId, payload) => {
@@ -200,6 +199,8 @@ export default function AdminProject() {
       Swal.fire({ title: 'Menyiapkan Data...', html: 'Menyimpan keputusan ke server...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
 
       const previousStatus = projectToVerify.active_version.status; 
+      const isAlreadyProcessed = ['admin_approved', 'rejected'].includes(previousStatus);
+
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
       const versionId = projectToVerify.active_version.id;
       const versionNumber = projectToVerify.active_version.version_number;
@@ -228,7 +229,7 @@ export default function AdminProject() {
       const exactSubmittedId = submittedJson?.snapshotId || submittedJson?.data?.snapshotId; 
 
       let trackingTxHash = null;
-      let hasTxSuccess = false; 
+      let isTx1JustFinished = false; // 👉 FIX UTAMA: Deklarasi variabel jangan sampai lupa!
 
       try {
         await connectWallet(adminWallet);
@@ -237,68 +238,80 @@ export default function AdminProject() {
         let currentOnChainStatus = "";
         try { currentOnChainStatus = await checkLatestProjectStatus(projectId); } catch(e) { console.warn("RPC Lag", e) }
 
-        if (!isMinted) {
-          Swal.update({ title: 'Transaksi 1 (Mint NFT)', html: 'Mohon konfirmasi pencetakan aset di MetaMask Anda.' });
-          const receiptTx1 = await submitProjectToBlockchain(
-              adminWallet, issuerWallet, projectId, versionNumber, "Issuer Project Initial Submission", initialDataHash, exactSubmittedUri
-          );
-          
-          hasTxSuccess = true; 
-          const tx1Hash = receiptTx1?.hash || receiptTx1?.transactionHash || receiptTx1?.id;
-          if (tx1Hash) {
-             try { await projectService.saveTxHash(projectId, tx1Hash, exactSubmittedId); } catch(e) {}
-          }
+        // TRANSAKSI 1: INITIAL MINT / RESUBMIT
+        if (currentOnChainStatus !== 'submitted') {
+            if (!isMinted) {
+                Swal.update({ title: 'Pencatatan Awal (1/2)', html: 'Mohon konfirmasi pencetakan awal aset di MetaMask Anda.' });
+                const receiptTx1 = await submitProjectToBlockchain(
+                    adminWallet, issuerWallet, projectId, versionNumber, "Issuer Project Initial Submission", initialDataHash, exactSubmittedUri
+                );
+                
+                isTx1JustFinished = true; // Sekarang sudah aman dieksekusi
+                const tx1Hash = receiptTx1?.hash || receiptTx1?.transactionHash || receiptTx1?.id;
+                if (tx1Hash) {
+                    try { await projectService.saveTxHash(projectId, tx1Hash, exactSubmittedId); } catch(e) {}
+                }
 
-          Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
-          await new Promise(resolve => setTimeout(resolve, 4000));
-        } 
-        
-        else if (isMinted && ['admin_rejected', 'auditor_rejected', 'returned_to_auditor'].includes(currentOnChainStatus)) {
-          Swal.update({ title: `Mencatat Revisi (v${versionNumber})`, html: 'Mohon konfirmasi log Revisi Issuer di MetaMask Anda.' });
-          const eventNameResubmit = `Issuer Project Resubmission (v${versionNumber})`;
-          
-          const receiptResubmit = await addTrackingToBlockchain(
-              adminWallet, projectId, projectId, versionNumber, eventNameResubmit, 'submitted', initialDataHash, exactSubmittedUri
-          );
-          
-          hasTxSuccess = true; 
-          const txResubmitHash = receiptResubmit?.hash || receiptResubmit?.transactionHash || receiptResubmit?.id;
-          if (txResubmitHash) {
-            try { await projectService.saveTxHash(projectId, txResubmitHash, exactSubmittedId); } catch(e) {}
-          }
+                Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
+                await new Promise(resolve => setTimeout(resolve, 4000));
+            } 
+            else if (isMinted && ['admin_rejected', 'auditor_rejected', 'returned_to_auditor'].includes(currentOnChainStatus)) {
+                Swal.update({ title: `Mencatat Revisi v${versionNumber} (1/2)`, html: 'Mohon konfirmasi log Revisi Issuer di MetaMask Anda.' });
+                const eventNameResubmit = `Issuer Project Resubmission (v${versionNumber})`;
+                
+                const receiptResubmit = await addTrackingToBlockchain(
+                    adminWallet, projectId, projectId, versionNumber, eventNameResubmit, 'submitted', initialDataHash, exactSubmittedUri
+                );
+                
+                isTx1JustFinished = true;
+                const txResubmitHash = receiptResubmit?.hash || receiptResubmit?.transactionHash || receiptResubmit?.id;
+                if (txResubmitHash) {
+                    try { await projectService.saveTxHash(projectId, txResubmitHash, exactSubmittedId); } catch(e) {}
+                }
 
-          Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
-          await new Promise(resolve => setTimeout(resolve, 4000));
+                Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
+                await new Promise(resolve => setTimeout(resolve, 4000));
+            }
         }
 
-        let updatedOnChainStatus = "";
-        try { updatedOnChainStatus = await checkLatestProjectStatus(projectId); } catch(e) {}
-
-        if (updatedOnChainStatus !== actionStatus) {
-          Swal.update({ title: 'Catat Keputusan Admin', html: 'Mohon konfirmasi pencatatan keputusan di MetaMask Anda.' });
-          const eventNameAdmin = payload.action === 'approve' ? "Admin Document Verification Approved" : "Admin Document Verification Rejected";
-          
-          const receiptTrack = await addTrackingToBlockchain(
-              adminWallet, projectId, projectId, versionNumber, eventNameAdmin, actionStatus, exactDataHash, exactUri 
-          );
-          
-          hasTxSuccess = true; 
-          trackingTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
+        // TRANSAKSI 2: KEPUTUSAN ADMIN
+        if (isTx1JustFinished || currentOnChainStatus === 'submitted') {
+            const stepText = isTx1JustFinished ? "(2/2)" : "(Resume)";
+            Swal.update({ title: `Catat Keputusan Admin ${stepText}`, html: 'Mohon konfirmasi pencatatan keputusan di MetaMask Anda.' });
+            
+            const eventNameAdmin = payload.action === 'approve' ? "Admin Document Verification Approved" : "Admin Document Verification Rejected";
+            
+            const receiptTrack = await addTrackingToBlockchain(
+                adminWallet, projectId, projectId, versionNumber, eventNameAdmin, actionStatus, exactDataHash, exactUri 
+            );
+            
+            trackingTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
         }
 
       } catch (web3Error) {
         console.error("Web3 Error:", web3Error);
-        if (!hasTxSuccess) {
-            Swal.update({ title: 'Membatalkan...', html: 'Transaksi dibatalkan. Mengembalikan status sistem (Rollback)...' });
+        
+        let onChainStatus = "";
+        try { onChainStatus = await checkLatestProjectStatus(projectId); } catch(e) {}
+
+        const isUserRejected = web3Error?.code === 4001 || web3Error?.message?.toLowerCase().includes("user rejected") || web3Error?.message?.includes("ACTION_REJECTED");
+
+        // 🔥 LOGIKA ANTI ROLLBACK REVIEW ADMIN
+        if (onChainStatus === 'submitted' || isTx1JustFinished) {
+            Swal.fire('Proses Terjeda', 'Tahap 1 (Pencatatan Awal) berhasil, namun Tahap 2 (Keputusan Admin) dibatalkan. Anda dapat melanjutkan proses kapan saja dengan menekan tombol Resume (Oranye).', 'info');
+        } else {
+            Swal.update({ title: 'Membatalkan...', html: 'Transaksi tidak tuntas. Mengembalikan status sistem (Rollback)...' });
             await projectService.revertStatus(projectId, previousStatus);
+            
             if (web3Error.message && web3Error.message.includes('MISMATCH_WALLET')) {
                 Swal.fire('Dompet Tidak Sesuai', web3Error.message.split('|')[1], 'error');
-            } else {
+            } else if (isUserRejected) {
                 Swal.fire('Dibatalkan', 'Transaksi ditolak melalui MetaMask. Status dikembalikan demi keamanan data.', 'warning');
+            } else {
+                Swal.fire('Error Web3', 'Terjadi kegagalan jaringan. Status dikembalikan. Silakan coba lagi.', 'error');
             }
-        } else {
-            Swal.fire('Info Jaringan', 'Transaksi berhasil di Blockchain, namun sinkronisasi UI agak terlambat.', 'success');
         }
+        
         setIsVerifyModalOpen(false);
         fetchProjects(currentPage);
         return; 
@@ -333,15 +346,25 @@ export default function AdminProject() {
 
       const { calculatedCarbon, issuerWallet, project } = payload;
       const previousStatus = project.active_version.status; 
+      const isAlreadyListed = project.active_version.status === 'listed';
+
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
       const versionId = project.active_version.id;
       const versionNumber = project.active_version.version_number;
+
+      if (!isAlreadyListed) {
+        Swal.update({ html: 'Menyimpan status listing ke server Verideon...' });
+        await projectService.adminListProject(projectId, "");
+      } else {
+        Swal.update({ html: 'Status sudah listed, memuat data resume...' });
+      }
 
       const sigResponse = await projectService.requestMintSignature(projectId);
       const serverSignature = sigResponse.signature;
       const exactAmountInWei = sigResponse.amountInWei; 
 
-      Swal.update({ html: 'Menyimpan status listing ke server Verideon...' });
+      // Panggil lagi untuk mendapatkan snapshot ID yang tepat dari backend 
+      // (Bisa juga dari response API di atas jika diubah, tapi panggil ulang lebih aman di sini)
       const backendResponse = await projectService.adminListProject(projectId, "");
       
       const exactDataHash = backendResponse?.dataHash || backendResponse?.data?.dataHash;
@@ -356,7 +379,6 @@ export default function AdminProject() {
 
       let trackingTxHash = null;
       let blockchainTx = null;
-      let hasTxSuccess = false;
 
       try {
         await connectWallet(adminWallet); 
@@ -364,16 +386,21 @@ export default function AdminProject() {
         let currentStatus = "";
         try { currentStatus = await checkLatestProjectStatus(projectId); } catch(e) {}
 
-        // TRANSAKSI 1: ADD TRACKING (LISTED)
+        // TRANSAKSI 1: ADD TRACKING (LISTED) - Hanya jika belum
         if (currentStatus !== 'listed') {
           Swal.update({ title: 'Mencatat Listing (1/2)', html: 'Mohon konfirmasi transaksi Add Tracking di MetaMask.' });
           
           const receiptTrack = await addTrackingToBlockchain(
-            adminWallet, projectId, projectId, versionNumber, "Project Officially Listed to Market", 'listed', exactDataHash, exactAuditorUri
+            adminWallet, projectId, projectId, versionNumber, "Project Officially Listed to Market", 'listed', exactDataHash, exactUri // ✅ UBAH JADI exactUri
           );
-          hasTxSuccess = true; 
           
           trackingTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
+
+          if (trackingTxHash) {
+              try { 
+                  await projectService.saveTxHash(projectId, trackingTxHash, exactSnapshotId, null); 
+              } catch(e) { console.error("Gagal nyicil simpan hash:", e); }
+          }
 
           Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
           await new Promise(resolve => setTimeout(resolve, 3500));
@@ -385,21 +412,31 @@ export default function AdminProject() {
 
         const receiptMint = await mintCarbonTokens(adminWallet, issuerWallet, projectId, projectName, exactAmountInWei, serverSignature);
         
-        hasTxSuccess = true; 
         blockchainTx = receiptMint?.hash || receiptMint?.transactionHash || receiptMint?.id;
 
       } catch (web3Error) {
-        if (!hasTxSuccess) {
-            Swal.update({ title: 'Membatalkan...', html: 'Transaksi dibatalkan. Mengembalikan status sistem...' });
+        console.error("Web3 Error:", web3Error);
+
+        let onChainStatus = "";
+        try { onChainStatus = await checkLatestProjectStatus(projectId); } catch(e) {}
+
+        const isUserRejected = web3Error?.code === 4001 || web3Error?.message?.toLowerCase().includes("user rejected") || web3Error?.message?.includes("ACTION_REJECTED");
+
+        if (onChainStatus === 'listed') {
+            Swal.fire('Proses Terjeda', 'Tahap 1 (Pencatatan) berhasil, namun Tahap 2 (Pencetakan Token) dibatalkan. Anda dapat melanjutkan pencetakan kapan saja dengan menekan tombol Resume (Oranye).', 'info');
+        } else {
+            Swal.update({ title: 'Membatalkan...', html: 'Transaksi tidak tuntas. Mengembalikan status sistem...' });
             await projectService.revertStatus(projectId, previousStatus);
+            
             if (web3Error.message && web3Error.message.includes('MISMATCH_WALLET')) {
                 Swal.fire('Dompet Tidak Sesuai', web3Error.message.split('|')[1], 'error');
+            } else if (isUserRejected) {
+                Swal.fire('Dibatalkan', 'Transaksi dibatalkan. Data server berhasil diamankan (Rollback).', 'warning');
             } else {
-                Swal.fire('Dibatalkan', 'Transaksi dibatalkan. Data server berhasil diamankan.', 'warning');
+                Swal.fire('Error Web3', 'Terjadi kendala jaringan. Status dikembalikan. Silakan coba lagi.', 'error');
             }
-        } else {
-            Swal.fire('Info Jaringan', 'Pencetakan Token berhasil, namun respon UI sedikit terhambat.', 'success');
         }
+        
         setIsListingModalOpen(false);
         fetchProjects(currentPage);
         return; 
@@ -425,17 +462,12 @@ export default function AdminProject() {
     }
   };
 
-  // ==============================================================
-  // 🔥 FUNGSI 3: KEMBALIKAN KE AUDITOR (ANTI SPLIT-BRAIN)
-  // ==============================================================
   const handleRejectAuditor = async (projectId, payload, project) => {
     try {
       if (!adminWallet) throw new Error("Anda belum menghubungkan dompet Web3!");
-
       Swal.fire({ title: 'Menyiapkan Revisi...', html: 'Menyimpan catatan revisi ke server...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
 
       const previousStatus = project.active_version.status; 
-      const versionId = project.active_version.id;
       const versionNumber = project.active_version.version_number;
 
       const backendResponse = await projectService.adminRejectAuditor(projectId, { note: payload.note }, "");
@@ -445,7 +477,6 @@ export default function AdminProject() {
       const exactSnapshotId = backendResponse?.snapshotId || backendResponse?.data?.snapshotId;
 
       let finalTxHash = null;
-      let hasTxSuccess = false;
 
       try {
         await connectWallet(adminWallet);
@@ -461,22 +492,23 @@ export default function AdminProject() {
             "Admin Requested Audit Revision", "admin_approved", exactDataHash, exactUri
           );
           
-          hasTxSuccess = true;
           finalTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
         }
 
       } catch (web3Error) {
-        if (!hasTxSuccess) {
-            Swal.update({ title: 'Membatalkan...', html: 'Transaksi dibatalkan. Mengembalikan status sistem (Rollback)...' });
-            await projectService.revertStatus(projectId, previousStatus);
-            if (web3Error.message && web3Error.message.includes('MISMATCH_WALLET')) {
-                Swal.fire('Dompet Tidak Sesuai', web3Error.message.split('|')[1], 'error');
-            } else {
-                Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data sistem telah di-rollback.', 'warning');
-            }
+        Swal.update({ title: 'Membatalkan...', html: 'Transaksi dibatalkan. Mengembalikan status sistem (Rollback)...' });
+        await projectService.revertStatus(projectId, previousStatus);
+        
+        const isUserRejected = web3Error?.code === 4001 || web3Error?.message?.toLowerCase().includes("user rejected") || web3Error?.message?.includes("ACTION_REJECTED");
+
+        if (web3Error.message && web3Error.message.includes('MISMATCH_WALLET')) {
+            Swal.fire('Dompet Tidak Sesuai', web3Error.message.split('|')[1], 'error');
+        } else if (isUserRejected) {
+            Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask. Data sistem telah di-rollback.', 'warning');
         } else {
-            Swal.fire('Info Jaringan', 'Catatan Revisi berhasil direkam di Blockchain!', 'success');
+            Swal.fire('Error Web3', 'Terjadi kegagalan jaringan. Status dikembalikan.', 'error');
         }
+        
         setIsListingModalOpen(false);
         fetchProjects(currentPage);
         return; 
@@ -515,7 +547,7 @@ export default function AdminProject() {
     return sortConfig.direction === 'asc' ? <FaSortUp className={styles.sortIconActive} /> : <FaSortDown className={styles.sortIconActive} />;
   };
 
-  const renderStatusBadge = (status) => {
+  const renderStatusBadge = (status, isHalfFinished = false) => {
     const s = status?.toLowerCase() || 'draft';
     const badges = {
       listed: { class: styles.badgeVerified, icon: <FaCheckCircle />, label: 'Listed' },
@@ -526,8 +558,27 @@ export default function AdminProject() {
       rejected: { class: styles.badgeRejected, icon: <FaBan />, label: 'Rejected' },
       draft: { class: styles.badgeDraft, icon: <FaLayerGroup />, label: 'Draft' }
     };
+    
     const conf = badges[s] || badges.draft;
-    return <span className={`${styles.badge} ${conf.class}`}>{conf.icon} {conf.label}</span>;
+    
+    const mainBadge = (
+      <span className={`${styles.badge} ${conf.class}`}>
+        {conf.icon} {conf.label}
+      </span>
+    );
+
+    if (isHalfFinished) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className={styles.badgeWarning} title="Proses transaksi belum tuntas!">
+             <FaExclamationTriangle />
+          </span>
+          {mainBadge}
+        </div>
+      );
+    }
+
+    return mainBadge;
   };
 
   return (
@@ -601,6 +652,15 @@ export default function AdminProject() {
                 const projectVersions = (project.versions || [project.active_version]).slice().sort((a, b) => a.version_number - b.version_number);
                 const projectImgUrl = getProjectImage(project.active_version);
 
+                // Variabel Final Listing
+                const isReadyToList = project.active_version?.status === 'auditor_verified';
+                const isHalfFinished = project.active_version?.status === 'listed' && !project.blockchain_tx;
+
+                // Variabel Admin Review
+                const isReadyToReview = project.active_version?.status === 'submitted';
+                const reviewSnapshot = project.snapshots?.find(s => s.status_at_snapshot === (project.active_version?.status === 'rejected' ? 'admin_rejected' : 'admin_approved'));
+                const isReviewHalfFinished = ['admin_approved', 'rejected'].includes(project.active_version?.status) && reviewSnapshot && !reviewSnapshot.tx_hash;
+
                 return (
                   <React.Fragment key={project.id}>
                     <div className={`${styles.tableRow} ${styles.tableRowExpandable}`} onClick={() => toggleRowExpansion(project.id)}>
@@ -631,7 +691,9 @@ export default function AdminProject() {
                         </div>
                       </div>
 
-                      <div className={styles.tableCell} style={{ flex: 1.2 }}>{renderStatusBadge(project.active_version?.status)}</div>
+                      <div className={styles.tableCell} style={{ flex: 1.2 }}>
+                        {renderStatusBadge(project.active_version?.status, isHalfFinished || isReviewHalfFinished)}
+                      </div>
 
                       <div className={styles.tableCell} style={{ flex: 1 }}>
                         {new Date(project.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -642,14 +704,24 @@ export default function AdminProject() {
                           <FaEye />
                         </button>
                         
-                        {project.active_version?.status === 'submitted' && (
-                          <button className={`${styles.actionBtn} ${styles.btnProcess}`} onClick={() => handleProcess(project)} title="Review Project">
+                        {(isReadyToReview || isReviewHalfFinished) && (
+                          <button 
+                            className={`${styles.actionBtn} ${styles.btnProcess}`} 
+                            style={{ backgroundColor: isReviewHalfFinished ? '#f59e0b' : '#3b82f6', color: 'white' }} 
+                            onClick={() => handleProcess(project)} 
+                            title={isReviewHalfFinished ? "Resume Pencatatan Keputusan Admin (Tahap 2)" : "Review Project"}
+                          >
                             <FaEdit />
                           </button>
                         )}
-
-                        {project.active_version?.status === 'auditor_verified' && (
-                          <button className={`${styles.actionBtn} ${styles.btnProcess}`} style={{ backgroundColor: '#22c55e', color: 'white' }} onClick={() => { setProjectToList(project); setIsListingModalOpen(true); }} title="Finalize & List Project">
+                        
+                        {(isReadyToList || isHalfFinished) && (
+                          <button 
+                            className={`${styles.actionBtn} ${styles.btnProcess}`} 
+                            style={{ backgroundColor: isHalfFinished ? '#f59e0b' : '#22c55e', color: 'white' }} 
+                            onClick={() => { setProjectToList(project); setIsListingModalOpen(true); }} 
+                            title={isHalfFinished ? "Resume Minting Token (Tahap 2)" : "Finalize & List Project"}
+                          >
                             <FaRocket />
                           </button>
                         )}
@@ -696,7 +768,6 @@ export default function AdminProject() {
             </div>
           </div>
 
-          {/* PAGINATION */}
           <div className={styles.cardFooter}>
             <span className={styles.footerInfo}>
               Showing Page {currentPage} of {totalPages} (Total: {totalItems} cases)

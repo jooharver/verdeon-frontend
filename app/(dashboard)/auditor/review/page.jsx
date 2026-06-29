@@ -132,10 +132,49 @@ export default function AuditorReviewPage() {
     return result;
   }, [projects, searchTerm, sortConfig]);
 
-  const handleView = (project, specificVersion = null) => {
-    const projectDataToView = specificVersion ? { ...project, active_version: specificVersion } : project;
-    setProjectToView(projectDataToView);
-    setIsViewModalOpen(true);
+  // 🔥 UPDATE: OPTIMASI LAZY LOADING & BYPASS UNTUK VERSI AKTIF (UNTUK ISSUER)
+  const handleView = async (project, specificVersion = null) => {
+    
+    // 1. Jika klik dari Row utama ATAU klik timeline pada versi yang sedang aktif
+    if (!specificVersion || specificVersion.id === project.active_version?.id) {
+      setProjectToView(project);
+      setIsViewModalOpen(true);
+      return; // Berhenti di sini, modal langsung terbuka tanpa delay!
+    }
+
+    // 2. Jika klik timeline pada versi BENAR-BENAR lampau (sejarah)
+    try {
+      Swal.fire({
+        title: 'Memuat History...',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      // Panggil endpoint untuk menarik masa lalu
+      const response = await projectService.getProjectVersionDetail(project.id, specificVersion.id);
+
+      // Ekstrak data (mengantisipasi format Axios maupun Fetch)
+      const fetchedVersion = response?.data?.version || response?.version;
+
+      if (!fetchedVersion) {
+          throw new Error("Data version gagal ditarik dari server.");
+      }
+
+      // Gabungkan data
+      const projectDataToView = {
+        ...project,
+        active_version: fetchedVersion
+      };
+
+      Swal.close();
+      setProjectToView(projectDataToView);
+      setIsViewModalOpen(true);
+
+    } catch (error) {
+      console.error("Gagal memuat detail versi:", error);
+      Swal.fire('Error', 'Gagal memuat detail data versi lampau.', 'error');
+    }
   };
 
   const handleStartAudit = (project) => {

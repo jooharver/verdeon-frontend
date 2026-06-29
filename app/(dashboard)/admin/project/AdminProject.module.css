@@ -293,6 +293,25 @@
 .badgePending { background: #fefce8; color: #b45309; border: 1px solid #fde047; }
 .badgeRejected { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 .badgeDraft { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+.badgeWarning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: #f59e0b; /* Warna Oranye senada dengan tombol roket */
+  color: white;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  cursor: help;
+  animation: pulse 2s infinite; /* Opsional: Tambahkan animasi kedip */
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
 
 /* Actions */
 .actionsCell { justify-content: center; gap: 8px; }
