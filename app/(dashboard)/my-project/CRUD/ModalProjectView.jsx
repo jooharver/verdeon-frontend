@@ -60,9 +60,6 @@ export default function ModalProjectView({ project, onClose }) {
         // Jika kita sedang melihat versi lampau, filter berdasarkan version_number
         const logVersion = Number(log.versionNumber); 
         
-        // Logika Filter:
-        // 1. Jika melihat v2 (aktif), tampilkan semua log dimana logVersion <= 2
-        // 2. Jika melihat v1, tampilkan hanya log dimana logVersion <= 1
         const shouldShow = isViewingActiveVersion 
             ? logVersion <= activeVersion.version_number 
             : logVersion === activeVersion.version_number;
@@ -118,11 +115,10 @@ export default function ModalProjectView({ project, onClose }) {
     };
 
   // ==============================================================
-  // 🔥 FIX: ALGORITMA EKSTRAKSI DOKUMEN YANG JAUH LEBIH CERDAS
+  // 🔥 ALGORITMA EKSTRAKSI DOKUMEN YANG JAUH LEBIH CERDAS
   // ==============================================================
   const allDocs = activeVersion.documents || [];
   
-  // 1. Dokumen Issuer (Semua yang BUKAN auditor)
   const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role !== 'auditor');
   const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role !== 'auditor');
   
@@ -139,19 +135,15 @@ export default function ModalProjectView({ project, onClose }) {
   const reportData = activeVersion.audit_report || activeVersion.auditReport;
   const auditorUser = reportData?.auditor || project.auditor || null;
 
-  // 2. Dokumen Auditor (Sapu bersih dari Version DAN dari Audit Report)
-  const reportDocs = reportData?.documents || []; // Dokumen yang terikat di model ProjectAuditReport
+  const reportDocs = reportData?.documents || []; 
   const versionAuditorDocs = allDocs.filter(d => d.uploader_role === 'auditor' || ['audit_report', 'audit_image', 'evidence'].includes(d.type));
   
-  // Gabungkan semua temuan menjadi satu array
   const allAuditorDocs = [...versionAuditorDocs, ...reportDocs];
   
-  // Hapus duplikat berdasarkan ID (mencegah foto muncul dobel)
   const uniqueAuditorDocs = allAuditorDocs.filter((obj, index, self) =>
       index === self.findIndex((t) => (t.id === obj.id))
   );
 
-  // Pisahkan menjadi Image (Bukti Foto) dan PDF (Laporan)
   const auditImages = uniqueAuditorDocs.filter(d => ['image', 'audit_image', 'evidence'].includes(d.type));
   const auditDocs = uniqueAuditorDocs.filter(d => ['document', 'audit_report', 'pdf'].includes(d.type));
   // ==============================================================
@@ -502,18 +494,20 @@ export default function ModalProjectView({ project, onClose }) {
                         <div 
                           className={styles.descriptionBox} 
                           style={{ 
-                            backgroundColor: activeVersion.admin_verification_status === 'rejected' ? '#fef2f2' : '#f0fdf4', 
-                            borderColor: activeVersion.admin_verification_status === 'rejected' ? '#fca5a5' : '#bbf7d0', 
+                            backgroundColor: ['rejected', 'returned_to_auditor'].includes(activeVersion.status) ? '#fef2f2' : '#f0fdf4', 
+                            borderColor: ['rejected', 'returned_to_auditor'].includes(activeVersion.status) ? '#fca5a5' : '#bbf7d0', 
                             color: '#374151' 
                           }}
                         >
-                          {activeVersion.admin_notes ? activeVersion.admin_notes : "Proyek disetujui tanpa catatan tambahan dari Admin."}
+                          {['auditor_verified', 'listed'].includes(activeVersion.status) 
+                            ? "Proyek telah diverifikasi dan disetujui sepenuhnya oleh Admin." 
+                            : (activeVersion.admin_notes ? activeVersion.admin_notes : "Proyek disetujui tanpa catatan tambahan dari Admin.")}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {(activeVersion.auditor_verification_status === 'rejected' || activeVersion.auditor_notes) && (
+                  {(activeVersion.auditor_verification_status === 'rejected' || activeVersion.auditor_notes) && activeVersion.status !== 'listed' && (
                     <div className={styles.section} style={{ marginTop: '20px' }}>
                       <h4 className={styles.sectionTitle}><FaClipboardCheck style={{ color: '#d97706' }}/> AUDITOR NOTES / REASON</h4>
                       <div 
