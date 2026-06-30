@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './ModalAuditProject.module.css';
 import { 
   FaTimes, FaClipboardCheck, FaFileUpload, FaSolarPanel, FaLeaf, FaCalendarAlt, FaPen, FaImage, FaInfoCircle, FaCheckSquare,
-  FaExclamationTriangle // 👉 NEW IMPORT
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 export default function ModalAuditProject({ project, onClose, onSave }) {
   const activeVersion = project?.active_version;
+  const reportData = activeVersion?.audit_report || activeVersion?.auditReport || null;
 
   const [formData, setFormData] = useState({
     action: '', 
@@ -30,6 +31,35 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
   const [auditDocs, setAuditDocs] = useState([]);
   const [auditImages, setAuditImages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 👉 PENGAMAN FILE LAMA: Cek apakah sudah ada file di database
+  const existingAuditDocs = activeVersion?.documents?.filter(d => ['audit_report', 'document', 'pdf'].includes(d.type) && d.uploader_role === 'auditor') || [];
+  const existingAuditImages = activeVersion?.documents?.filter(d => ['audit_image', 'image', 'evidence'].includes(d.type) && d.uploader_role === 'auditor') || [];
+
+  // 👉 SMART PRE-FILL LOGIC: Sedot data lama jika statusnya revisi
+  useEffect(() => {
+    if (activeVersion?.status === 'returned_to_auditor' && reportData) {
+      setFormData({
+        action: '', // Sengaja dikosongkan agar Auditor tetap sadar harus milih Verify/Reject lagi
+        audit_notes: reportData.audit_notes || '',
+        calculation_method: reportData.calculation_method || 'system_estimated',
+        verified_generation_kwh: reportData.verified_generation_kwh || '',
+        baseline_emission_factor: reportData.baseline_emission_factor || '0.85',
+        onsite_measurement_date: reportData.onsite_measurement_date ? reportData.onsite_measurement_date.substring(0, 10) : '',
+      });
+
+      // Kembalikan status centang checklist sebelumnya
+      if (reportData.verification_checklist && Array.isArray(reportData.verification_checklist)) {
+        const checklistTxt = JSON.stringify(reportData.verification_checklist);
+        setChecklistItems(prev => ({
+          location: { ...prev.location, checked: checklistTxt.includes('Lokasi') },
+          capacity: { ...prev.capacity, checked: checklistTxt.includes('Kapasitas') },
+          brand: { ...prev.brand, checked: checklistTxt.includes('Spesifikasi') },
+          period: { ...prev.period, checked: checklistTxt.includes('Periode') }
+        }));
+      }
+    }
+  }, [activeVersion, reportData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -82,7 +112,8 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
       return;
     }
 
-    if (auditDocs.length === 0) {
+    // 👉 FIX LOGIKA FILE: Kalau tidak ada file baru DAN tidak ada file lama, baru ditolak!
+    if (auditDocs.length === 0 && existingAuditDocs.length === 0) {
       Swal.fire('Warning', 'Dokumen Laporan Audit (PDF) wajib diunggah.', 'warning');
       return;
     }
@@ -113,6 +144,7 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
       payload.append(`verification_checklist[${index}]`, `[✓] Verified: ${checklistItems[key].label}`);
     });
 
+    // Kirim file baru hanya jika ada yang dipilih
     auditDocs.forEach(file => payload.append('audit_documents[]', file));
     auditImages.forEach(file => payload.append('audit_images[]', file));
 
@@ -147,7 +179,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
         {/* BODY */}
         <div className={styles.body}>
 
-          {/* 👉 FIX: Sesuaikan pengecekan string status dari database */}
           {activeVersion?.status === 'returned_to_auditor' && (
             <div style={{ backgroundColor: '#fef2f2', padding: '12px 16px', borderRadius: '8px', color: '#991b1b', fontSize: '0.9rem', display: 'flex', alignItems: 'flex-start', gap: '10px', border: '1px solid #fecaca', marginBottom: '20px' }}>
               <FaExclamationTriangle style={{fontSize: '1.2rem', flexShrink: 0, marginTop: '2px'}} />
@@ -257,17 +288,30 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
                     <div className={styles.inputGroup}>
                       <label>Upload Laporan Audit (PDF) <span className={styles.req}>*</span></label>
                       <input type="file" accept=".pdf" id="auditDocs" className={styles.fileInput} style={{display:'none'}} onChange={(e) => handleFileChange(e, 'document')} />
+                      
                       <label htmlFor="auditDocs" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px', background: '#f3f4f6', border: '1px dashed #d1d5db', borderRadius: '6px' }}>
                         <FaFileUpload color="#4b5563" />
-                        <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>{auditDocs.length > 0 ? `${auditDocs.length} file dipilih` : "Pilih File PDF..."}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#4b5563' }}>
+                          {/* 👉 FIX UI LABEL: Kasih tahu Auditor kalau file lamanya aman */}
+                          {auditDocs.length > 0 
+                            ? `${auditDocs.length} file baru dipilih` 
+                            : (existingAuditDocs.length > 0 ? `Sudah ada ${existingAuditDocs.length} file (Pilih untuk menimpa)` : "Pilih File PDF...")}
+                        </span>
                       </label>
                     </div>
+                    
                     <div className={styles.inputGroup}>
                       <label>Upload Foto Dokumentasi Lapangan</label>
                       <input type="file" accept="image/*" id="auditImages" className={styles.fileInput} style={{display:'none'}} onChange={(e) => handleFileChange(e, 'image')} />
+                      
                       <label htmlFor="auditImages" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px', background: '#f3f4f6', border: '1px dashed #d1d5db', borderRadius: '6px' }}>
                         <FaImage color="#4b5563"/>
-                        <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>{auditImages.length > 0 ? `${auditImages.length} foto dipilih` : "Pilih Foto Lapangan..."}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#4b5563' }}>
+                           {/* 👉 FIX UI LABEL */}
+                          {auditImages.length > 0 
+                            ? `${auditImages.length} foto baru dipilih` 
+                            : (existingAuditImages.length > 0 ? `Sudah ada ${existingAuditImages.length} foto (Pilih untuk menimpa)` : "Pilih Foto Lapangan...")}
+                        </span>
                       </label>
                     </div>
                   </div>
