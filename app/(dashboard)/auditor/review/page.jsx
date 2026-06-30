@@ -12,6 +12,7 @@ import {
   FaExclamationTriangle
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import { ethers } from 'ethers'; 
 
 import { projectService } from '../../../../services/projectService';
 import { api } from '../../../../services/api'; 
@@ -42,13 +43,11 @@ export default function AuditorReviewPage() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [projectToAudit, setProjectToAudit] = useState(null);
 
-  // Pagination & Sorting State (Diperbarui untuk Server-Side Pagination)
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
-  // --- FETCH DATA ---
   const fetchProjects = async (page = 1) => {
     setIsLoading(true);
     try {
@@ -60,7 +59,6 @@ export default function AuditorReviewPage() {
         setTotalPages(response.last_page);
         setTotalItems(response.total);
       } else {
-        // Fallback jika backend belum diubah ke paginate()
         const dataArr = Array.isArray(response) ? response : [];
         setProjects(dataArr);
         setTotalItems(dataArr.length);
@@ -96,7 +94,7 @@ export default function AuditorReviewPage() {
   };
 
   const stats = useMemo(() => {
-    const total = totalItems; // Pakai total keseluruhan dari backend
+    const total = totalItems; 
     const pending = projects.filter(p => ['admin_approved', 'returned_to_auditor'].includes(p.active_version?.status)).length;
     const completed = projects.filter(p => ['auditor_verified', 'rejected', 'listed'].includes(p.active_version?.status)).length;
     const inProgress = projects.length - pending - completed; 
@@ -132,17 +130,13 @@ export default function AuditorReviewPage() {
     return result;
   }, [projects, searchTerm, sortConfig]);
 
-  // 🔥 UPDATE: OPTIMASI LAZY LOADING & BYPASS UNTUK VERSI AKTIF (UNTUK ISSUER)
   const handleView = async (project, specificVersion = null) => {
-    
-    // 1. Jika klik dari Row utama ATAU klik timeline pada versi yang sedang aktif
     if (!specificVersion || specificVersion.id === project.active_version?.id) {
       setProjectToView(project);
       setIsViewModalOpen(true);
-      return; // Berhenti di sini, modal langsung terbuka tanpa delay!
+      return; 
     }
 
-    // 2. Jika klik timeline pada versi BENAR-BENAR lampau (sejarah)
     try {
       Swal.fire({
         title: 'Memuat History...',
@@ -151,17 +145,13 @@ export default function AuditorReviewPage() {
         didOpen: () => Swal.showLoading()
       });
 
-      // Panggil endpoint untuk menarik masa lalu
       const response = await projectService.getProjectVersionDetail(project.id, specificVersion.id);
-
-      // Ekstrak data (mengantisipasi format Axios maupun Fetch)
       const fetchedVersion = response?.data?.version || response?.version;
 
       if (!fetchedVersion) {
           throw new Error("Data version gagal ditarik dari server.");
       }
 
-      // Gabungkan data
       const projectDataToView = {
         ...project,
         active_version: fetchedVersion
@@ -182,6 +172,9 @@ export default function AuditorReviewPage() {
     setIsAuditModalOpen(true);
   };
 
+  // ==============================================================
+  // 🔥 FUNGSI 1: SIMPAN AUDIT REGULER (DENGAN ROLLBACK)
+  // ==============================================================
   const handleSaveAudit = async (projectId, payload) => {
     try {
       if (!auditorWallet) throw new Error("Anda belum mengatur/menghubungkan dompet Web3 di profil Anda!");
@@ -228,14 +221,7 @@ export default function AuditorReviewPage() {
             : "Auditor Technical Verification Rejected";
 
         const receiptTrack = await addTrackingToBlockchain(
-            auditorWallet,        
-            projectId,            
-            projectId,            
-            versionNumber,        
-            eventNameAuditor,     
-            actionStatus,         
-            exactDataHash,        
-            exactUri              
+            auditorWallet, projectId, projectId, versionNumber, eventNameAuditor, actionStatus, exactDataHash, exactUri      
         );
         
         hasTxSuccess = true; 
@@ -285,6 +271,61 @@ export default function AuditorReviewPage() {
     }
   };
 
+  // ==============================================================
+  // 🔥 FUNGSI 2: RESUME AUDIT (BYPASS FORM, LANGSUNG WEB3)
+  // ==============================================================
+  const handleResumeAudit = async (project) => {
+    try {
+      if (!auditorWallet) throw new Error("Anda belum menghubungkan dompet Web3!");
+      
+      Swal.fire({ title: 'Menyiapkan Resume...', html: 'Menarik data laporan audit dari server...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
+
+      const actionStatus = project.active_version.status; // 'auditor_verified' atau 'rejected'
+      const eventNameAuditor = actionStatus === 'auditor_verified' ? "Auditor Technical Verification Approved" : "Auditor Technical Verification Rejected";
+      const versionNumber = project.active_version.version_number;
+      const versionId = project.active_version.id;
+      const projectId = project.id;
+
+      // Tarik snapshot data komplit dari server secara diam-diam
+      const snapRes = await projectService.getProjectSnapshot(projectId, versionId, actionStatus);
+      const exactDataHash = snapRes?.hash_info?.expected_blockchain_hash || snapRes?.data?.hash_info?.expected_blockchain_hash;
+      const exactUri = snapRes?.snapshotUri || snapRes?.data?.snapshotUri;
+      const exactSnapshotId = snapRes?.snapshotId || snapRes?.data?.snapshotId;
+
+      if (!exactDataHash || !exactUri) throw new Error("Data snapshot gagal ditarik!");
+
+      await connectWallet(auditorWallet);
+
+      Swal.update({ title: 'Tanda Tangan Web3', html: 'Melanjutkan pencatatan. Mohon konfirmasi di MetaMask Anda.' });
+
+      const receiptTrack = await addTrackingToBlockchain(
+          auditorWallet, projectId, projectId, versionNumber, eventNameAuditor, actionStatus, exactDataHash, exactUri
+      );
+
+      const finalTxHash = receiptTrack?.hash || receiptTrack?.transactionHash || receiptTrack?.id;
+
+      if (finalTxHash) {
+          Swal.update({ title: 'Finalisasi...', html: 'Menyinkronkan transaksi ke database...' });
+          await projectService.saveTxHash(projectId, finalTxHash, exactSnapshotId);
+      }
+
+      Swal.fire('Success', 'Hasil Audit MRV berhasil dicatat permanen ke Blockchain.', 'success');
+      fetchProjects(currentPage);
+
+    } catch (error) {
+      console.error("Resume Error:", error);
+      const isUserRejected = error?.code === 4001 || error?.message?.toLowerCase().includes("user rejected") || error?.message?.includes("ACTION_REJECTED");
+      
+      if (error.message && error.message.includes('MISMATCH_WALLET')) {
+          Swal.fire('Dompet Tidak Sesuai', error.message.split('|')[1], 'error');
+      } else if (isUserRejected) {
+          Swal.fire('Dibatalkan', 'Transaksi dibatalkan melalui MetaMask.', 'warning');
+      } else {
+          Swal.fire('Gagal', error.message || 'Terjadi kesalahan sistem.', 'error');
+      }
+    }
+  };
+
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
@@ -300,7 +341,7 @@ export default function AuditorReviewPage() {
     return sortConfig.direction === 'asc' ? <FaSortUp className={styles.sortIconActive} /> : <FaSortDown className={styles.sortIconActive} />;
   };
 
-  const renderStatusBadge = (status) => {
+  const renderStatusBadge = (status, isHalfFinished = false) => {
     const s = status?.toLowerCase() || 'draft';
     const badges = {
       listed: { class: styles.badgeVerified, icon: <FaCheckCircle />, label: 'Listed' },
@@ -309,8 +350,27 @@ export default function AuditorReviewPage() {
       returned_to_auditor: { class: styles.badgeRejected, icon: <FaExclamationTriangle />, label: 'Revision Needed' },
       rejected: { class: styles.badgeRejected, icon: <FaBan />, label: 'Rejected' },
     };
+    
     const conf = badges[s] || { class: styles.badgeDraft, icon: <FaClock />, label: s };
-    return <span className={`${styles.badge} ${conf.class}`}>{conf.icon} {conf.label}</span>;
+    
+    const mainBadge = (
+      <span className={`${styles.badge} ${conf.class}`}>
+        {conf.icon} {conf.label}
+      </span>
+    );
+
+    if (isHalfFinished) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className={styles.badgeWarning} title="Proses Web3 belum tuntas!">
+             <FaExclamationTriangle />
+          </span>
+          {mainBadge}
+        </div>
+      );
+    }
+
+    return mainBadge;
   };
 
   return (
@@ -384,6 +444,10 @@ export default function AuditorReviewPage() {
                 const projectVersions = (project.versions || [project.active_version]).slice().sort((a, b) => a.version_number - b.version_number);
                 const projectImgUrl = getProjectImage(project.active_version);
 
+                // 🔥 LOGIKA DETEKSI "ZOMBIE STATE" (Setengah Jalan)
+                const auditSnapshot = project.snapshots?.find(s => ['auditor_verified', 'rejected'].includes(s.status_at_snapshot));
+                const isAuditHalfFinished = ['auditor_verified', 'rejected'].includes(project.active_version?.status) && auditSnapshot && !auditSnapshot.tx_hash;
+
                 return (
                   <React.Fragment key={project.id}>
                     <div className={`${styles.tableRow} ${styles.tableRowExpandable}`} onClick={() => toggleRowExpansion(project.id)}>
@@ -414,7 +478,9 @@ export default function AuditorReviewPage() {
                         </div>
                       </div>
 
-                      <div className={styles.tableCell} style={{ flex: 1.2 }}>{renderStatusBadge(project.active_version?.status)}</div>
+                      <div className={styles.tableCell} style={{ flex: 1.2 }}>
+                        {renderStatusBadge(project.active_version?.status, isAuditHalfFinished)}
+                      </div>
 
                       <div className={styles.tableCell} style={{ flex: 1 }}>
                         {new Date(project.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -425,9 +491,17 @@ export default function AuditorReviewPage() {
                           <FaEye />
                         </button>
                         
+                        {/* Tombol Audit Normal */}
                         {['admin_approved', 'returned_to_auditor'].includes(project.active_version?.status) && (
                           <button className={`${styles.actionBtn} ${styles.btnAudit}`} onClick={() => handleStartAudit(project)} title={project.active_version?.status === 'returned_to_auditor' ? "Perbaiki Audit" : "Start Verification"}>
                             <FaClipboardCheck />
+                          </button>
+                        )}
+
+                        {/* 👉 NEW: Tombol Resume Web3 (Oranye) */}
+                        {isAuditHalfFinished && (
+                          <button className={`${styles.actionBtn} ${styles.btnAudit}`} style={{ backgroundColor: '#f59e0b', color: 'white' }} onClick={() => handleResumeAudit(project)} title="Resume Web3 Transaction">
+                            <FaPlayCircle />
                           </button>
                         )}
                       </div>

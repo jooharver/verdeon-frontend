@@ -25,6 +25,7 @@ export default function HomePage() {
   
   const [walletAddress, setWalletAddress] = useState('');
   const [myProjects, setMyProjects] = useState([]);
+  const [totalProjectsCount, setTotalProjectsCount] = useState(0); // 👉 NEW: State Total
   const [isProjectsLoading, setIsProjectsLoading] = useState(true);
 
   // Sync wallet address dari user data
@@ -38,8 +39,17 @@ export default function HomePage() {
   useEffect(() => {
     const fetchMyProjects = async () => {
       try {
-        const data = await projectService.getMyProjects();
-        setMyProjects(Array.isArray(data) ? data : []);
+        const response = await projectService.getMyProjects();
+        
+        // 👉 FIX: Ekstraksi Object Pagination (Persis seperti Admin Dashboard)
+        if (response?.data && Array.isArray(response.data)) {
+            setMyProjects(response.data);
+            setTotalProjectsCount(response.total || response.data.length);
+        } else {
+            const arr = Array.isArray(response) ? response : [];
+            setMyProjects(arr);
+            setTotalProjectsCount(arr.length);
+        }
       } catch (error) {
         console.error("Gagal memuat proyek:", error);
       } finally {
@@ -51,7 +61,7 @@ export default function HomePage() {
 
   // Kalkulasi KPI
   const stats = React.useMemo(() => {
-    const total = myProjects.length;
+    const total = totalProjectsCount; // 👉 FIX: Gunakan total keseluruhan
     const listed = myProjects.filter(p => p.active_version?.status === 'listed').length;
     
     // Hitung total VCT dari proyek yang sudah listed/auditor_verified
@@ -64,7 +74,7 @@ export default function HomePage() {
     }, 0);
 
     return { total, listed, totalTokens };
-  }, [myProjects]);
+  }, [myProjects, totalProjectsCount]);
 
   // Handler Wallet dengan Force Request & Context Update
   const handleConnectWallet = async () => {
@@ -137,6 +147,7 @@ export default function HomePage() {
       auditor_verified: { class: styles.badgeSuccess, label: 'Verified' },
       admin_approved: { class: styles.badgeWarning, label: 'Auditing' },
       submitted: { class: styles.badgeWarning, label: 'Pending Admin' },
+      returned_to_auditor: { class: styles.badgeDanger, label: 'Revision Needed' },
       rejected: { class: styles.badgeDanger, label: 'Rejected' },
       draft: { class: styles.badgeNeutral, label: 'Draft' }
     };
@@ -244,7 +255,7 @@ export default function HomePage() {
           <section className={styles.recentProjectsCard}>
             <div className={styles.cardHeader}>
               <h3>Aktivitas Proyek Terakhir</h3>
-              <Link href="/my-project" className={styles.linkViewAll}>
+              <Link href="/issuer/my-project" className={styles.linkViewAll}>
                 Lihat Semua <FaArrowRight />
               </Link>
             </div>
@@ -280,7 +291,7 @@ export default function HomePage() {
           <section className={styles.actionCard}>
             <h3>Aksi Cepat</h3>
             <p>Mulai registrasi fasilitas energi hijau Anda untuk divalidasi dan diubah menjadi aset token karbon.</p>
-            <Link href="/my-project" className={styles.btnPrimaryLg}>
+            <Link href="/issuer/my-project" className={styles.btnPrimaryLg}>
               <FaPlus /> Buat Proyek Baru
             </Link>
             

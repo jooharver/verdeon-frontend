@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styles from './Dashboard.module.css';
 import { 
-  FaUsers, FaProjectDiagram, FaCheckCircle, FaChartBar, 
+  FaUsers, FaProjectDiagram, FaCheckCircle, 
   FaClipboardList, FaBolt, FaUsersCog, FaTasks, FaBullhorn,
   FaReceipt, FaSpinner, FaLeaf
 } from 'react-icons/fa';
@@ -48,6 +48,10 @@ export default function AdminDashboardPage() {
   // --- STATE DATA ASLI ---
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
+  
+  const [totalProjectsCount, setTotalProjectsCount] = useState(0);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
+
   const [totalVctMinted, setTotalVctMinted] = useState("0");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,19 +63,32 @@ export default function AdminDashboardPage() {
 
         // 1. Tarik Data User (Web2)
         const usersRes = await api('/admin/users');
-        setUsers(Array.isArray(usersRes) ? usersRes : []);
+        if (usersRes?.data && Array.isArray(usersRes.data)) {
+          setUsers(usersRes.data);
+          setTotalUsersCount(usersRes.total || usersRes.data.length);
+        } else {
+          const arr = Array.isArray(usersRes) ? usersRes : [];
+          setUsers(arr);
+          setTotalUsersCount(arr.length);
+        }
 
         // 2. Tarik Data Project (Web2)
         const projectsRes = await projectService.getAllProjects();
-        setProjects(Array.isArray(projectsRes) ? projectsRes : []);
+        if (projectsRes?.data && Array.isArray(projectsRes.data)) {
+          setProjects(projectsRes.data);
+          setTotalProjectsCount(projectsRes.total || projectsRes.data.length);
+        } else {
+          const arr = Array.isArray(projectsRes) ? projectsRes : [];
+          setProjects(arr);
+          setTotalProjectsCount(arr.length);
+        }
 
         // 3. Tarik Total Supply Token (Web3 Polygon)
         if (typeof window !== 'undefined' && window.ethereum) {
           const provider = new ethers.BrowserProvider(window.ethereum);
           const contract = getTokenContract(provider);
-          const totalSupply = await contract.totalSupply(); // Panggil fungsi ERC-20
+          const totalSupply = await contract.totalSupply();
           
-          // Konversi dari Wei (18 desimal) ke format normal
           const formattedSupply = ethers.formatUnits(totalSupply, 18);
           setTotalVctMinted(parseFloat(formattedSupply).toLocaleString('id-ID', { maximumFractionDigits: 2 }));
         }
@@ -90,17 +107,15 @@ export default function AdminDashboardPage() {
 
   // 1. Kalkulasi KPI
   const kpiStats = useMemo(() => {
-    const totalUsers = users.length;
     const pendingVerifications = projects.filter(p => p.active_version?.status === 'submitted').length;
-    const totalProjects = projects.length;
     
     return [
-      { icon: <FaUsers />, title: 'TOTAL USERS', value: totalUsers.toLocaleString(), type: 'default' },
+      { icon: <FaUsers />, title: 'TOTAL USERS', value: totalUsersCount.toLocaleString(), type: 'default' },
       { icon: <FaProjectDiagram />, title: 'PENDING VERIFICATION', value: pendingVerifications, type: 'pending' },
-      { icon: <FaCheckCircle />, title: 'TOTAL PROJECTS', value: totalProjects.toLocaleString(), type: 'success' },
+      { icon: <FaCheckCircle />, title: 'TOTAL PROJECTS', value: totalProjectsCount.toLocaleString(), type: 'success' },
       { icon: <FaLeaf />, title: 'TOTAL VCT MINTED (ON-CHAIN)', value: `${totalVctMinted} VCT`, subtitle: 'Polygon Amoy', type: 'default' }
     ];
-  }, [users, projects, totalVctMinted]);
+  }, [totalUsersCount, projects, totalProjectsCount, totalVctMinted]);
 
   // 2. Data Chart: Status Proyek
   const projectStatusData = useMemo(() => {
@@ -119,34 +134,68 @@ export default function AdminDashboardPage() {
       { name: 'Verified', value: statusCount.Verified },
       { name: 'Pending', value: statusCount.Pending },
       { name: 'Rejected', value: statusCount.Rejected },
-    ].filter(item => item.value > 0); // Sembunyikan yang 0
+    ].filter(item => item.value > 0); 
   }, [projects]);
 
   const PIE_COLORS = ['#22c55e', '#0ea5e9', '#eab308', '#ef4444'];
 
-  // 3. Data Chart: Pertumbuhan User (Dummy fallback jika data user < 2)
+  // 3. Data Chart: Pertumbuhan User
   const userRegistrationData = useMemo(() => {
-    // Di aplikasi nyata, Anda mengelompokkan `users.created_at` per bulan/minggu
-    // Untuk demo ini, kita gunakan data dinamis sederhana berdasarkan total
-    const base = Math.max(10, Math.floor(users.length / 5));
+    const base = Math.max(10, Math.floor(totalUsersCount / 5));
     return [
       { name: 'Week 1', Users: base }, { name: 'Week 2', Users: base + 5 }, 
-      { name: 'Week 3', Users: base + 12 }, { name: 'Week 4', Users: users.length || 20 }
+      { name: 'Week 3', Users: base + 12 }, { name: 'Week 4', Users: totalUsersCount || 20 }
     ];
-  }, [users]);
+  }, [totalUsersCount]);
 
   // 4. Tabel: Menunggu Verifikasi Admin
   const pendingProjectsList = useMemo(() => {
     return projects
       .filter(p => p.active_version?.status === 'submitted')
-      .slice(0, 5); // Ambil 5 teratas
+      .slice(0, 5); 
   }, [projects]);
 
-  // 5. Tabel: Aktivitas On-Chain Terakhir
+  // ==============================================================
+  // 🔥 FIX 1: FLATTEN DAN PILIH HASH SECARA AKURAT (AUDIT TRAIL)
+  // ==============================================================
   const recentOnChainActivity = useMemo(() => {
-    return projects
-      .filter(p => p.tx_hash) // Hanya proyek yang sudah menyentuh blockchain
-      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+    const activities = [];
+
+    projects.forEach(p => {
+      // Skenario A: Ambil riwayat status tracking dari snapshots (VerideonProject Contract)
+      if (p.snapshots && Array.isArray(p.snapshots)) {
+        p.snapshots.forEach(snap => {
+          if (snap.tx_hash) {
+            activities.push({
+              id: `snap-${snap.id}`,
+              date: snap.created_at || p.updated_at,
+              projectName: p.active_version?.name || 'Unnamed',
+              walletAddress: p.issuer?.wallet_address,
+              statusText: snap.status_at_snapshot,
+              txHash: snap.tx_hash,
+              isMinting: false
+            });
+          }
+        });
+      }
+
+      // Skenario B: Ambil riwayat pencetakan token dari projects.blockchain_tx (VerideonToken Contract)
+      if (p.blockchain_tx) {
+        activities.push({
+          id: `mint-${p.id}`,
+          date: p.updated_at,
+          projectName: p.active_version?.name || 'Unnamed',
+          walletAddress: p.issuer?.wallet_address,
+          statusText: 'vct_minted',
+          txHash: p.blockchain_tx,
+          isMinting: true
+        });
+      }
+    });
+
+    // Urutkan kronologi berdasarkan waktu eksekusi paling baru dan potong maksimal 5 item
+    return activities
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
       .slice(0, 5);
   }, [projects]);
 
@@ -288,19 +337,38 @@ export default function AdminDashboardPage() {
             {isLoading ? (
               <div style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}><FaSpinner className="fa-spin"/> Syncing with Blockchain...</div>
             ) : recentOnChainActivity.length > 0 ? (
-              recentOnChainActivity.map((proj) => (
-                <div key={proj.id} className={`${styles.tableRow} ${styles.transactionRow}`}>
-                  <span className={styles.txTime}>{new Date(proj.updated_at).toLocaleDateString('id-ID')}</span>
-                  <span className={styles.txParty}>{proj.active_version?.name || 'Unnamed'}</span>
-                  <span className={styles.txParty}>{formatAddress(proj.issuer?.wallet_address)}</span>
-                  <span style={{textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'bold', color:'var(--brand-color)'}}>
-                    {proj.active_version?.status.replace('_', ' ')}
+              // 👉 FIX 2: MAPPING DENGAN STRUKTUR VARIABEL BARU YANG FLAT DAN AKURAT
+              recentOnChainActivity.map((act) => (
+                <div key={act.id} className={`${styles.tableRow} ${styles.transactionRow}`}>
+                  <span className={styles.txTime}>{new Date(act.date).toLocaleDateString('id-ID')}</span>
+                  <span className={styles.txParty}>{act.projectName}</span>
+                  <span className={styles.txParty}>{formatAddress(act.walletAddress)}</span>
+                  
+                  {/* Styling Label Status */}
+                  <span style={{
+                    textTransform: 'uppercase', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 'bold', 
+                    color: act.isMinting ? '#b45309' : 'var(--brand-color)'
+                  }}>
+                    {act.statusText?.replace(/_/g, ' ')}
                   </span>
+
+                  {/* Tampilkan Tx Hash */}
                   <span className={styles.txTime}>
-                    <code style={{background: 'var(--bg-main)', padding:'4px', borderRadius:'4px'}}>{formatAddress(proj.tx_hash)}</code>
+                    <code style={{background: 'var(--bg-main)', padding:'4px', borderRadius:'4px'}}>
+                      {formatAddress(act.txHash)}
+                    </code>
                   </span>
+
+                  {/* Navigasi Link Explorer */}
                   <span className={styles.txValue}>
-                    <a href={`https://amoy.polygonscan.com/tx/${proj.tx_hash}`} target="_blank" rel="noreferrer" style={{color: 'var(--success-color)', textDecoration:'none', fontWeight:'bold'}}>
+                    <a 
+                      href={`https://amoy.polygonscan.com/tx/${act.txHash}`} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      style={{color: 'var(--success-color)', textDecoration:'none', fontWeight:'bold'}}
+                    >
                       Explorer
                     </a>
                   </span>

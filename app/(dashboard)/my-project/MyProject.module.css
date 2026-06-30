@@ -1,6 +1,7 @@
 /* --- Layout Utama --- */
 .container {
   padding: 24px;
+  padding-bottom: 100px; /* Tambahan jarak bawah agar tidak nyangkut di taskbar Windows */
   display: flex;
   flex-direction: column;
   gap: 24px;

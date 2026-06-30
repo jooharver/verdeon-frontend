@@ -1,6 +1,7 @@
 /* 1. Wrapper Halaman Utama */
 .container {
   padding: 24px;
+  padding-bottom: 100px; /* 👉 FIX: Tambahan jarak bawah agar tidak nyangkut di taskbar Windows */
   display: flex;
   flex-direction: column;
   gap: 24px; /* Jarak antar section (KPI, Charts, Tables) */
