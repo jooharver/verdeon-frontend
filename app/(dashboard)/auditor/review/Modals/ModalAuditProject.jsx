@@ -12,12 +12,14 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
   const activeVersion = project?.active_version;
   const reportData = activeVersion?.audit_report || activeVersion?.auditReport || null;
 
+  const [efSource, setEfSource] = useState('pln'); 
+
   const [formData, setFormData] = useState({
     action: '', 
     audit_notes: '',
     calculation_method: 'system_estimated',
     verified_generation_kwh: '', 
-    baseline_emission_factor: '0.85', 
+    baseline_emission_factor: '0.87',
     onsite_measurement_date: '',
   });
 
@@ -32,23 +34,25 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
   const [auditImages, setAuditImages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 👉 PENGAMAN FILE LAMA: Cek apakah sudah ada file di database
   const existingAuditDocs = activeVersion?.documents?.filter(d => ['audit_report', 'document', 'pdf'].includes(d.type) && d.uploader_role === 'auditor') || [];
   const existingAuditImages = activeVersion?.documents?.filter(d => ['audit_image', 'image', 'evidence'].includes(d.type) && d.uploader_role === 'auditor') || [];
 
-  // 👉 SMART PRE-FILL LOGIC: Sedot data lama jika statusnya revisi
   useEffect(() => {
     if (activeVersion?.status === 'returned_to_auditor' && reportData) {
+      let oldEfSource = 'custom';
+      if (reportData.baseline_emission_factor == '0.87') oldEfSource = 'pln';
+      else if (reportData.baseline_emission_factor == '1.30' || reportData.baseline_emission_factor == '1.3') oldEfSource = 'generator';
+      setEfSource(oldEfSource);
+
       setFormData({
-        action: '', // Sengaja dikosongkan agar Auditor tetap sadar harus milih Verify/Reject lagi
+        action: '', 
         audit_notes: reportData.audit_notes || '',
         calculation_method: reportData.calculation_method || 'system_estimated',
         verified_generation_kwh: reportData.verified_generation_kwh || '',
-        baseline_emission_factor: reportData.baseline_emission_factor || '0.85',
+        baseline_emission_factor: reportData.baseline_emission_factor || '0.87',
         onsite_measurement_date: reportData.onsite_measurement_date ? reportData.onsite_measurement_date.substring(0, 10) : '',
       });
 
-      // Kembalikan status centang checklist sebelumnya
       if (reportData.verification_checklist && Array.isArray(reportData.verification_checklist)) {
         const checklistTxt = JSON.stringify(reportData.verification_checklist);
         setChecklistItems(prev => ({
@@ -96,14 +100,49 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
       return;
     }
     
+    const unverifiedItems = Object.keys(checklistItems).filter(k => !checklistItems[k].checked);
+    const unverifiedLabels = unverifiedItems.map(k => checklistItems[k].label.split(':')[0]); 
+
+    if (formData.action === 'verify' && unverifiedItems.length > 0) {
+      const confirmAutoReject = await Swal.fire({
+        title: 'Syarat Fisik Tidak Lengkap!',
+        html: `Anda memilih "Verify", tetapi ada <b>${unverifiedItems.length} poin</b> yang belum dicentang.<br/><br/>Apakah Anda ingin mengubah keputusan ini menjadi <b>REJECT</b> secara otomatis?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Ya, Reject Proyek',
+        cancelButtonText: 'Batal'
+      });
+
+      if (confirmAutoReject.isConfirmed) {
+        const autoNotes = `Ditolak karena tidak sesuai kriteria berikut:\n- ${unverifiedLabels.join('\n- ')}\n\nCatatan Tambahan Auditor: ${formData.audit_notes}`;
+        
+        setIsLoading(true);
+        try {
+          await onSave(project.id, { action: 'reject', audit_notes: autoNotes.trim() });
+          return;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+      return; 
+    }
+
     if (formData.action === 'reject') {
-      if (!formData.audit_notes.trim()) {
+      let finalNotes = formData.audit_notes;
+      if (unverifiedItems.length > 0 && !formData.audit_notes.includes('kriteria fisik')) {
+         finalNotes = `Tidak sesuai kriteria fisik:\n- ${unverifiedLabels.join('\n- ')}\n\n${formData.audit_notes}`;
+      }
+
+      if (!finalNotes.trim()) {
         Swal.fire('Warning', 'Alasan penolakan (Notes) wajib diisi.', 'warning');
         return;
       }
       setIsLoading(true);
       try {
-        await onSave(project.id, { action: 'reject', audit_notes: formData.audit_notes });
+        await onSave(project.id, { action: 'reject', audit_notes: finalNotes.trim() });
       } catch (err) {
         console.error(err);
       } finally {
@@ -112,22 +151,14 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
       return;
     }
 
-    // 👉 FIX LOGIKA FILE: Kalau tidak ada file baru DAN tidak ada file lama, baru ditolak!
     if (auditDocs.length === 0 && existingAuditDocs.length === 0) {
       Swal.fire('Warning', 'Dokumen Laporan Audit (PDF) wajib diunggah.', 'warning');
-      return;
-    }
-
-    const unverifiedItems = Object.keys(checklistItems).filter(k => !checklistItems[k].checked);
-    if (unverifiedItems.length > 0) {
-      Swal.fire('Warning', 'Semua poin Checklist Verifikasi data fisik wajib dicentang untuk menyetujui proyek.', 'warning');
       return;
     }
 
     const payload = new FormData();
     payload.append('action', 'verify');
     payload.append('calculation_method', formData.calculation_method);
-    
     payload.append('verified_installed_capacity_kwp', activeVersion?.total_system_capacity_kwp || 0);
     payload.append('baseline_emission_factor', formData.baseline_emission_factor);
     payload.append('audit_notes', formData.audit_notes);
@@ -144,7 +175,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
       payload.append(`verification_checklist[${index}]`, `[✓] Verified: ${checklistItems[key].label}`);
     });
 
-    // Kirim file baru hanya jika ada yang dipilih
     auditDocs.forEach(file => payload.append('audit_documents[]', file));
     auditImages.forEach(file => payload.append('audit_images[]', file));
 
@@ -267,10 +297,34 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
                 <div className={styles.formSection}>
                   <h5 className={styles.sectionHeader}><FaLeaf className={styles.sectionIcon} /> Faktor Emisi & Validasi Lapangan</h5>
                   <div className={styles.gridTwo}>
+                    
                     <div className={styles.inputGroup}>
-                      <label>Baseline Emission Factor (tCO2e/MWh) <span className={styles.req}>*</span></label>
-                      <input type="number" step="0.0001" name="baseline_emission_factor" className={styles.input} required onChange={handleChange} value={formData.baseline_emission_factor} />
+                      <label>Sumber Listrik Baseline (Faktor Emisi) <span className={styles.req}>*</span></label>
+                      <select 
+                        className={styles.input} 
+                        value={efSource} 
+                        onChange={(e) => {
+                          setEfSource(e.target.value);
+                          if(e.target.value === 'pln') setFormData(p => ({...p, baseline_emission_factor: '0.87'}));
+                          if(e.target.value === 'generator') setFormData(p => ({...p, baseline_emission_factor: '1.30'}));
+                          if(e.target.value === 'custom') setFormData(p => ({...p, baseline_emission_factor: ''}));
+                        }}
+                      >
+                        <option value="pln">Grid PLN (0.87 tCO2e/MWh)</option>
+                        <option value="generator">Genset Diesel (1.30 tCO2e/MWh)</option>
+                        <option value="custom">Input Manual / Kustom</option>
+                      </select>
+                      
+                      {efSource === 'custom' && (
+                        <input 
+                          type="number" step="0.0001" name="baseline_emission_factor" 
+                          className={styles.input} style={{marginTop: '8px'}} 
+                          placeholder="Nilai kustom (tCO2e/MWh)" 
+                          required onChange={handleChange} value={formData.baseline_emission_factor} 
+                        />
+                      )}
                     </div>
+                    
                     <div className={styles.inputGroup}>
                       <label>On-site Visit Date {formData.calculation_method === 'actual_inverter' && <span className={styles.req}>*</span>}</label>
                       <div className={styles.iconInputWrapper}>
@@ -292,7 +346,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
                       <label htmlFor="auditDocs" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px', background: '#f3f4f6', border: '1px dashed #d1d5db', borderRadius: '6px' }}>
                         <FaFileUpload color="#4b5563" />
                         <span style={{ fontSize: '0.85rem', color: '#4b5563' }}>
-                          {/* 👉 FIX UI LABEL: Kasih tahu Auditor kalau file lamanya aman */}
                           {auditDocs.length > 0 
                             ? `${auditDocs.length} file baru dipilih` 
                             : (existingAuditDocs.length > 0 ? `Sudah ada ${existingAuditDocs.length} file (Pilih untuk menimpa)` : "Pilih File PDF...")}
@@ -307,7 +360,6 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
                       <label htmlFor="auditImages" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px', background: '#f3f4f6', border: '1px dashed #d1d5db', borderRadius: '6px' }}>
                         <FaImage color="#4b5563"/>
                         <span style={{ fontSize: '0.85rem', color: '#4b5563' }}>
-                           {/* 👉 FIX UI LABEL */}
                           {auditImages.length > 0 
                             ? `${auditImages.length} foto baru dipilih` 
                             : (existingAuditImages.length > 0 ? `Sudah ada ${existingAuditImages.length} foto (Pilih untuk menimpa)` : "Pilih Foto Lapangan...")}

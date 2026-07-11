@@ -253,7 +253,7 @@ export default function AdminProject() {
                 }
 
                 Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
-                await new Promise(resolve => setTimeout(resolve, 4000));
+                await new Promise(resolve => setTimeout(resolve, 15000));
             } 
             else if (isMinted && ['admin_rejected', 'auditor_rejected', 'returned_to_auditor'].includes(currentOnChainStatus)) {
                 Swal.update({ title: `Mencatat Revisi v${versionNumber} (1/2)`, html: 'Mohon konfirmasi log Revisi Issuer di MetaMask Anda.' });
@@ -270,7 +270,7 @@ export default function AdminProject() {
                 }
 
                 Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
-                await new Promise(resolve => setTimeout(resolve, 4000));
+                await new Promise(resolve => setTimeout(resolve, 15000));
             }
         }
 
@@ -403,7 +403,7 @@ export default function AdminProject() {
           }
 
           Swal.update({ title: 'Sinkronisasi...', html: 'Menunggu blok tercatat...' });
-          await new Promise(resolve => setTimeout(resolve, 3500));
+          await new Promise(resolve => setTimeout(resolve, 15000));
         }
 
         // TRANSAKSI 2: MINT CARBON TOKENS
