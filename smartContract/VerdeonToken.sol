@@ -50,7 +50,7 @@ contract VerdeonToken is ERC20, Ownable {
         require(!isProjectMinted[projectId], "Error: Token VCT untuk Project ID ini sudah dicetak!");
 
         // ==========================================
-        // 🛡️ ECDSA VERIFICATION LOGIC 🛡️
+        //  ECDSA VERIFICATION LOGIC 
         // ==========================================
         
         // 1. Rangkai ulang pesan (Hash) persis seperti yang dibuat di Laravel

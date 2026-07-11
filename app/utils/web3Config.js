@@ -5,8 +5,8 @@ import ProjectABI from './ProjectABI.json';
 import TokenABI from './TokenABI.json';
 
 // Contract Address di Polygon Amoy Testnet (Sudah pakai address terbarumu)
-export const PROJECT_ADDRESS = "0x9234e2A5F6Cc128E1D4fd7f81e8Df9a79cCc1c50";
-export const TOKEN_ADDRESS = "0x329CC4B58a3d12c393561d37a309286Cc1da2915";
+export const PROJECT_ADDRESS = "0xe9b06Df9C93C6A0a6D93d0E4Ed8fdE7C8aF70749";
+export const TOKEN_ADDRESS = "0xf1F7EE9ee04d80eed8124C7590B4AAa8009ea9b0";
 
 // Tambahkan parameter expectedAddress (dompet dari database)
 export const connectWallet = async (expectedAddress = null) => {
@@ -81,12 +81,12 @@ export const getTokenContract = (signerOrProvider) => {
 // 🔥 FIX GAS LIMIT POLYGON AMOY 🔥
 // ==============================================================
 // MetaMask sering salah hitung gas di Polygon. Kita set manual ke 30+ Gwei.
-const getAmoyGasConfig = () => {
+const getGasConfig = () => {
     return {
         // Minimal Amoy adalah 25 Gwei, kita set 25 Gwei untuk Priority
-        maxPriorityFeePerGas: ethers.parseUnits("25", "gwei"),
+        maxPriorityFeePerGas: ethers.parseUnits("35", "gwei"),
         // Max fee kita set 35 Gwei (Base + Priority)
-        maxFeePerGas: ethers.parseUnits("35", "gwei")
+        maxFeePerGas: ethers.parseUnits("50", "gwei")
     };
 };
 
@@ -151,7 +151,7 @@ export const submitProjectToBlockchain = async (
         eventName, 
         initialDataHash, 
         initialUri, 
-        getAmoyGasConfig()
+        // getGasConfig()
     );
     
     const receipt = await tx.wait();
@@ -183,7 +183,7 @@ export const addTrackingToBlockchain = async (
         newStatus, 
         dataHash, 
         metadataUri, 
-        getAmoyGasConfig()
+        // getGasConfig()
     );
     
     const receipt = await tx.wait();
@@ -211,7 +211,7 @@ export const mintCarbonTokens = async (
         projectName,
         amountInWei, 
         signature,  // 👉 Lempar signature ke Smart Contract
-        getAmoyGasConfig()
+        // getGasConfig()
     );
     
     const receipt = await tx.wait();
