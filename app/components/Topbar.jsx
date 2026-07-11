@@ -6,38 +6,117 @@ import Link from 'next/link';
 import styles from "./Topbar.module.css";
 import { useAuth } from "../../context/AuthContext"; 
 import { ethers } from "ethers";
-import Swal from 'sweetalert2'; // 👉 NEW: Tambahkan SweetAlert untuk notifikasi error
+import Swal from 'sweetalert2';
+// 👉 IMPORT PROJECT SERVICE UNTUK MENGAMBIL DATA ASLI
+import { projectService } from "../../services/projectService"; // Sesuaikan path jika letak foldernya berbeda
 
 const capitalizeRole = (role) => {
   if (!role) return "User"; 
   return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 };
 
+// Fungsi helper untuk menghitung selisih waktu menjadi teks
+const timeAgo = (dateString) => {
+  if (!dateString) return 'Baru saja';
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  
+  if (seconds < 60) return `${seconds} detik yang lalu`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} menit yang lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam yang lalu`;
+  const days = Math.floor(hours / 24);
+  return `${days} hari yang lalu`;
+};
+
 const Topbar = ({ title, breadcrumbs = [] }) => {
   const { user, isLoading, logout, updateTheme } = useAuth();
   
+  // --- STATE DROPDOWN PROFILE ---
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // --- STATE & REF UNTUK NOTIFIKASI ---
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notifRef = useRef(null);
 
   // --- STATE WEB3 ---
   const [walletAddress, setWalletAddress] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // 👉 FIX 1: SYNC DOMPET DARI DATABASE
-  // Jadikan user.wallet_address sebagai "Single Source of Truth"
+  // 👉 FETCH DATA NOTIFIKASI ASLI DARI DATABASE
+  useEffect(() => {
+    if (user && user.role) {
+      const fetchNotif = async () => {
+        try {
+          let notifData = [];
+          
+          if (user.role === 'admin') {
+            // Tarik data proyek untuk admin
+            const res = await projectService.getAllProjects();
+            const projects = res?.data || res || [];
+            
+            // Filter proyek yang menunggu verifikasi admin
+            const pendingAdmin = projects.filter(p => p.active_version?.status === 'submitted');
+            
+            notifData = pendingAdmin.map(p => ({
+              id: p.id,
+              title: `Verifikasi Baru: ${p.active_version?.name || 'Unnamed Project'}`,
+              time: timeAgo(p.updated_at),
+              link: '/admin/project'
+            }));
+            
+          } else if (user.role === 'auditor') {
+            // Tarik data proyek untuk auditor
+            const res = await projectService.getAuditorProjects();
+            const projects = res?.data || res || [];
+            
+            // Filter proyek yang menunggu audit lapangan atau direvisi
+            const pendingAuditor = projects.filter(p => ['admin_approved', 'returned_to_auditor'].includes(p.active_version?.status));
+            
+            notifData = pendingAuditor.map(p => ({
+              id: p.id,
+              title: p.active_version?.status === 'returned_to_auditor'
+                ? `Revisi Laporan: ${p.active_version?.name || 'Unnamed Project'}`
+                : `Menunggu Audit: ${p.active_version?.name || 'Unnamed Project'}`,
+              time: timeAgo(p.updated_at),
+              link: '/auditor/review'
+            }));
+          }
+          
+          // Urutkan dari yang paling baru dan batasi jumlahnya agar dropdown tidak terlalu berat
+          notifData.sort((a, b) => new Date(b.time) - new Date(a.time));
+          setNotifications(notifData.slice(0, 10)); // Tampilkan maksimal 10 notifikasi terbaru
+          
+        } catch (error) {
+          console.error("Gagal menarik notifikasi:", error);
+        }
+      };
+
+      fetchNotif();
+      
+      // Opsional: Polling setiap 30 detik agar notifikasi selalu update tanpa perlu refresh
+      const interval = setInterval(fetchNotif, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  // Sync Dompet
   useEffect(() => {
     if (user?.wallet_address) {
       setWalletAddress(user.wallet_address);
     }
   }, [user]);
 
-  // 👉 FIX 2: PANTAU PERUBAHAN AKUN DI METAMASK SECARA REAL-TIME
+  // Pantau Metamask
   useEffect(() => {
     if (typeof window !== "undefined" && window.ethereum) {
       const handleAccountsChanged = (accounts) => {
         if (accounts.length > 0) {
           const activeAcc = accounts[0];
-          // Jika user ganti akun MetaMask dan tidak cocok dengan database, beri peringatan!
           if (user?.wallet_address && activeAcc.toLowerCase() !== user.wallet_address.toLowerCase()) {
             Swal.fire({
               toast: true,
@@ -51,36 +130,34 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
           }
         }
       };
-
-      // Daftarkan listener
       window.ethereum.on('accountsChanged', handleAccountsChanged);
-      
-      // Cleanup listener saat komponen unmount
       return () => {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
       };
     }
   }, [user]);
 
+  // Global Click Outside Listener (Untuk Profile & Notifikasi)
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setIsNotifOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dropdownRef]);
+  }, []);
 
-  // Helper untuk mempersingkat alamat dompet
   const formatAddress = (address) => {
     if (!address) return "";
     return `${address.substring(0, 5)}...${address.substring(address.length - 4)}`;
   };
 
-  // --- FUNGSI CONNECT WALLET (DIPERKETAT) ---
   const connectWallet = async () => {
     if (typeof window.ethereum !== "undefined") {
       try {
@@ -88,14 +165,13 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
         const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
         const activeAccount = accounts[0];
 
-        // 👉 FIX 3: VALIDASI SILANG WEB2 vs WEB3
         if (user?.wallet_address && activeAccount.toLowerCase() !== user.wallet_address.toLowerCase()) {
           Swal.fire(
             'Akses Ditolak', 
             `Dompet MetaMask yang sedang aktif (${formatAddress(activeAccount)}) berbeda dengan data profil Admin Anda (${formatAddress(user.wallet_address)}). Silakan buka ekstensi MetaMask dan ganti akun!`, 
             'error'
           );
-          return; // Hentikan proses jika dompet salah
+          return; 
         }
 
         setWalletAddress(activeAccount);
@@ -141,8 +217,7 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
       </div>
 
       <div className={styles.right}>
-
-        {/* --- TOMBOL CONNECT WALLET (HANYA UNTUK ADMIN) --- */}
+        {/* Tombol Wallet */}
         {!isLoading && user && user.role === 'admin' && (
           <button 
             className={`${styles.walletButton} ${walletAddress ? styles.walletConnected : ''}`} 
@@ -172,9 +247,42 @@ const Topbar = ({ title, breadcrumbs = [] }) => {
             </span>
           </label>
         )}
-      
-        <FaBell className={styles.icon} />
         
+        {/* WRAPPER NOTIFIKASI */}
+        <div className={styles.notifContainer} ref={notifRef}>
+          <div className={styles.bellWrapper} onClick={() => setIsNotifOpen(prev => !prev)}>
+            <FaBell className={`${styles.icon} ${notifications.length > 0 ? styles.iconActive : ''}`} />
+            {notifications.length > 0 && (
+              <span className={styles.notifBadge}>{notifications.length}</span>
+            )}
+          </div>
+
+          {/* DROPDOWN NOTIFIKASI */}
+          {isNotifOpen && (
+            <div className={styles.notifDropdown}>
+              <div className={styles.notifHeader}>Notifikasi Proyek</div>
+              {notifications.length === 0 ? (
+                <div className={styles.notifEmpty}>Semua pekerjaan sudah terselesaikan!</div>
+              ) : (
+                <div className={styles.notifList}>
+                  {notifications.map(notif => (
+                    <Link 
+                      href={notif.link} 
+                      className={styles.notifItem} 
+                      key={notif.id}
+                      onClick={() => setIsNotifOpen(false)} 
+                    >
+                      <p className={styles.notifTitle}>{notif.title}</p>
+                      <p className={styles.notifTime}>{notif.time}</p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Profile Dropdown */}
         {isLoading || !user ? (
           <div className={styles.profilePlaceholder}>
             <div className={styles.profileAvatar} style={{ background: '#eee' }} />

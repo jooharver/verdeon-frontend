@@ -273,3 +273,122 @@
   color: #f8fafc;
   border: 1px solid var(--border-color);
 }
+
+/* --- (BARU) STYLE NOTIFIKASI (LONCENG) --- */
+.notifContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bellWrapper {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px; /* Memperluas area klik */
+}
+
+/* Warna Lonceng saat ada notifikasi (Orange) */
+.iconActive {
+  color: #f97316 !important; 
+  animation: bellRing 1.5s ease-in-out infinite alternate;
+}
+
+/* Badge Angka Notifikasi */
+.notifBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background-color: #ef4444; /* Merah terang */
+  color: white;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: bold;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-card); /* Memberi border warna background agar timbul */
+}
+
+/* Dropdown Notifikasi */
+.notifDropdown {
+  position: absolute;
+  top: 115%;
+  right: -10px; /* Sedikit digeser agar sejajar estetikanya */
+  width: 320px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.notifHeader {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-background); /* Warna agak abu-abu tergantung tema */
+}
+
+/* KUNCI: Scrollbar maksimal 3 item */
+.notifList {
+  /* Asumsi 1 item tingginya sekitar ~65px. 3 item = ~195px */
+  max-height: 200px; 
+  overflow-y: auto;
+}
+
+.notifItem {
+  display: block;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.notifItem:last-child {
+  border-bottom: none;
+}
+
+.notifItem:hover {
+  background-color: var(--nav-link-hover-bg);
+}
+
+.notifTitle {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+  /* Membuat teks kepanjangan jadi titik-titik (...) */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notifTime {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.notifEmpty {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* (Opsional) Animasi lonceng goyang kecil */
+@keyframes bellRing {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg); }
+  100% { transform: rotate(-5deg); }
+}
