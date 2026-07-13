@@ -185,41 +185,85 @@ export default function AdminProject() {
   };
 
   const handleProcess = (project) => {
-    setProjectToVerify(project);
-    setIsVerifyModalOpen(true);
-  };
+      // Cek apakah sedang dalam mode Resume
+      const reviewSnapshot = project.snapshots?.find(s => s.status_at_snapshot === (project.active_version?.status === 'rejected' ? 'admin_rejected' : 'admin_approved'));
+      const isReviewHalfFinished = ['admin_approved', 'rejected'].includes(project.active_version?.status) && reviewSnapshot && !reviewSnapshot.tx_hash;
 
-// ==============================================================
-  // 🔥 FUNGSI 1: ADMIN REVIEW VERIFICATION (ANTI SPLIT-BRAIN)
+      if (isReviewHalfFinished) {
+        // 🚀 MODE RESUME: Langsung tembak ke fungsi Save tanpa buka Modal
+        Swal.fire({
+          title: 'Resume Verification?',
+          text: "Sistem akan melanjutkan transaksi ke Blockchain menggunakan keputusan Anda sebelumnya.",
+          icon: 'info',
+          showCancelButton: true,
+          confirmButtonColor: '#f59e0b',
+          confirmButtonText: 'Ya, Lanjutkan Transaksi',
+          cancelButtonText: 'Batal'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            const payload = {
+              action: project.active_version?.status === 'admin_approved' ? 'approve' : 'reject',
+              admin_notes: project.active_version?.admin_notes || ''
+            };
+            // Panggil save dengan mengirim object project saat ini (sebagai parameter ke-3)
+            handleSaveVerification(project.id, payload, project);
+          }
+        });
+      } else {
+        // MODE NORMAL: Buka Modal seperti biasa
+        setProjectToVerify(project);
+        setIsVerifyModalOpen(true);
+      }
+    };
+
   // ==============================================================
-  const handleSaveVerification = async (projectId, payload) => {
+  // 🔥 FUNGSI 1: ADMIN REVIEW VERIFICATION (ANTI SPLIT-BRAIN & AUTO-RESUME)
+  // ==============================================================
+  const handleSaveVerification = async (projectId, payload, currentProject = null) => {
     try {
+      // Ambil dari currentProject (jika bypass modal) atau dari state modal
+      const targetProject = currentProject || projectToVerify;
+      
       if (!adminWallet) throw new Error("Anda belum menghubungkan dompet Web3!");
 
-      Swal.fire({ title: 'Menyiapkan Data...', html: 'Menyimpan keputusan ke server...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
+      Swal.fire({ title: 'Menyiapkan Data...', html: 'Mempersiapkan transaksi ke blockchain...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
 
-      const previousStatus = projectToVerify.active_version.status; 
+      const previousStatus = targetProject.active_version.status; 
       const isAlreadyProcessed = ['admin_approved', 'rejected'].includes(previousStatus);
 
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-      const versionId = projectToVerify.active_version.id;
-      const versionNumber = projectToVerify.active_version.version_number;
+      const versionId = targetProject.active_version.id;
+      const versionNumber = targetProject.active_version.version_number;
       const actionStatus = payload.action === 'approve' ? 'admin_approved' : 'admin_rejected';
-      const issuerWallet = projectToVerify.issuer?.wallet_address;
+      const issuerWallet = targetProject.issuer?.wallet_address;
       
       if (!issuerWallet) throw new Error("Issuer belum mengatur dompet MetaMask! Proses tidak bisa dilanjutkan.");
 
-      let backendResponse;
-      if (payload.action === 'approve') {
-        backendResponse = await projectService.adminApprove(projectId, "");
+      let exactDataHash, exactUri, exactSnapshotId;
+
+      // Logika cerdas: Jika belum diproses (Normal), panggil backend. Jika sudah (Resume), ambil Snapshot.
+      if (!isAlreadyProcessed) {
+        let backendResponse;
+        if (payload.action === 'approve') {
+          backendResponse = await projectService.adminApprove(projectId, "");
+        } else {
+          backendResponse = await projectService.adminReject(projectId, { note: payload.admin_notes }, "");
+        }
+        exactDataHash = backendResponse?.dataHash || backendResponse?.data?.dataHash;
+        exactUri = backendResponse?.snapshotUri || backendResponse?.data?.snapshotUri;
+        exactSnapshotId = backendResponse?.snapshotId || backendResponse?.data?.snapshotId;
       } else {
-        backendResponse = await projectService.adminReject(projectId, { note: payload.admin_notes }, "");
+        Swal.update({ html: 'Memuat data resume dari server Verideon...' });
+        const resumeUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/${actionStatus}`;
+        const resumeRes = await fetch(resumeUri);
+        const resumeJson = await resumeRes.json();
+        
+        exactDataHash = resumeJson?.hash_info?.expected_blockchain_hash || resumeJson?.data?.hash_info?.expected_blockchain_hash;
+        exactUri = resumeJson?.snapshotUri || resumeJson?.data?.snapshotUri;
+        exactSnapshotId = resumeJson?.snapshotId || resumeJson?.data?.snapshotId;
       }
 
-      const exactDataHash = backendResponse?.dataHash || backendResponse?.data?.dataHash;
-      const exactUri = backendResponse?.snapshotUri || backendResponse?.data?.snapshotUri;
-      const exactSnapshotId = backendResponse?.snapshotId || backendResponse?.data?.snapshotId;
-
+      // Tarik snapshot Submission awal
       const submittedUri = `${apiBaseUrl}/projects/${projectId}/versions/${versionId}/snapshot/submitted`;
       const submittedRes = await fetch(submittedUri);
       const submittedJson = await submittedRes.json();
@@ -229,7 +273,7 @@ export default function AdminProject() {
       const exactSubmittedId = submittedJson?.snapshotId || submittedJson?.data?.snapshotId; 
 
       let trackingTxHash = null;
-      let isTx1JustFinished = false; // 👉 FIX UTAMA: Deklarasi variabel jangan sampai lupa!
+      let isTx1JustFinished = false; 
 
       try {
         await connectWallet(adminWallet);
@@ -246,7 +290,7 @@ export default function AdminProject() {
                     adminWallet, issuerWallet, projectId, versionNumber, "Issuer Project Initial Submission", initialDataHash, exactSubmittedUri
                 );
                 
-                isTx1JustFinished = true; // Sekarang sudah aman dieksekusi
+                isTx1JustFinished = true; 
                 const tx1Hash = receiptTx1?.hash || receiptTx1?.transactionHash || receiptTx1?.id;
                 if (tx1Hash) {
                     try { await projectService.saveTxHash(projectId, tx1Hash, exactSubmittedId); } catch(e) {}
@@ -296,9 +340,8 @@ export default function AdminProject() {
 
         const isUserRejected = web3Error?.code === 4001 || web3Error?.message?.toLowerCase().includes("user rejected") || web3Error?.message?.includes("ACTION_REJECTED");
 
-        // 🔥 LOGIKA ANTI ROLLBACK REVIEW ADMIN
         if (onChainStatus === 'submitted' || isTx1JustFinished) {
-            Swal.fire('Proses Terjeda', 'Tahap 1 (Pencatatan Awal) berhasil, namun Tahap 2 (Keputusan Admin) dibatalkan. Anda dapat melanjutkan proses kapan saja dengan menekan tombol Resume (Oranye).', 'info');
+            Swal.fire('Proses Terjeda', 'Tahap 1 (Pencatatan Awal) berhasil, namun Tahap 2 (Keputusan Admin) belum tuntas. Anda dapat melanjutkan proses kapan saja dengan menekan tombol Resume (Oranye).', 'info');
         } else {
             Swal.update({ title: 'Membatalkan...', html: 'Transaksi tidak tuntas. Mengembalikan status sistem (Rollback)...' });
             await projectService.revertStatus(projectId, previousStatus);
