@@ -4,22 +4,22 @@ import { api } from "./api";
 export const projectService = {
 
   // 👉 UPDATE: Ditambahkan parameter page untuk paginasi Issuer
-  getMyProjects: async (page = 1) => {
+  getMyProjects: async (page: number | string = 1) => {
     return api(`/issuer/projects?page=${page}`);
   },
 
-  getProjectDetail: async (id) => {
+  getProjectDetail: async (id: string | number) => {
     return api(`/projects/${id}`);
   },
 
-  createProject: async (payload) => { 
+  createProject: async (payload: any) => { 
     return api("/projects", {
       method: "POST",
       body: payload, 
     });
   },
 
-  updateProject: async (id, payload) => { 
+  updateProject: async (id: string | number, payload: any) => { 
     payload.append('_method', 'PATCH'); 
     return api(`/projects/${id}`, {
       method: "POST", 
@@ -27,19 +27,19 @@ export const projectService = {
     });
   },
 
-  submitProject: async (id) => {
+  submitProject: async (id: string | number) => {
     return api(`/projects/${id}/submit`, {
       method: "POST",
     });
   },
 
-  reviseProject: async (id) => {
+  reviseProject: async (id: string | number) => {
     return api(`/projects/${id}/revise`, {
       method: "POST",
     });
   },
 
-  deleteProject: async (id) => {
+  deleteProject: async (id: string | number) => {
     return api(`/projects/${id}`, {
       method: "DELETE",
     });
@@ -50,7 +50,7 @@ export const projectService = {
   // ==========================================
   
   // 👉 UPDATE: Ditambahkan parameter page untuk paginasi Admin
-  getAllProjects: async (page = 1) => {
+  getAllProjects: async (page: number | string = 1) => {
     return api(`/admin/projects?page=${page}`);
   },
 
@@ -59,7 +59,7 @@ export const projectService = {
   },
 
   // 👉 UPDATE: txHash dibuat opsional/default string kosong
-  adminApprove: async (id, txHash = "") => {
+  adminApprove: async (id: string | number, txHash: string = "") => {
     const payload = txHash ? { tx_hash: txHash } : {};
     return api(`/admin/projects/${id}/approve`, {
       method: "POST",
@@ -68,7 +68,7 @@ export const projectService = {
     });
   },
 
-  adminReject: async (id, data, txHash = "") => {
+  adminReject: async (id: string | number, data: any, txHash: string = "") => {
     const payload = { ...data, ...(txHash && { tx_hash: txHash }) };
     return api(`/admin/projects/${id}/reject`, {
       method: "POST",
@@ -77,7 +77,7 @@ export const projectService = {
     });
   },
 
-  adminListProject: async (id, txHash = "") => {
+  adminListProject: async (id: string | number, txHash: string = "") => {
     const payload = txHash ? { tx_hash: txHash } : {};
     return api(`/admin/projects/${id}/list`, {
       method: "POST",
@@ -86,7 +86,7 @@ export const projectService = {
     });
   },
 
-  adminRejectAuditor: async (id, data, txHash = "") => {
+  adminRejectAuditor: async (id: string | number, data: any, txHash: string = "") => {
     const payload = { ...data, ...(txHash && { tx_hash: txHash }) };
     return api(`/admin/projects/${id}/reject-auditor`, {
       method: "POST",
@@ -100,12 +100,12 @@ export const projectService = {
   // ==========================================
   
   // 👉 UPDATE: Ditambahkan parameter page untuk paginasi Auditor
-  getAuditorProjects: async (page = 1) => {
+  getAuditorProjects: async (page: number | string = 1) => {
     return api(`/auditor/projects?page=${page}`);
   },
 
   // 👉 UPDATE: txHash dibuat opsional
-  auditorVerify: async (id, formData, txHash = "") => {
+  auditorVerify: async (id: string | number, formData: any, txHash: string = "") => {
     if (txHash) {
       formData.append('tx_hash', txHash);
     }
@@ -115,7 +115,7 @@ export const projectService = {
     });
   },
 
-  auditorReject: async (id, data, txHash = "") => {
+  auditorReject: async (id: string | number, data: any, txHash: string = "") => {
     const payload = { ...data, ...(txHash && { tx_hash: txHash }) };
     return api(`/auditor/projects/${id}/reject`, {
       method: "POST",
@@ -124,7 +124,7 @@ export const projectService = {
     });
   },
 
-  getProjectVersionDetail: async (projectId, versionId) => {
+  getProjectVersionDetail: async (projectId: string | number, versionId: string | number) => {
     return api(`/projects/${projectId}/versions/${versionId}`);
   },
 
@@ -132,7 +132,7 @@ export const projectService = {
   // PUBLIC / GENERAL / FAIL-SAFE ENDPOINTS
   // ==========================================
 
-  getProjectSnapshot: async (projectId, versionId, status) => {
+  getProjectSnapshot: async (projectId: string | number, versionId: string | number, status: string) => {
     return api(`/projects/${projectId}/versions/${versionId}/snapshot/${status}`);
   },
 
@@ -141,11 +141,11 @@ export const projectService = {
   },
 
   // FUNGSI UNTUK SINKRONISASI HASH SUSULAN
-  saveTxHash: async (id, txHash, snapshotId = null, blockchainTx = null) => {
-    const payload = {};
+  saveTxHash: async (id: string | number, txHash: string, snapshotId: string | number | null = null, blockchainTx: string | null = null) => {
+    const payload: any = {};
     if (txHash) payload.tx_hash = txHash;
     if (snapshotId) payload.snapshot_id = snapshotId;
-    if (blockchainTx) payload.blockchain_tx = blockchainTx; // 👉 Dikirim ke laravel sebagai blockchain_tx
+    if (blockchainTx) payload.blockchain_tx = blockchainTx;
     
     return api(`/projects/${id}/save-tx`, {
       method: "POST",
@@ -155,7 +155,7 @@ export const projectService = {
   },
 
   // FAIL-SAFE ROLLBACK
-  revertStatus: async (id, previousStatus) => {
+  revertStatus: async (id: string | number, previousStatus: string) => {
     return api(`/projects/${id}/revert-status`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -164,7 +164,7 @@ export const projectService = {
   },
 
   // 👉 NEW: Meminta Digital Signature dari Laravel sebelum Minting
-  requestMintSignature: async (id) => {
+  requestMintSignature: async (id: string | number) => {
     return api(`/admin/projects/${id}/request-mint-signature`, {
       method: "GET",
     });
