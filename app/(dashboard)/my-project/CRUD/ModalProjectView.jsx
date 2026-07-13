@@ -361,7 +361,7 @@ export default function ModalProjectView({ project, onClose }) {
                                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                         {log.txHash ? (
                                           <a 
-                                            href={`https://amoy.polygonscan.com/tx/${log.txHash}`} 
+                                            href={`https://polygonscan.com/tx/${log.txHash}`} 
                                             target="_blank" 
                                             rel="noreferrer" 
                                             style={{ fontSize: '0.75rem', color: '#0369a1', backgroundColor: '#e0f2fe', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
@@ -370,7 +370,7 @@ export default function ModalProjectView({ project, onClose }) {
                                           </a>
                                         ) : (
                                           <a 
-                                            href={`https://amoy.polygonscan.com/address/${log.actor}`} 
+                                            href={`https://polygonscan.com/address/${log.actor}`} 
                                             target="_blank" 
                                             rel="noreferrer" 
                                             title="TxHash belum tersimpan di DB, lihat log aktor"
@@ -382,7 +382,7 @@ export default function ModalProjectView({ project, onClose }) {
 
                                         {log.status === 'listed' && project.blockchain_tx && (
                                           <a 
-                                            href={`https://amoy.polygonscan.com/tx/${project.blockchain_tx}`} 
+                                            href={`https://polygonscan.com/tx/${project.blockchain_tx}`} 
                                             target="_blank" 
                                             rel="noreferrer" 
                                             style={{ fontSize: '0.75rem', color: '#b45309', backgroundColor: '#fef3c7', padding: '6px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'background 0.2s' }}
