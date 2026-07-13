@@ -51,26 +51,42 @@ export default function ModalListingProject({ project, onClose, onList, onReject
     return `${backendRoot}/storage/${cleanPath}`;
   };
 
-  // --- DATA FILTERING ---
-  const allDocs = activeVersion.documents || [];
-  const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'issuer');
-  const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role === 'issuer');
-  
-  const issuerSpecs = {
-    total_system_capacity_kwp: activeVersion.total_system_capacity_kwp,
-    inverter_capacity_kw: activeVersion.inverter_capacity_kw,
-    installation_date: activeVersion.installation_date,
-    panel_brand: activeVersion.panel_brand,
-    inverter_brand: activeVersion.inverter_brand,
-    period_start: activeVersion.period_start,
-    period_end: activeVersion.period_end,
-  };
+  // --- DATA FILTERING (ALGORITMA EKSTRAKSI DOKUMEN CERDAS) ---
+    const allDocs = activeVersion.documents || [];
+    
+    // Pisahkan milik Issuer (jangan patok uploader_role === 'issuer' saja, tapi yang bukan auditor)
+    const issuerImages = allDocs.filter(d => d.type === 'image' && d.uploader_role !== 'auditor');
+    const issuerDocs = allDocs.filter(d => d.type === 'document' && d.uploader_role !== 'auditor');
+    
+    const issuerSpecs = {
+      total_system_capacity_kwp: activeVersion.total_system_capacity_kwp,
+      inverter_capacity_kw: activeVersion.inverter_capacity_kw,
+      installation_date: activeVersion.installation_date,
+      panel_brand: activeVersion.panel_brand,
+      inverter_brand: activeVersion.inverter_brand,
+      period_start: activeVersion.period_start,
+      period_end: activeVersion.period_end,
+    };
 
-  const auditDocs = allDocs.filter(d => (d.type === 'audit_report' || d.type === 'document') && d.uploader_role === 'auditor');
-  const auditImages = allDocs.filter(d => d.type === 'image' && d.uploader_role === 'auditor');
-  
-  const reportData = activeVersion.audit_report || activeVersion.auditReport;
-  const auditorUser = reportData?.auditor || project.auditor || null;
+    // Ambil data Report Audit
+    const reportData = activeVersion.audit_report || activeVersion.auditReport;
+    const auditorUser = reportData?.auditor || project.auditor || null;
+
+    // Gabungkan dokumen auditor dari relasi activeVersion.documents dan audit_report.documents
+    const reportDocs = reportData?.documents || []; 
+    const versionAuditorDocs = allDocs.filter(d => d.uploader_role === 'auditor' || ['audit_report', 'audit_image', 'evidence'].includes(d.type));
+    
+    const allAuditorDocs = [...versionAuditorDocs, ...reportDocs];
+    
+    // Hapus duplikasi jika file yang sama muncul di kedua relasi
+    const uniqueAuditorDocs = allAuditorDocs.filter((obj, index, self) =>
+        index === self.findIndex((t) => (t.id === obj.id))
+    );
+
+    // Filter khusus gambar dan dokumen laporan
+    const auditImages = uniqueAuditorDocs.filter(d => ['image', 'audit_image', 'evidence'].includes(d.type));
+    const auditDocs = uniqueAuditorDocs.filter(d => ['document', 'audit_report', 'pdf'].includes(d.type));
+    // -------------------------------------------------------------
 
   const isAuditorReviewed = ['approved', 'rejected', 'verified'].includes(activeVersion.auditor_verification_status);
 
