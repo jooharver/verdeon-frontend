@@ -19,7 +19,7 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
     audit_notes: '',
     calculation_method: 'system_estimated',
     verified_generation_kwh: '', 
-    baseline_emission_factor: '0.87',
+    baseline_emission_factor: '0.84',
     onsite_measurement_date: '',
   });
 
@@ -40,7 +40,7 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
   useEffect(() => {
     if (activeVersion?.status === 'returned_to_auditor' && reportData) {
       let oldEfSource = 'custom';
-      if (reportData.baseline_emission_factor == '0.87') oldEfSource = 'pln';
+      if (reportData.baseline_emission_factor == '0.84') oldEfSource = 'pln';
       else if (reportData.baseline_emission_factor == '1.30' || reportData.baseline_emission_factor == '1.3') oldEfSource = 'generator';
       setEfSource(oldEfSource);
 
@@ -49,7 +49,7 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
         audit_notes: reportData.audit_notes || '',
         calculation_method: reportData.calculation_method || 'system_estimated',
         verified_generation_kwh: reportData.verified_generation_kwh || '',
-        baseline_emission_factor: reportData.baseline_emission_factor || '0.87',
+        baseline_emission_factor: reportData.baseline_emission_factor || '0.84',
         onsite_measurement_date: reportData.onsite_measurement_date ? reportData.onsite_measurement_date.substring(0, 10) : '',
       });
 
@@ -305,12 +305,12 @@ export default function ModalAuditProject({ project, onClose, onSave }) {
                         value={efSource} 
                         onChange={(e) => {
                           setEfSource(e.target.value);
-                          if(e.target.value === 'pln') setFormData(p => ({...p, baseline_emission_factor: '0.87'}));
+                          if(e.target.value === 'pln') setFormData(p => ({...p, baseline_emission_factor: '0.84'}));
                           if(e.target.value === 'generator') setFormData(p => ({...p, baseline_emission_factor: '1.30'}));
                           if(e.target.value === 'custom') setFormData(p => ({...p, baseline_emission_factor: ''}));
                         }}
                       >
-                        <option value="pln">Grid PLN (0.87 tCO2e/MWh)</option>
+                        <option value="pln">Grid PLN (0.84 tCO2e/MWh)</option>
                         <option value="generator">Genset Diesel (1.30 tCO2e/MWh)</option>
                         <option value="custom">Input Manual / Kustom</option>
                       </select>
